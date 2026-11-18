@@ -16,7 +16,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "vite build && node server/app.mjs",
     "pg": "node scripts/pg.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop": "sh desktop/build.sh --install"
   },
   "dependencies": {
     "lucide-react": "^1.53.0",
