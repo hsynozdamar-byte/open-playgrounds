@@ -23,14 +23,14 @@ export function ProjectAutomations({ ctx, projectId }: { ctx: Ctx; worldId: stri
   const icon = (a: Automation) => { const p = platformsOf(s, a)[0]; return p ? <BrandIcon platform={p} size={15} /> : <Repeat size={14} />; };
   return (
     <section className="card kbcard pautos2">
-      <div className="cardhead"><Repeat size={15} className="hicon" /><h3>Otomasyonlar</h3><span className="n">{all.length}</span></div>
+      <div className="cardhead"><Repeat size={15} className="hicon" /><h3>Automations</h3><span className="n">{all.length}</span></div>
       {/* Her otomasyon bir çip: adı, saati, ayar simgesi. Birden çoksa çipe basınca işler o otomasyona daralır (Tümü ile geri). */}
-      <nav className="pafilter" aria-label="Otomasyonlar">
-        {!one && <button className={only ? "" : "on"} onClick={() => setOnly(null)}>Tümü</button>}
+      <nav className="pafilter" aria-label="Automations">
+        {!one && <button className={only ? "" : "on"} onClick={() => setOnly(null)}>All</button>}
         {all.map((a) => (
           <span key={a.id} className={`pachip ${!one && only === a.id ? "on" : ""} ${one ? "is-one" : ""} ${a.status !== "active" ? "is-paused" : ""}`}>
-            <button onClick={() => (one ? openAutoView(a.id) : setOnly(only === a.id ? null : a.id))}>{icon(a)}<SeriesDot color={a.color} /><b>{a.title}</b><span>{a.status !== "active" ? "Durdu" : scheduleText(a)}</span></button>
-            <button className="paset" onClick={() => openAutoView(a.id)} aria-label={`${a.title} ayarları`} title="Otomasyonu aç"><Settings2 size={14} /></button>
+            <button onClick={() => (one ? openAutoView(a.id) : setOnly(only === a.id ? null : a.id))}>{icon(a)}<SeriesDot color={a.color} /><b>{a.title}</b><span>{a.status !== "active" ? "Paused" : scheduleText(a)}</span></button>
+            <button className="paset" onClick={() => openAutoView(a.id)} aria-label={`${a.title} settings`} title="Open automation"><Settings2 size={14} /></button>
           </span>
         ))}
       </nav>

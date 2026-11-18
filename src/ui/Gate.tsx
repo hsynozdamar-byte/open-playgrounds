@@ -56,15 +56,15 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
               {[..."Playgrounds"].map((c, i) => <span key={i} className="gch" aria-hidden style={{ ["--i" as string]: i }}>{c}</span>)}
             </motion.h1>
             <motion.p className="gate-sub" initial={{ opacity: 0, y: 8, filter: "blur(6px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0 }} transition={{ duration: 0.7, delay: 1.25, ease }}>
-              {en ? "All your worlds, one calendar." : first ? `Tekrar hoş geldin, ${first}.` : "Bütün dünyaların, tek takvimde."}
+              {!en && first ? `Welcome back, ${first}.` : "All your worlds, one calendar."}
             </motion.p>
           </div>
           <motion.form className="gate-form" onSubmit={enter} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.7, delay: 1.4, ease }}>
             <div className="gate-fields">
-              <input type="email" value={mail} onChange={(e) => setMail(e.target.value)} placeholder={en ? "Email" : "E-posta"} autoComplete="email" aria-label={en ? "Email" : "E-posta"} autoFocus={!me.email} />
-              <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder={en ? "Password" : "Şifre"} autoComplete="current-password" aria-label={en ? "Password" : "Şifre"} autoFocus={!!me.email} />
+              <input type="email" value={mail} onChange={(e) => setMail(e.target.value)} placeholder="Email" autoComplete="email" aria-label="Email" autoFocus={!me.email} />
+              <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Password" autoComplete="current-password" aria-label="Password" autoFocus={!!me.email} />
             </div>
-            <button type="submit">{en ? "Sign in" : "Giriş yap"}</button>
+            <button type="submit">Sign in</button>
           </motion.form>
         </motion.div>
       )}

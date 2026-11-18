@@ -15,7 +15,7 @@ type Profile = { worldId: string; dir: string; exists: boolean; open: boolean; a
 type PB = { installed: boolean; running: boolean; profiles: Profile[]; other: (Page & { dir: string | null })[] };
 
 const post = (url: string, body: object) =>
-  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+  fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
 function usePb() {
@@ -45,23 +45,23 @@ function Watch({ ctx }: { ctx: Ctx }) {
   const worlds = ctx.state.worlds.filter((w) => ctx.route.lens === ALL || w.id === ctx.route.lens);
   const open = async (worldId: string) => {
     const r = await post("/api/pb/open", { worldId });
-    if (!r.ok) toast(r.error || "Açılamadı");
+    if (!r.ok) toast(r.error || "Couldn't open");
   };
-  const sub = !pb ? "Yükleniyor" : !pb.installed ? "Playgrounds uygulaması kurulu değil" : pb.running ? "Açık, her dünya kendi oturumunda" : "Kapalı, bir dünyayı açınca başlar";
+  const sub = !pb ? "Loading" : !pb.installed ? "The Playgrounds app isn't installed" : pb.running ? "Open, each world in its own session" : "Closed, starts when you open a world";
   return (
     <>
-      <PageHead ctx={ctx} title="Tarayıcı" sub={sub}>
-        {pb?.installed && worlds.length === 1 && <button className="btn primary" onClick={() => open(worlds[0].id)}><Monitor size={15} />Tarayıcıda göster</button>}
+      <PageHead ctx={ctx} title="Browser" sub={sub}>
+        {pb?.installed && worlds.length === 1 && <button className="btn primary" onClick={() => open(worlds[0].id)}><Monitor size={15} />Show in browser</button>}
       </PageHead>
       {pb && !pb.installed && (
         <section className="card pbnote">
-          <p>Playgrounds masaüstü uygulaması kurulu değil. Proje klasöründe <code>browser/build.sh</code> çalıştırınca kurulur.</p>
+          <p>The Playgrounds desktop app isn't installed. Run <code>browser/build.sh</code> in the project folder to install it.</p>
         </section>
       )}
       {pb?.installed && worlds.map((w) => <WorldProfile key={w.id} ctx={ctx} world={w} p={pb.profiles.find((x) => x.worldId === w.id)} tick={tick} onOpen={() => open(w.id)} />)}
       {pb?.installed && ctx.route.lens === ALL && pb.other.length > 0 && (
         <section className="card wgroup pbworld">
-          <header className="wghead"><span className="wgname"><b>Diğer profiller</b><span>{pb.other.length} sekme</span></span></header>
+          <header className="wghead"><span className="wgname"><b>Other profiles</b><span>{pb.other.length} tab{pb.other.length === 1 ? "" : "s"}</span></span></header>
           <ul className="strip pbtabs">{pb.other.map((x) => <TabTile key={x.id} t={x} tick={tick} />)}</ul>
         </section>
       )}
@@ -72,7 +72,7 @@ function Watch({ ctx }: { ctx: Ctx }) {
 function WorldProfile({ ctx, world, p, tick, onOpen }: { ctx: Ctx; world: World; p?: Profile; tick: number; onOpen: () => void }) {
   const accs = (world.accounts ?? []).filter((a) => a.platform !== "other");
   const pages = p?.pages ?? [];
-  const line = p?.open ? `${pages.length} sekme açık` : "Sekme yok";
+  const line = p?.open ? `${pages.length} tab${pages.length === 1 ? "" : "s"} open` : "No tabs";
   return (
     <section className="card wgroup pbworld" style={{ ["--w" as string]: world.color }}>
       <header className="wghead">
@@ -81,7 +81,7 @@ function WorldProfile({ ctx, world, p, tick, onOpen }: { ctx: Ctx; world: World;
           <b>{world.name}</b>
           <span>{line}</span>
         </button>
-        {ctx.route.lens === ALL && <button className="btn sm" onClick={onOpen}><Monitor size={14} />Tarayıcıda göster</button>}
+        {ctx.route.lens === ALL && <button className="btn sm" onClick={onOpen}><Monitor size={14} />Show in browser</button>}
       </header>
       {accs.length > 0 && (
         <ul className="acclist strip">
@@ -89,7 +89,7 @@ function WorldProfile({ ctx, world, p, tick, onOpen }: { ctx: Ctx; world: World;
         </ul>
       )}
       {pages.length > 0 && <ul className="strip pbtabs">{pages.map((t) => <TabTile key={t.id} t={t} tick={tick} />)}</ul>}
-      {!accs.length && !pages.length && <p className="muted pbempty">Bu dünyada tarayıcı hesabı yok. Hesaplar Gönderiler'den eklenir.</p>}
+      {!accs.length && !pages.length && <p className="muted pbempty">This world has no browser accounts. Add accounts from Posts.</p>}
     </section>
   );
 }
@@ -100,16 +100,16 @@ function PbAccount({ ctx, a, world, on }: { ctx: Ctx; a: Account; world: World; 
   const working = !!lg?.phase && !lg.error && lg.ok === undefined;
   const go = async (login: boolean) => {
     const r = await post("/api/pb/open", { accountId: a.id, login });
-    if (!r.ok) toast(r.error || "Açılamadı");
+    if (!r.ok) toast(r.error || "Couldn't open");
   };
-  const state = on ? { cls: "is-ok", text: "Giriş açık" } : on === false ? { cls: "is-off", text: "Giriş yok" } : { cls: "", text: "Oturum bilinmiyor" };
+  const state = on ? { cls: "is-ok", text: "Signed in" } : on === false ? { cls: "is-off", text: "Signed out" } : { cls: "", text: "Sign-in unknown" };
   return (
     <AccountTile ctx={ctx} a={a} world={world}>
       <div className="pbacc">
         <span className={`pbst ${working ? "is-busy" : state.cls}`}><i />{working ? lg!.phase : state.text}</span>
         {lg?.error && !working && <span className="pberr" title={lg.error}>{lg.error}</span>}
         <div className="pbactions">
-          {on ? <button className="btn sm" onClick={() => go(false)}><ExternalLink size={14} />Aç</button> : <button className="btn sm" onClick={() => go(true)}><LogIn size={14} />Giriş sayfası</button>}
+          {on ? <button className="btn sm" onClick={() => go(false)}><ExternalLink size={14} />Open</button> : <button className="btn sm" onClick={() => go(true)}><LogIn size={14} />Sign-in page</button>}
         </div>
       </div>
     </AccountTile>
@@ -129,12 +129,12 @@ function TabTile({ t, tick }: { t: Page; tick: number }) {
   }, [t.id, tick]);
   const focus = async () => {
     const r = await post("/api/pb/focus", { targetId: t.id });
-    if (!r.ok) toast(r.error || "Sekme bulunamadı");
+    if (!r.ok) toast(r.error || "Tab not found");
   };
   return (
     <li>
-      <button className={`pbtab ${t.rou ? "is-rou" : ""}`} onClick={focus} title="Tarayıcıda göster">
-        <span className="pbshot">{src ? <img src={src} alt="" /> : <span className="pbnoshot">{host(t.url)}<small>Henüz görüntü yok</small></span>}{t.rou && <span className="pbrou">{t.rou}</span>}</span>
+      <button className={`pbtab ${t.rou ? "is-rou" : ""}`} onClick={focus} title="Show in browser">
+        <span className="pbshot">{src ? <img src={src} alt="" /> : <span className="pbnoshot">{host(t.url)}<small>No image yet</small></span>}{t.rou && <span className="pbrou">{t.rou}</span>}</span>
         <span className="pbmeta"><b>{t.title || host(t.url)}</b><span>{host(t.url)}</span></span>
       </button>
     </li>

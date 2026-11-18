@@ -6,7 +6,7 @@ import type { Ctx } from "../lib";
 import { KEEP_DAYS, blocker, purgeTrash, restoreTrash, trashOrigin, trashSummary } from "../../shared/trash.mjs";
 import { toast } from "./Toast";
 
-// Çöp Kutusu: silinenler 30 gün durur (shared/trash.mjs). Geri al ya da kalıcı sil.
+// Trash: deleted items stay for 30 days (shared/trash.mjs). Restore them or delete them for good.
 export const openTrash = () => dispatchEvent(new Event("pg-trash"));
 
 export function TrashHost({ ctx }: { ctx: Ctx }) {
@@ -19,11 +19,11 @@ export function TrashHost({ ctx }: { ctx: Ctx }) {
   return <AnimatePresence>{open && <Trash ctx={ctx} onClose={() => setOpen(false)} />}</AnimatePresence>;
 }
 
-const KIND: Record<Bin["kind"], string> = { world: "Dünya", project: "Proje", task: "Görev", auto: "Otomasyon", run: "Çıktı", note: "Not", account: "Hesap", source: "Bilgi" };
+const KIND: Record<Bin["kind"], string> = { world: "World", project: "Project", task: "Task", auto: "Automation", run: "Output", note: "Note", account: "Account", source: "Source" };
 
 function ago(at: string) {
   const d = Math.floor((Date.now() - Date.parse(at)) / 864e5);
-  return d <= 0 ? "bugün" : d === 1 ? "dün" : `${d} gün önce`;
+  return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
 }
 
 function Trash({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
@@ -38,7 +38,7 @@ function Trash({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
 
   const restore = (b: Bin) => {
     ctx.mutate((st) => void restoreTrash(st, b.id));
-    toast(`“${b.title}” geri alındı`);
+    toast(`“${b.title}” restored`);
   };
   const purge = (id?: string) => {
     ctx.mutate((st) => purgeTrash(st, id));
@@ -47,26 +47,26 @@ function Trash({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
 
   return (
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div className="modal backups" role="dialog" aria-label="Çöp Kutusu" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8 }}>
+      <motion.div className="modal backups" role="dialog" aria-label="Trash" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8 }}>
         <header className="bkhead">
           <div>
-            <h2>Çöp Kutusu</h2>
-            <p>Silinenler {KEEP_DAYS} gün burada durur, sonra kendiliğinden gider.</p>
+            <h2>Trash</h2>
+            <p>Deleted items stay here for {KEEP_DAYS} days, then go away on their own.</p>
           </div>
-          {list.length > 0 && ask !== "all" && <button className="btn sm ghost" onClick={() => setAsk("all")}>Boşalt</button>}
-          <button className="iconbtn" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          {list.length > 0 && ask !== "all" && <button className="btn sm ghost" onClick={() => setAsk("all")}>Empty trash</button>}
+          <button className="iconbtn" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </header>
         {ask === "all" && (
           <div className="bkconfirm">
-            <p>Çöp Kutusu'ndaki {list.length} kayıt kalıcı olarak silinir. Bu geri alınamaz.</p>
+            <p>{list.length} {list.length === 1 ? "item" : "items"} in the Trash will be deleted for good. This cannot be undone.</p>
             <div className="foot">
               <span />
-              <button className="btn sm" onClick={() => setAsk(null)}>Vazgeç</button>
-              <button className="btn sm dangerfill" onClick={() => purge()}>Evet, boşalt</button>
+              <button className="btn sm" onClick={() => setAsk(null)}>Cancel</button>
+              <button className="btn sm dangerfill" onClick={() => purge()}>Yes, empty</button>
             </div>
           </div>
         )}
-        {!list.length ? <p className="muted bkempty">Çöp Kutusu boş.</p> : (
+        {!list.length ? <p className="muted bkempty">The Trash is empty.</p> : (
           <ul className="bklist">
             {list.map((b) => {
               const wait = blocker(s, b);
@@ -77,22 +77,22 @@ function Trash({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
                   <div className="bkrow">
                     <span className="bktx">
                       <b>{b.title}</b>
-                      <span className="bkmeta">{[KIND[b.kind], from, sum && `içinde ${sum}`, ago(b.at)].filter(Boolean).map((x, i) => <Fragment key={i}>{i ? " · " : ""}<i>{x}</i></Fragment>)}{wait ? ` · önce ${wait} geri alınmalı` : ""}</span>
+                      <span className="bkmeta">{[KIND[b.kind], from, sum && `contains ${sum}`, ago(b.at)].filter(Boolean).map((x, i) => <Fragment key={i}>{i ? " · " : ""}<i>{x}</i></Fragment>)}{wait ? ` · restore ${wait} first` : ""}</span>
                     </span>
                     {ask !== b.id && (
                       <>
-                        <button className="btn sm ghost" onClick={() => setAsk(b.id)}>Kalıcı sil</button>
-                        <button className="btn sm" disabled={!!wait} onClick={() => restore(b)}>Geri al</button>
+                        <button className="btn sm ghost" onClick={() => setAsk(b.id)}>Delete forever</button>
+                        <button className="btn sm" disabled={!!wait} onClick={() => restore(b)}>Restore</button>
                       </>
                     )}
                   </div>
                   {ask === b.id && (
                     <div className="bkconfirm">
-                      <p>“{b.title}” kalıcı olarak silinir. Bu geri alınamaz.</p>
+                      <p>“{b.title}” will be deleted for good. This cannot be undone.</p>
                       <div className="foot">
                         <span />
-                        <button className="btn sm" onClick={() => setAsk(null)}>Vazgeç</button>
-                        <button className="btn sm dangerfill" onClick={() => purge(b.id)}>Evet, sil</button>
+                        <button className="btn sm" onClick={() => setAsk(null)}>Cancel</button>
+                        <button className="btn sm dangerfill" onClick={() => purge(b.id)}>Yes, delete</button>
                       </div>
                     </div>
                   )}

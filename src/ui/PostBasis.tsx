@@ -5,7 +5,7 @@ import { postBasis, topicOk } from "../postBasis";
 import { kickOffWhat, prepare } from "./Auto";
 import { toast } from "./Toast";
 
-export const SHORT_TOPIC = "Konu çok kısa. Başlığa ne anlatılacağını yaz, Rou ona göre yazar.";
+export const SHORT_TOPIC = "The topic is too short. Write what the post should say in the title, and Rou writes from that.";
 
 // Elle eklenen gönderinin kartında: Rou bu gönderiyi neye göre yazacak. Çıktı yoksa buradan hazırlatılır.
 export function PostBasis({ task, ctx }: { task: Task; ctx: Ctx }) {
@@ -16,23 +16,23 @@ export function PostBasis({ task, ctx }: { task: Task; ctx: Ctx }) {
   const go = () => {
     if (!ok) return toast(SHORT_TOPIC);
     void prepare(task.id);
-    toast("Rou gönderiyi hazırlıyor");
+    toast("Rou is preparing the post");
   };
   const rows: [string, string][] = [
-    ["Konu", b.topic || "Yok"],
-    ["Proje", b.project || "Projesiz"],
-    ["Proje markası", b.brand ? "Var" : "Yok"],
-    ["Hesap", b.account || "Yok"],
-    ["Hesabın tonu", b.voice || "Yazılmamış"],
-    ["Bilgi kaynakları", b.sources ? `${b.sources} kaynak` : "Yok"],
-    ["Bağlı olduğu", b.auto ? `Otomasyon: ${b.auto}` : "Tek seferlik"],
+    ["Topic", b.topic || "None"],
+    ["Project", b.project || "No project"],
+    ["Project brand", b.brand ? "Yes" : "None"],
+    ["Account", b.account || "None"],
+    ["Account voice", b.voice || "Not written"],
+    ["Sources", b.sources ? `${b.sources} ${b.sources === 1 ? "source" : "sources"}` : "None"],
+    ["Belongs to", b.auto ? `Automation: ${b.auto}` : "One-off"],
   ];
   return (
     <section className="dsec pbasis">
-      <div className="dsechead"><span className="flabel">Neye göre hazırlanır</span></div>
-      <dl>{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={k === "Konu" && !ok ? "is-warn" : ""}>{v}</dd></div>)}</dl>
+      <div className="dsechead"><span className="flabel">What it's prepared from</span></div>
+      <dl>{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={k === "Topic" && !ok ? "is-warn" : ""}>{v}</dd></div>)}</dl>
       {!ok && <p className="pbwarn">{SHORT_TOPIC}</p>}
-      {!ran && !kickOffWhat(s, task) && task.status !== "done" && <button className="btn sm dsecbtn" onClick={go}><Sparkles size={14} />Şimdi hazırlat</button>}
+      {!ran && !kickOffWhat(s, task) && task.status !== "done" && <button className="btn sm dsecbtn" onClick={go}><Sparkles size={14} />Prepare now</button>}
     </section>
   );
 }

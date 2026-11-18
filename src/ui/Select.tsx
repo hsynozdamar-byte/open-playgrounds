@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
-// Seçici: tarayıcının açılır listesi yerine uygulamanın kendi listesi. Tetikleyicinin altına açılır,
-// dünya gibi gruplar renk noktasıyla başlık olur. Klavye: oklar, Enter, Esc, Home/End.
+// Select: the app's own list instead of the browser's dropdown. Opens below the trigger,
+// groups such as worlds get a heading with a color dot. Keyboard: arrows, Enter, Esc, Home/End.
 export type SelectOpt = { value: string; label: string; color?: string };
 export type SelectGroup = { label?: string; color?: string; options: SelectOpt[] };
 
@@ -36,8 +36,8 @@ export function Select({ value, groups, onChange, label, children, className = "
   );
 }
 
-// Açılır kutunun yeri: tetikleyicinin hemen altına, en az onun genişliğinde. Altta yer azsa kutu kısalır ve kayar;
-// ancak altta hiç yer yoksa (160px'ten az) üste açılır. Ekran kenarından 12px içeride kalır.
+// Where the popup goes: right below the trigger, at least as wide as it. If there is little room below, the box shrinks and scrolls;
+// only if there is no room at all (under 160px) does it open upward. Stays 12px inside the screen edge.
 export function usePlace(anchor: React.RefObject<HTMLElement | null>, pop: React.RefObject<HTMLElement | null>, min = 240, max = 340) {
   const [pos, setPos] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null);
   useLayoutEffect(() => {
@@ -60,7 +60,7 @@ export function usePlace(anchor: React.RefObject<HTMLElement | null>, pop: React
   return pos;
 }
 
-// Dışarı tıklanınca kapanır (tetikleyiciye tıklamak tetikleyicinin kendi işi).
+// Closes on a click outside (a click on the trigger is the trigger's own business).
 export function useOutside(anchor: React.RefObject<HTMLElement | null>, pop: React.RefObject<HTMLElement | null>, onClose: () => void) {
   useEffect(() => {
     const down = (e: MouseEvent) => !pop.current?.contains(e.target as Node) && !anchor.current?.contains(e.target as Node) && onClose();
@@ -114,14 +114,14 @@ function Pop({ anchor, value, groups, label, onPick, onClose }: { anchor: React.
   );
 }
 
-// Dünya › proje seçicisi için gruplar: her dünyanın açık projeleri, sonunda "Projesiz" (değeri none:<dünya>).
+// Groups for the world › project picker: each world's open projects, then "No project" (value none:<world>).
 export function projectGroups(s: { worlds: { id: string; name: string; color: string }[]; projects: { id: string; worldId: string; name: string; status: string }[] }, keep?: string | null, val = (id: string) => id, none = (w: string) => `none:${w}`): SelectGroup[] {
   return s.worlds.map((w) => ({
     label: w.name,
     color: w.color,
     options: [
       ...s.projects.filter((p) => p.worldId === w.id && (p.status !== "done" || p.id === keep)).map((p) => ({ value: val(p.id), label: p.name })),
-      { value: none(w.id), label: "Projesiz" },
+      { value: none(w.id), label: "No project" },
     ],
   }));
 }

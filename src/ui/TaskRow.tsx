@@ -5,7 +5,7 @@ import { type Ctx, type Mutate, blocksOf, lateKind, projectOf, secsOf, sessionsO
 import { useState } from "react";
 import { daysBetween, dur, hm, iso, localTs, relDay, today } from "../date";
 
-const lateLabel = (day: string, t: string) => { const n = daysBetween(day, t); return n === 1 ? "dün" : `${n} gün`; };
+const lateLabel = (day: string, t: string) => { const n = daysBetween(day, t); return n === 1 ? "1 day" : `${n} days`; };
 import { clock, elapsed, pause, resume, spent, startTask, stop } from "../timer";
 import { useNow } from "./useNow";
 import { Check as CheckIcon, ChevronDown, ChevronRight, GripVertical, Pause, Play as PlayIcon, Repeat, Sparkles, Square } from "lucide-react";
@@ -25,7 +25,7 @@ export function Check({ task, mutate, size = 19, running }: { task: Task; mutate
     <motion.button
       className={`check ${done ? "on" : ""} ${task.status === "doing" ? "doing" : ""} ${task.status === "waiting" ? "waiting" : ""}`}
       style={{ width: size, height: size }}
-      aria-label={done ? "Geri al" : "Bitti"}
+      aria-label={done ? "Mark not done" : "Mark done"}
       whileTap={{ scale: 0.8 }}
       onClick={(e) => {
         e.stopPropagation();
@@ -34,13 +34,13 @@ export function Check({ task, mutate, size = 19, running }: { task: Task; mutate
         const undo = () => mutate((s) => { const x = s.tasks.find((y) => y.id === task.id); if (x) setStatus(x, prev === "done" ? "todo" : prev); });
         if (!done && running) {
           stop(mutate, true);
-          return toast("Görev tamamlandı", undo);
+          return toast("Task done", undo);
         }
         mutate((s) => {
           const x = s.tasks.find((y) => y.id === task.id);
           if (x) setStatus(x, done ? "todo" : "done");
         });
-        if (!done) toast("Görev tamamlandı", undo);
+        if (!done) toast("Task done", undo);
       }}
     >
       {task.status === "waiting" && <svg viewBox="0 0 16 16" className="cwait"><path d="M6.2 5.2v5.6M9.8 5.2v5.6" stroke="var(--w, var(--ink-3))" strokeWidth="1.8" strokeLinecap="round" /></svg>}
@@ -62,7 +62,7 @@ function BotGo({ task, ctx }: { task: Task; ctx: Ctx }) {
   if (task.status === "done" || !idle) return null;
   const who = "Rou";
   return (
-    <motion.button className="play botgo" whileTap={{ scale: 0.92 }} title={`${who} şimdi yapsın`} aria-label={`${who} şimdi yapsın`}
+    <motion.button className="play botgo" whileTap={{ scale: 0.92 }} title={`Let ${who} do it now`} aria-label={`Let ${who} do it now`}
       onClick={(e) => { e.stopPropagation(); doNow(ctx, task); }}>
       <Sparkles size={14} />
     </motion.button>
@@ -80,7 +80,7 @@ export function Play({ task, ctx, label }: { task: Task; ctx: Ctx; label?: boole
     <motion.button
       className={`play ${running ? "on" : ""} ${paused ? "is-paused" : ""} ${over ? "is-over" : ""} ${label ? "labeled" : ""}`}
       whileTap={{ scale: 0.92 }}
-      title={paused ? "Devam et" : running ? "Duraklat" : "Başla"}
+      title={paused ? "Resume" : running ? "Pause" : "Start"}
       onClick={(e) => {
         e.stopPropagation();
         if (paused) resume(ctx.mutate);
@@ -95,12 +95,12 @@ export function Play({ task, ctx, label }: { task: Task; ctx: Ctx; label?: boole
             const sec = elapsed(t!, now), total = t!.length * 60;
             return !total ? clock(sec) : sec >= total ? `+${clock(sec - total)}` : clock(total - sec);
           })()}</span>
-          {label && (paused ? <span>Devam et</span> : <><Pause size={14} fill="currentColor" strokeWidth={0} /><span>Duraklat</span></>)}
+          {label && (paused ? <span>Resume</span> : <><Pause size={14} fill="currentColor" strokeWidth={0} /><span>Pause</span></>)}
         </>
       ) : (
         <>
           <PlayIcon size={label ? 15 : 14} fill="currentColor" strokeWidth={0} />
-          {label && <span>Başla</span>}
+          {label && <span>Start</span>}
         </>
       )}
     </motion.button>
@@ -113,15 +113,15 @@ export function Play({ task, ctx, label }: { task: Task; ctx: Ctx; label?: boole
       <motion.button
         className={`play stopbtn ${label ? "labeled" : ""}`}
         whileTap={{ scale: 0.92 }}
-        title="Bitir, kaydet"
-        aria-label="Bitir, kaydet"
+        title="Stop and save"
+        aria-label="Stop and save"
         onClick={(e) => {
           e.stopPropagation();
           stop(ctx.mutate);
         }}
       >
         <Square size={12} fill="currentColor" strokeWidth={0} />
-        {label && <span>Bitir, kaydet</span>}
+        {label && <span>Stop and save</span>}
       </motion.button>
     </span>
   );
@@ -163,17 +163,17 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
       onDragEnd={(e) => (e as unknown as React.DragEvent<HTMLElement>).currentTarget.classList.remove("dragging")}
       onClick={() => ctx.open(task.id)}
     >
-      {o.grip ? <span className="grip" title="Sürükle"><GripVertical size={16} /></span>
-        : botAuto ? <span className="autotile" title="Otomasyon: Rou hazırlar">{(() => { const I = OUT_ICON[outputOf(ctx.state, botAuto)]; return <I size={15} />; })()}</span>
+      {o.grip ? <span className="grip" title="Drag"><GripVertical size={16} /></span>
+        : botAuto ? <span className="autotile" title="Automation: Rou prepares it">{(() => { const I = OUT_ICON[outputOf(ctx.state, botAuto)]; return <I size={15} />; })()}</span>
         : <Check task={task} mutate={ctx.mutate} running={ctx.state.timer?.taskId === task.id} />}
       <div className="rbody">
         <span className="rtitle">{task.title}</span>
         <span className="meta">
-          {o.card && !botAuto && task.status === "todo" && lateKind(task, t) !== "day" && <span className="st todo">Yapılacak</span>}
-          {task.status === "doing" && <span className="st doing">Yapılıyor</span>}
-          {task.status === "waiting" && <span className="st waiting">Beklemede</span>}
-          {!o.card && !task.autoId && task.who && task.who !== "me" && <span className="st who">Rou yapar</span>}
-          {!botAuto && lateKind(task, t) === "day" && <span className="st late" title={`Planlanan gün: ${relDay(task.day!)}`}>Gecikti · {lateLabel(task.day!, t)}</span>}
+          {o.card && !botAuto && task.status === "todo" && lateKind(task, t) !== "day" && <span className="st todo">To do</span>}
+          {task.status === "doing" && <span className="st doing">In progress</span>}
+          {task.status === "waiting" && <span className="st waiting">Waiting</span>}
+          {!o.card && !task.autoId && task.who && task.who !== "me" && <span className="st who">Rou does it</span>}
+          {!botAuto && lateKind(task, t) === "day" && <span className="st late" title={`Planned for ${relDay(task.day!)}`}>Late · {lateLabel(task.day!, t)}</span>}
           {blocks.map((b) => <span key={b.id} className="tm">{hm(b.start)}–{hm(b.end)}</span>)}
           {task.day && ((o.day && lateKind(task, t) !== "day") || (botAuto && task.day < t)) && <span>{relDay(task.day)}</span>}
           {o.card ? (o.world || p) && <span className="wdp"><i />{o.world && <span>{w.name}</span>}{o.world && p && <em>›</em>}{p && <b>{p.name}</b>}</span> : <>
@@ -184,15 +184,15 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
             <button className={`subtoggle ${open ? "is-open" : ""}`} onClick={(e) => (e.stopPropagation(), setOpen(!open))} aria-expanded={open}>
               {checks > 0 && <span>☑ {task.checklist.filter((c) => c.done).length}/{checks}</span>}
               {sec > 0 && <span>⏱ {spent(sec)}{task.estimate ? ` / ${dur(task.estimate)}` : ""}</span>}
-              {sessions.length > 0 && <b>{sessions.length} kayıt</b>}
+              {sessions.length > 0 && <b>{sessions.length} {sessions.length === 1 ? "session" : "sessions"}</b>}
               <ChevronDown size={13} />
             </button>
           ) : (
             task.estimate && <span>⏱ {dur(task.estimate)}</span>
           )}
-          {task.deadline && <span className={late ? "st late" : "dlm"}>⚑ {late ? `Deadline geçti · ${relDay(task.deadline)}` : relDay(task.deadline)}</span>}
+          {task.deadline && <span className={late ? "st late" : "dlm"}>⚑ {late ? `Deadline passed · ${relDay(task.deadline)}` : relDay(task.deadline)}</span>}
           {botAuto && platformsOf(s, botAuto).length > 0 && (() => { const fmt = formatOf(s, botAuto); return <span className="autoplat">{platformsOf(s, botAuto).map((pl) => <BrandIcon key={pl} platform={pl} size={13} />)}{fmt ? FORMATS[fmt]?.short : OUTPUT_LABEL[outputOf(s, botAuto)]}</span>; })()}
-          {(() => { const a = autoOf(s, task); return a && a.who === "me" ? <span className="rp" title={`Otomasyon: ${scheduleText(a)}`}><Repeat size={12} />Otomasyon</span> : null; })()}
+          {(() => { const a = autoOf(s, task); return a && a.who === "me" ? <span className="rp" title={`Automation: ${scheduleText(a)}`}><Repeat size={12} />Automation</span> : null; })()}
         </span>
         <AnimatePresence initial={false}>
           {open && hasSub && (
@@ -201,7 +201,7 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
                 <ul className="subchecks">
                   {task.checklist.map((c) => (
                     <li key={c.id} className={c.done ? "done" : ""}>
-                      <button className="box" onClick={() => ctx.mutate((st) => { const y = st.tasks.find((z) => z.id === task.id)?.checklist.find((z) => z.id === c.id); if (y) y.done = !y.done; })} aria-label={c.done ? "Geri al" : "Tamamla"}>
+                      <button className="box" onClick={() => ctx.mutate((st) => { const y = st.tasks.find((z) => z.id === task.id)?.checklist.find((z) => z.id === c.id); if (y) y.done = !y.done; })} aria-label={c.done ? "Mark not done" : "Mark done"}>
                         {c.done && <CheckIcon size={10} strokeWidth={3} />}
                       </button>
                       <span>{c.text}</span>
@@ -218,7 +218,7 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
                       <em>{x.mode === "pomo" ? "pomodoro · " : x.mode === "manual" ? "elle · " : ""}{spent((new Date(x.end).getTime() - new Date(x.start).getTime()) / 1000)}</em>
                     </li>
                   ))}
-                  {sessions.length > 5 && <li className="more"><button onClick={() => ctx.open(task.id)}>+{sessions.length - 5} kayıt daha</button></li>}
+                  {sessions.length > 5 && <li className="more"><button onClick={() => ctx.open(task.id)}>+{sessions.length - 5} more</button></li>}
                 </ul>
               )}
             </motion.div>
@@ -232,8 +232,8 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
         const mine = !st.busy && st.steps.find((x) => x.key === st.current)?.who === "Sen";
         const act = st.current === "approve" && mine;
         return (
-          <button className={`autochip rtailchip ${st.finished ? "is-done" : mine ? "is-you" : st.busy ? "is-busy" : ""} ${act ? "is-act" : ""}`} onClick={(e) => (e.stopPropagation(), ctx.open(task.id))} title={`Otomasyon: ${scheduleText(botAuto)}`}>
-            {act ? "Onayını bekliyor · İncele" : whereText(st, run)}
+          <button className={`autochip rtailchip ${st.finished ? "is-done" : mine ? "is-you" : st.busy ? "is-busy" : ""} ${act ? "is-act" : ""}`} onClick={(e) => (e.stopPropagation(), ctx.open(task.id))} title={`Automation: ${scheduleText(botAuto)}`}>
+            {act ? "Needs approval" : whereText(st, run)}
           </button>
         );
       })()}

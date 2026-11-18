@@ -33,7 +33,7 @@ function useStatus() {
 
 const since = (t: string) => {
   const m = Math.max(1, Math.round((Date.now() - new Date(t).getTime()) / 60000));
-  return m < 60 ? `${m} dk` : m < 48 * 60 ? `${Math.round(m / 60)} sa` : `${Math.round(m / 1440)} gün`;
+  return m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} days`;
 };
 const DAY = 26 * 3600 * 1000; // günlük iş: bir günden uzun görünmediyse uyarı
 
@@ -48,13 +48,13 @@ export function lights(ctx: Ctx, s: Status | null): Light[] {
   if (busy.length) used.add("claude");
   if (busy.length && s?.claude.state === "ok") {
     const t = ctx.state.tasks.find((x) => x.id === busy[0].taskId);
-    out.push({ id: "claude", name: "Rou", tone: "busy", text: busy.length > 1 ? `Çalışıyor: ${busy.length} görev` : `Çalışıyor: ${t?.title ?? busy[0].title} · ${busy[0].act?.live?.step ?? busy[0].live?.step ?? busy[0].phase ?? "hazırlıyor"}`, taskId: busy[0].taskId });
+    out.push({ id: "claude", name: "Rou", tone: "busy", text: busy.length > 1 ? `Working: ${busy.length} tasks` : `Working: ${t?.title ?? busy[0].title} · ${busy[0].act?.live?.step ?? busy[0].live?.step ?? busy[0].phase ?? "preparing"}`, taskId: busy[0].taskId });
   } else if (used.has("claude")) {
     const c = s?.claude.state;
-    out.push(!s ? { id: "claude", name: "Rou", tone: "idle", text: "Bakılıyor" }
-      : c === "ok" ? { id: "claude", name: "Rou", tone: "ok", text: "Hazır" }
-      : c === "missing" ? { id: "claude", name: "Rou", tone: "off", text: "Bu bilgisayarda kurulu değil", fix: "Claude Code'u kur, sonra terminalde `claude` yazıp giriş yap." }
-      : { id: "claude", name: "Rou", tone: "off", text: "Oturum kapalı", fix: "Terminalde `claude` yazıp giriş yap. Kapalıyken hazırlatma çalışmaz." });
+    out.push(!s ? { id: "claude", name: "Rou", tone: "idle", text: "Checking" }
+      : c === "ok" ? { id: "claude", name: "Rou", tone: "ok", text: "Ready" }
+      : c === "missing" ? { id: "claude", name: "Rou", tone: "off", text: "Not installed on this computer", fix: "Install Claude Code, then type `claude` in the terminal and sign in." }
+      : { id: "claude", name: "Rou", tone: "off", text: "Signed out", fix: "Type `claude` in the terminal and sign in. Preparing doesn't work while signed out." });
   }
   return out;
 }
@@ -67,8 +67,8 @@ export function AgentLights({ ctx }: { ctx: Ctx }) {
   if (!list.length) return null;
   return (
     <div className="agents">
-      <div className="cardhead"><h3>Hazırlayanlar</h3>
-        <button className="link" disabled={busy} onClick={() => (setBusy(true), load(true).finally(() => setBusy(false)))}>{busy ? "Bakılıyor" : "Yenile"}</button>
+      <div className="cardhead"><h3>Preparers</h3>
+        <button className="link" disabled={busy} onClick={() => (setBusy(true), load(true).finally(() => setBusy(false)))}>{busy ? "Checking" : "Refresh"}</button>
       </div>
       <ul>
         {list.map((l) => (

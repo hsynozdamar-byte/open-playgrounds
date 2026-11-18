@@ -4,7 +4,7 @@ import { uid } from "./store";
 import { restoreTrash, toTrash } from "../shared/trash.mjs";
 import { toast } from "./ui/Toast";
 
-// Siler ve Çöp Kutusu'na koyar; bildirimdeki "Geri al" çöpten geri getirir.
+// Deletes and puts the records in the Trash; the toast's "Undo" brings them back from the Trash.
 export function binIt(ctx: Pick<Ctx, "mutate">, kind: Bin["kind"], title: string, recs: Bin["recs"], remove: (s: Ctx["state"]) => void, msg: string) {
   const id = uid();
   const snap = structuredClone(recs);

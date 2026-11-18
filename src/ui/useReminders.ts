@@ -52,7 +52,7 @@ export function useReminders(ctx: Ctx) {
       const due = s.tasks.filter((x) => x.deadline === t && x.status !== "done");
       done.add(k);
       changed = true;
-      if (due.length) toast(due.length === 1 ? `Bugün deadline: ${due[0].title}` : `Bugün ${due.length} görevin deadline'ı var`, () => (due.length === 1 ? ctx.open(due[0].id) : ctx.go({ view: "focus" })), "Göster");
+      if (due.length) toast(due.length === 1 ? `Deadline today: ${due[0].title}` : `${due.length} tasks have a deadline today`, () => (due.length === 1 ? ctx.open(due[0].id) : ctx.go({ view: "focus" })), "Show");
     }
     for (const b of dueBlocks(s)) {
       const k = `b:${b.start.slice(0, 10)}:${b.id}`;
@@ -61,8 +61,8 @@ export function useReminders(ctx: Ctx) {
       changed = true;
       const title = blockTitle(s, b);
       chime();
-      notify(`${hm(b.start)} · ${title}`, "Başlama zamanı.");
-      toast(`${hm(b.start)} · ${title} başlıyor`, () => startTask(ctx.mutate, b.taskId!), "Başla");
+      notify(`${hm(b.start)} · ${title}`, "Time to start.");
+      toast(`${hm(b.start)} · ${title} is starting`, () => startTask(ctx.mutate, b.taskId!), "Start");
     }
     if (changed) remember(done);
   }, [s, minute]);

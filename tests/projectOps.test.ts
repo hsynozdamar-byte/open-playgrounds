@@ -22,7 +22,7 @@ describe("project delete and move", () => {
   });
 
   it("says what goes with the project", () => {
-    expect(projectStats(state(), "p1")).toBe("İçindekiler de silinir: 1 görev, 1 odak kaydı. Hemen ardından geri alabilirsin.");
+    expect(projectStats(state(), "p1")).toBe("Everything inside goes too: 1 task, 1 focus session. You can undo right after.");
   });
 
   it("moves a project with its tasks, blocks and automations to another world", () => {

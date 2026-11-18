@@ -25,12 +25,12 @@ export function setTopic(ctx: Ctx, a: Automation, day: string, slot: string, t: 
 }
 
 export async function suggestTopics(ctx: Ctx, a: Automation, count: number) {
-  const r = await fetch("/api/plan-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ autoId: a.id, count }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
-  if (!r.ok) return toast(`Konular gelmedi: ${r.error ?? "hata"}`);
+  const r = await fetch("/api/plan-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ autoId: a.id, count }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
+  if (!r.ok) return toast(`No topics came back: ${r.error ?? "error"}`);
   // Elle yazılmış konuya dokunmaz; yalnız boş olanları doldurur.
   const items = (r.items as { day: string; slot: string; title: string; brief: string; source?: string }[]).filter((x) => !topicOf(ctx.state, a, x.day, x.slot));
   for (const x of items) setTopic(ctx, a, x.day, x.slot, { title: x.title, brief: x.brief, ...(x.source ? { source: x.source } : {}) });
-  toast(items.length ? `${items.length} gönderinin konusu planlandı` : "Boş konu kalmadı");
+  toast(items.length ? `Topics planned for ${items.length} ${items.length === 1 ? "post" : "posts"}` : "No empty topics left");
 }
 
 // Otomasyon saatlerini (iş açılmamışsa açarak) Rou'nun sırasına alır; konu otomasyondan işe geçer.
@@ -44,7 +44,7 @@ export function queueSlots(ctx: Ctx, list: { a: Automation; day: string; slot: s
   });
   const all = [...ids, ...extra];
   setTimeout(() => queuePrepare(all), 500);
-  toast(`${all.length} gönderi Rou'nun sırasına eklendi; birbiri ardına hazırlar`);
+  toast(`${all.length} ${all.length === 1 ? "post" : "posts"} added to Rou's queue; Rou prepares them one by one`);
 }
 
 // Satırın durumu: boşta, sırada, hazırlanıyor ya da hazırlanamadı.

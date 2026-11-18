@@ -39,62 +39,62 @@ export function Settings({ ctx, onRename }: { ctx: Ctx; onRename: () => void }) 
   const logout = () => { try { sessionStorage.removeItem("pg-in"); } catch { /* yok */ } dispatchEvent(new Event(LOGOUT)); };
 
   return (
-    <section className="prosettings" aria-label="Ayarlar">
+    <section className="prosettings" aria-label="Settings">
       <div className="setcol">
         <div className="card setcard">
-          <h2>Odak</h2>
+          <h2>Focus</h2>
           <div className="setrow"><Timer size={16} strokeWidth={1.9} /><span>Pomodoro</span>
-            <div className="seg sm" role="radiogroup" aria-label="Pomodoro süresi, dakika">{POMO_OPTS.map((m) => <button key={m} role="radio" aria-checked={pomo === m} className={pomo === m ? "on" : ""} onClick={() => lens(m, brk)}>{m}</button>)}</div>
+            <div className="seg sm" role="radiogroup" aria-label="Pomodoro length, minutes">{POMO_OPTS.map((m) => <button key={m} role="radio" aria-checked={pomo === m} className={pomo === m ? "on" : ""} onClick={() => lens(m, brk)}>{m}</button>)}</div>
           </div>
-          <div className="setrow"><Coffee size={16} strokeWidth={1.9} /><span>Mola</span>
-            <div className="seg sm" role="radiogroup" aria-label="Mola süresi, dakika">{BREAK_OPTS.map((m) => <button key={m} role="radio" aria-checked={brk === m} className={brk === m ? "on" : ""} onClick={() => lens(pomo, m)}>{m}</button>)}</div>
+          <div className="setrow"><Coffee size={16} strokeWidth={1.9} /><span>Break</span>
+            <div className="seg sm" role="radiogroup" aria-label="Break length, minutes">{BREAK_OPTS.map((m) => <button key={m} role="radio" aria-checked={brk === m} className={brk === m ? "on" : ""} onClick={() => lens(pomo, m)}>{m}</button>)}</div>
           </div>
-          <div className="setrow"><Bell size={16} strokeWidth={1.9} /><span>Bildirimler</span>
-            {perm === "granted" ? <em className="setval">Açık</em> : perm === "default" ? <button className="btn sm" onClick={ask}>İzin ver</button> : <em className="setval">Kapalı</em>}
+          <div className="setrow"><Bell size={16} strokeWidth={1.9} /><span>Notifications</span>
+            {perm === "granted" ? <em className="setval">On</em> : perm === "default" ? <button className="btn sm" onClick={ask}>Allow</button> : <em className="setval">Off</em>}
           </div>
-          <label className="setrow"><Sparkles size={16} strokeWidth={1.9} /><span>Hareketli logolar</span>
+          <label className="setrow"><Sparkles size={16} strokeWidth={1.9} /><span>Moving logos</span>
             <input type="checkbox" role="switch" className="setswitch" checked={!still} onChange={(e) => motion(!e.target.checked)} />
           </label>
         </div>
-        <p className="setfoot">Süreler dakika. Çalışan bir pomodoro hemen güncellenir.</p>
+        <p className="setfoot">Lengths are in minutes. A running pomodoro updates right away.</p>
       </div>
 
       <div className="setcol">
         <div className="card setcard">
-          <h2>Veri</h2>
-          <button className="setrow" onClick={exportData}><Download size={16} strokeWidth={1.9} /><span>Verileri dışa aktar</span><ChevronRight className="go" size={16} /></button>
-          <button className="setrow" onClick={openBackups}><History size={16} strokeWidth={1.9} /><span>Yedekler</span><ChevronRight className="go" size={16} /></button>
-          <button className="setrow" onClick={openTrash}><Trash2 size={16} strokeWidth={1.9} /><span>Çöp Kutusu</span>{!!ctx.state.trash?.length && <b className="n">{ctx.state.trash.length}</b>}<ChevronRight className="go" size={16} /></button>
-          <label className="setrow settext"><MapPin size={16} strokeWidth={1.9} /><span>İşlerim nerede?</span>
-            <textarea className="setin" rows={3} key={`h${set.workHints ?? ""}`} defaultValue={set.workHints ?? ""} placeholder="Ör. portfolyo sitem example.com/work, videolar ~/Videolar"
+          <h2>Data</h2>
+          <button className="setrow" onClick={exportData}><Download size={16} strokeWidth={1.9} /><span>Export data</span><ChevronRight className="go" size={16} /></button>
+          <button className="setrow" onClick={openBackups}><History size={16} strokeWidth={1.9} /><span>Backups</span><ChevronRight className="go" size={16} /></button>
+          <button className="setrow" onClick={openTrash}><Trash2 size={16} strokeWidth={1.9} /><span>Trash</span>{!!ctx.state.trash?.length && <b className="n">{ctx.state.trash.length}</b>}<ChevronRight className="go" size={16} /></button>
+          <label className="setrow settext"><MapPin size={16} strokeWidth={1.9} /><span>Where is my work?</span>
+            <textarea className="setin" rows={3} key={`h${set.workHints ?? ""}`} defaultValue={set.workHints ?? ""} placeholder="E.g. my portfolio at example.com/work, videos in ~/Movies"
               onBlur={(e) => e.target.value.trim() !== (set.workHints ?? "") && saveHints(e.target.value)} />
           </label>
-          <label className="setrow settext"><FolderOpen size={16} strokeWidth={1.9} /><span>Rou'nun okuyabileceği klasörler</span>
-            <textarea className="setin" rows={3} key={`d${(set.workDirs ?? []).join("|")}`} defaultValue={(set.workDirs ?? []).join("\n")} placeholder={"Her satıra bir klasör, ör.\n~/Videolar/Proje"}
+          <label className="setrow settext"><FolderOpen size={16} strokeWidth={1.9} /><span>Folders Rou can read</span>
+            <textarea className="setin" rows={3} key={`d${(set.workDirs ?? []).join("|")}`} defaultValue={(set.workDirs ?? []).join("\n")} placeholder={"One folder per line, e.g.\n~/Movies/Project"}
               onBlur={(e) => e.target.value.split("\n").map((x) => x.trim()).filter(Boolean).join("\n") !== (set.workDirs ?? []).join("\n") && saveDirs(e.target.value)} />
           </label>
         </div>
-        <p className="setfoot">Her şey bu bilgisayarda saklanır, her gün yedeklenir. Rou gerçek işini ararken yalnız projelerin Medya klasörlerine ve buradaki klasörlere bakar.</p>
+        <p className="setfoot">Everything stays on this computer and is backed up every day. When Rou looks for your real work, it only reads the projects' Media folders and the folders listed here.</p>
       </div>
 
       <div className="setcol">
         <div className="card setcard">
-          <h2>Hesap</h2>
-          <label className="setrow"><User size={16} strokeWidth={1.9} /><span>Ad</span>
-            <input className="setin" key={`n${me.name}`} defaultValue={me.name} placeholder="Adın"
+          <h2>Account</h2>
+          <label className="setrow"><User size={16} strokeWidth={1.9} /><span>Name</span>
+            <input className="setin" key={`n${me.name}`} defaultValue={me.name} placeholder="Your name"
               onBlur={(e) => e.target.value.trim() !== me.name && field("name", e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
           </label>
-          <label className="setrow"><Mail size={16} strokeWidth={1.9} /><span>E-posta</span>
-            <input className="setin" type="email" key={`e${me.email}`} defaultValue={me.email} placeholder="Ekle"
+          <label className="setrow"><Mail size={16} strokeWidth={1.9} /><span>Email</span>
+            <input className="setin" type="email" key={`e${me.email}`} defaultValue={me.email} placeholder="Add"
               onBlur={(e) => e.target.value.trim() !== me.email && field("email", e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
           </label>
           {/* Mobilde Tarayıcı sekmesi yok (yedi sayfa sığmıyor); buradan açılır. */}
-          <button className="setrow" onClick={() => ctx.go({ view: "browser", project: undefined })}><Globe size={16} strokeWidth={1.9} /><span>Tarayıcı ve oturumlar</span><ChevronRight className="go" size={16} /></button>
+          <button className="setrow" onClick={() => ctx.go({ view: "browser", project: undefined })}><Globe size={16} strokeWidth={1.9} /><span>Browser and sign-ins</span><ChevronRight className="go" size={16} /></button>
         </div>
         <div className="card setcard setout-card">
-          <button className="setrow setout" onClick={logout}><LogOut size={16} strokeWidth={1.9} /><span>Çıkış yap</span></button>
+          <button className="setrow setout" onClick={logout}><LogOut size={16} strokeWidth={1.9} /><span>Sign out</span></button>
         </div>
-        <p className="setfoot">Çıkış yapınca verilerin silinmez, karşılama ekranı açılır.</p>
+        <p className="setfoot">Signing out keeps your data and opens the welcome screen.</p>
       </div>
     </section>
   );

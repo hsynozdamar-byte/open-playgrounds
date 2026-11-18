@@ -49,7 +49,7 @@ describe("kopya gönderi", () => {
     expect(copyPost(s, "r1", "xx", { ids: { taskId: "a", runId: "b" } })).toHaveProperty("error");
     expect(copyPost(s, "r1", "yok", { ids: { taskId: "a", runId: "b" } })).toHaveProperty("error");
     expect(describeAction({ type: "copy_post", runId: "r1", accountId: "ig" }, s)).toBeNull();
-    expect(describeAction({ type: "copy_post", runId: "r1", accountId: "li" }, s)?.verb).toBe("Kopya gönderi aç");
+    expect(describeAction({ type: "copy_post", runId: "r1", accountId: "li" }, s)?.verb).toBe("Copy post");
     expect(s.tasks.length).toBe(3);
   });
 

@@ -16,13 +16,13 @@ type Col = "plan" | "work" | "done";
 type Card = { key: string; day: string | null; time: string; title: string; line: string; tone?: "you" | "bad" | "ok" | "ghost" | "late"; task?: Task; auto?: Automation };
 const HORIZON = 14;
 const COLS: { id: Col; label: string; empty: string }[] = [
-  { id: "plan", label: "Planlanan", empty: "Planlı görev yok" },
-  { id: "work", label: "Üzerinde çalışılan", empty: "Şu an süren iş yok" },
-  { id: "done", label: "Tamamlanan", empty: "Son 2 haftada biten yok" },
+  { id: "plan", label: "Planned", empty: "No planned tasks" },
+  { id: "work", label: "In progress", empty: "Nothing in progress" },
+  { id: "done", label: "Done", empty: "Nothing done in the last 2 weeks" },
 ];
 const STATUS: Record<Col, Task["status"]> = { plan: "todo", work: "doing", done: "done" };
 
-const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("tr", { hour: "2-digit", minute: "2-digit" }) : "");
+const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) : "");
 
 // manualOnly: otomasyonların görevleri burada değil (Otomasyonlar kartında, AutoRuns).
 export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; projectId: string; manualOnly?: boolean }) {
@@ -33,7 +33,7 @@ export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; project
   const [over, setOver] = useState<Col | null>(null);
   const runOf = (t: Task): Run | undefined => runOfTask(s.runs, t.id);
   const timeOf = (t: Task) => t.autoSlot || s.blocks.find((b) => b.taskId === t.id)?.start.slice(11, 16) || "";
-  const who = (t: Task) => (t.autoId ? s.automations.find((a) => a.id === t.autoId)?.who : t.who) === "claude" ? "Rou" : "Sen";
+  const who = (t: Task) => (t.autoId ? s.automations.find((a) => a.id === t.autoId)?.who : t.who) === "claude" ? "Rou" : "You";
 
   const cols: Record<Col, Card[]> = { plan: [], work: [], done: [] };
   for (const t of s.tasks.filter((x) => x.projectId === projectId && !(manualOnly && x.autoId))) {
@@ -42,14 +42,14 @@ export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; project
     if (t.status === "done" || r?.status === "posted") {
       const at = r?.postedAt ?? t.doneAt ?? (t.day ? `${t.day}T12:00` : "");
       if (!at || new Date(at).getTime() < since) continue;
-      cols.done.push({ ...base, day: iso(new Date(at)), time: hm(r?.postedAt ?? t.doneAt), line: r?.status === "posted" ? "Tamamlandı, paylaşıldı" : "Bitti", tone: "ok" });
+      cols.done.push({ ...base, day: iso(new Date(at)), time: hm(r?.postedAt ?? t.doneAt), line: r?.status === "posted" ? "Done, shared" : "Done", tone: "ok" });
     } else if (t.status === "doing" || t.status === "waiting" || (r && ["working", "ready", "approved", "failed"].includes(r.status))) {
-      const line = r?.status === "working" ? "Rou hazırlıyor" : r?.status === "ready" ? "Onayını bekliyor" : r?.status === "approved" ? (r.publish?.phase ?? "Paylaşılacak") : r?.status === "failed" ? "Hazırlanamadı" : t.status === "waiting" ? "Bekliyor" : "Üzerinde çalışılıyor";
+      const line = r?.status === "working" ? "Rou is preparing" : r?.status === "ready" ? "Awaiting your approval" : r?.status === "approved" ? (r.publish?.phase ?? "To be shared") : r?.status === "failed" ? "Couldn't prepare" : t.status === "waiting" ? "Waiting" : "In progress";
       cols.work.push({ ...base, line, tone: r?.status === "ready" ? "you" : r?.status === "failed" ? "bad" : undefined });
     } else {
       if (t.day && t.day > end) continue;
       const late = !!t.day && t.day < t0;
-      cols.plan.push({ ...base, line: `${late ? "Gecikti · " : ""}${t.autoId ? "Otomasyon · " : ""}${who(t)} ${who(t) === "Rou" ? "hazırlayacak" : "yapacak"}`, tone: late ? "late" : undefined });
+      cols.plan.push({ ...base, line: `${late ? "Late · " : ""}${t.autoId ? "Automation · " : ""}${who(t) === "Rou" ? "Rou will prepare it" : "You will do it"}`, tone: late ? "late" : undefined });
     }
   }
   // Otomasyonların henüz açılmamış saatleri: zamanlayıcı günü gelince açar; burada soluk kart.
@@ -60,7 +60,7 @@ export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; project
       for (const slot of slotsOf(a)) {
         if (s.tasks.some((t) => t.autoId === a.id && (t.autoDay ?? t.day) === day && (t.autoSlot ?? "") === slot)) continue;
         if (day === t0 && a.horizon && a.horizon >= t0) continue;
-        cols.plan.push({ key: `g-${a.id}-${day}-${slot}`, day, time: slot, title: a.topics?.[topicKey(day, slot)]?.title || a.title, line: `Otomasyon · ${a.title}`, tone: "ghost", auto: a });
+        cols.plan.push({ key: `g-${a.id}-${day}-${slot}`, day, time: slot, title: a.topics?.[topicKey(day, slot)]?.title || a.title, line: `Automation · ${a.title}`, tone: "ghost", auto: a });
       }
     }
   }
@@ -93,7 +93,7 @@ export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; project
                   lastDay = c.day;
                   return (
                     <li key={c.key}>
-                      {showDay && <p className="pbday">{c.day ? relDay(c.day) : "Tarihsiz"}</p>}
+                      {showDay && <p className="pbday">{c.day ? relDay(c.day) : "Someday"}</p>}
                       <button className={`pbcard ${c.tone ? `is-${c.tone}` : ""}`} draggable={!!c.task}
                         onDragStart={(e) => { if (c.task) { e.dataTransfer.setData("text/pg-task", c.task.id); e.dataTransfer.effectAllowed = "move"; } }}
                         onClick={() => open(c)}>

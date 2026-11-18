@@ -1,18 +1,18 @@
-// Soft Fluid küre parametreleri (React'sız): Playgrounds logosu ve dünya küreleri. FluidOrb.tsx ve Playground Browser (browser/ui/orbs.ts) kullanır.
+// Soft Fluid orb parameters (no React): the Playgrounds logo and world orbs. Used by FluidOrb.tsx and the browser orbs bundle.
 import { DEFAULTS, type FluidParams, hexRgb } from "./engine";
 
-// speed bir çarpan (1 = bileşenin kendi hızı); diğerleri doğrudan değer
+// speed is a multiplier (1 = the component's own speed); the others are direct values
 export type Tweaks = Partial<Pick<FluidParams, "speed" | "blur" | "noise" | "deform" | "warp" | "glow" | "spread">>;
 
-// Ana kimlik: cyan, mercan, pembe, mor, yumuşak mavi. 5 büyük renk alanı, yavaş ve sürekli.
-// Girdap paleti (döngüsel): turuncu, kırmızı-pembe, mor, mavi, camgöbeği, sarı
+// Main identity: cyan, coral, pink, purple, soft blue. 5 large color fields, slow and continuous.
+// Swirl palette (cyclic): orange, red-pink, purple, blue, cyan, yellow
 export const PLAYGROUNDS_COLORS = ["#ff4d1f", "#ff2d8f", "#9b2cff", "#1f3dff", "#1fd0f5", "#ffc21f"];
 export const playgroundsParams = (tweaks: Tweaks = {}): FluidParams => ({ ...DEFAULTS, colors: PLAYGROUNDS_COLORS, seed: 11, mode: 4, layers: 5, deform: 0.3, warp: 0.6, spread: 0.6, noise: 0.6, blur: 0.55, glow: 1, ...tweaks, speed: 1.4 * (tweaks.speed ?? 1) });
 
-// ---------- Dünya ----------
-// Girdi: kullanıcının seçtiği 1–3 renk. Tamamlayıcı ton seçilmediyse ana renkten üretilir.
-// Görünüm (referans 67): tek S kıvrımıyla kenetlenen iki şerit, aralarında beyaz pus. Kimlik (akış yönü, kıvrım,
-// yoğunluk) dünyanın kimliğinden türetilir: dünya tekrar açıldığında aynı kalır.
+// ---------- World ----------
+// Input: 1-3 colors chosen by the user. If no companion tone is chosen it is derived from the main color.
+// Look: two bands locked in a single S curve with white haze between them. Identity (flow direction, curve,
+// density) is derived from the world id, so it stays the same when the world is opened again.
 export type WorldColors = { primary: string; secondary?: string; accent?: string };
 
 export function hsl(hex: string): [number, number, number] {
@@ -35,10 +35,10 @@ export function seedOf(id: string) { let n = 7; for (const c of id) n = (n * 31 
 
 export function worldParams(id: string, colors: WorldColors, tweaks: Tweaks = {}): FluidParams {
   const s = seedOf(id), r = (k: number) => ((s * (k * 2654435761 % 1000)) % 1000) / 1000;
-  // Logo ile aynı yıkama küre, dünyanın renk ailesinde (seçilen ikinci/üçüncü renk varsa aileye katılır)
-  // Ton yakın tutulur (±25°): mavi dünya maviden, turuncu dünya turuncudan okunur
+  // The same wash sphere as the logo, in the world's color family (a chosen second/third color joins the family)
+  // Hue stays close (within 25 degrees): a blue world reads blue, an orange world reads orange
   const [h, sa, l] = hsl(colors.primary);
-  // İkinci ton seçildiyse alanlar iki renk arasında paylaşılır; seçilmediyse ana rengin yakın tonları
+  // If a second tone is chosen the fields are shared between the two colors; otherwise near tones of the main color
   let list: string[];
   if (colors.secondary) {
     const [h2, s2, l2] = hsl(colors.secondary);

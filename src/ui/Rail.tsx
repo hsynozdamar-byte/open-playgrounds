@@ -76,12 +76,12 @@ export function Rail(ctx: Ctx) {
   const leave = onProfile ? { view: "focus" as View, project: undefined } : {};
   const count = (id: string) => state.tasks.filter((x) => (id === ALL || x.worldId === id) && x.status !== "done" && x.day && x.day <= t).length;
   const pages: { id: View; label: string; short?: string; n?: number; Icon: LucideIcon; desk?: boolean }[] = [
-    { id: "focus", label: "Odak", Icon: Target, n: count(route.lens) },
-    { id: "calendar", label: "Takvim", Icon: CalendarDays },
-    { id: "inbox", label: "Defter", Icon: NotebookPen, n: inboxNew(state, route.lens).length },
-    { id: "projects", label: "Projeler", Icon: FolderKanban },
-    { id: "posts", label: "Gönderiler", Icon: Megaphone, n: postsWaiting(state, route.lens) },
-    { id: "browser", label: "Tarayıcı", Icon: Globe, desk: true },
+    { id: "focus", label: "Focus", Icon: Target, n: count(route.lens) },
+    { id: "calendar", label: "Calendar", Icon: CalendarDays },
+    { id: "inbox", label: "Notebook", Icon: NotebookPen, n: inboxNew(state, route.lens).length },
+    { id: "projects", label: "Projects", Icon: FolderKanban },
+    { id: "posts", label: "Posts", Icon: Megaphone, n: postsWaiting(state, route.lens) },
+    { id: "browser", label: "Browser", Icon: Globe, desk: true },
   ];
   return (
     <div className="chrome">
@@ -100,22 +100,22 @@ export function Rail(ctx: Ctx) {
               </WorldItem>
             ))}
           </Reorder.Group>
-          <button className="addworld" onClick={() => setAdding(true)} aria-label="Yeni dünya" title="Yeni dünya">
+          <button className="addworld" onClick={() => setAdding(true)} aria-label="New world" title="New world">
             <Plus size={16} strokeWidth={2} />
           </button>
         </div>
       </LayoutGroup>
       {/* Mobilde sol panelin altı (Profil, Çöp Kutusu, Yedekler) gizli; Profil buradan açılır, diğer ikisi Profil sayfasında. */}
-      <button className={`mprofile ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })} aria-label="Profil" title="Profil">
-        <span className="proav" aria-hidden>{(readMe().name || readMe().email || "S").slice(0, 1).toLocaleUpperCase("tr")}</span>
+      <button className={`mprofile ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })} aria-label="Profile" title="Profile">
+        <span className="proav" aria-hidden>{(readMe().name || readMe().email || "Y").slice(0, 1).toLocaleUpperCase("en")}</span>
       </button>
       <NoticeBell ctx={ctx} />
       <RouButton waiting={unseen} />
       </header>
       <nav className="rail">
-      <button className="searchbtn" onClick={openSearch} aria-label="Ara" title="Ara (⌘K)">
+      <button className="searchbtn" onClick={openSearch} aria-label="Search" title="Search (⌘K)">
         <Search className="pi" size={17} strokeWidth={1.9} />
-        <span className="tl">Ara</span>
+        <span className="tl">Search</span>
         <kbd>⌘K</kbd>
       </button>
       <LayoutGroup id="pages">
@@ -132,17 +132,17 @@ export function Rail(ctx: Ctx) {
       </LayoutGroup>
       <div className="railfoot">
         <button className={`pageitem proitem ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })}>
-          <span className="proav" aria-hidden>{(readMe().name || readMe().email || "S").slice(0, 1).toLocaleUpperCase("tr")}</span>
-          <span className="tl">Profil</span>
+          <span className="proav" aria-hidden>{(readMe().name || readMe().email || "Y").slice(0, 1).toLocaleUpperCase("en")}</span>
+          <span className="tl">Profile</span>
         </button>
         <button className="pageitem" onClick={openTrash}>
           <Trash2 className="pi" size={17} strokeWidth={1.9} />
-          <span className="tl">Çöp Kutusu</span>
+          <span className="tl">Trash</span>
           {!!state.trash?.length && <span className="n is-quiet">{state.trash.length}</span>}
         </button>
         <button className="pageitem" onClick={openBackups}>
           <History className="pi" size={17} strokeWidth={1.9} />
-          <span className="tl">Yedekler</span>
+          <span className="tl">Backups</span>
         </button>
       </div>
       </nav>
@@ -175,7 +175,7 @@ export function Rail(ctx: Ctx) {
           }}
           onDelete={() => {
             const { index: _i, world, ...rest } = takeWorld(state, editing.id);
-            binIt({ mutate }, "world", editing.name, { worlds: [world], ...rest }, (s) => removeWorld(s, editing.id), `${editing.name} silindi`);
+            binIt({ mutate }, "world", editing.name, { worlds: [world], ...rest }, (s) => removeWorld(s, editing.id), `${editing.name} deleted`);
             if (route.lens === editing.id) go({ lens: ALL });
             setEditId(null);
           }}
@@ -239,7 +239,7 @@ function Item({ on, onClick, label, hint, n, color, home, children }: { on: bool
     if (on) ref.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, [on]);
   return (
-    <button ref={ref} className={`railitem ${on ? "on" : ""} ${home ? "ishome" : ""}`} onClick={onClick} title={home ? "Tüm dünyalar" : hint ? `${label}: ${hint}` : label} style={color ? { ["--w" as string]: color } : undefined}>
+    <button ref={ref} className={`railitem ${on ? "on" : ""} ${home ? "ishome" : ""}`} onClick={onClick} title={home ? "All worlds" : hint ? `${label}: ${hint}` : label} style={color ? { ["--w" as string]: color } : undefined}>
       {/* Kritik sönümlü: hedefi geçmez, kenardaki öğeye gelirken taşıp kesik görünmez. */}
       {on && <motion.span layoutId="rail-ring" className="ring" transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} />}
       <motion.span className="orbwrap" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.92 }}>{children}</motion.span>
@@ -269,49 +269,49 @@ function WorldForm({ world, used = [], stats, onClose, onSave, onDelete }: { wor
           if (name.trim()) onSave({ name: name.trim(), color, color2: color2 || undefined, description: desc.trim() });
         }}
       >
-        <p className="flabel">{world ? "Dünya ayarları" : "Yeni dünya"}</p>
+        <p className="flabel">{world ? "World settings" : "New world"}</p>
         <div className="newworld">
           <Orb world={{ id: world?.id ?? "x", name, color, color2: color2 || undefined, description: "" }} size={52} blob />
-          <input className="big" autoFocus={!world} placeholder="Dünyanın adı" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="big" autoFocus={!world} placeholder="World name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="toneset">
-          <span className="flabel">Ana renk</span>
+          <span className="flabel">Main color</span>
           <div className="swatches">
             {SWATCHES.map((c) => (
               <button type="button" key={c} className={c === color ? "on" : ""} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
             ))}
-            <ColorPick className={`pick ${SWATCHES.includes(color) ? "" : "on"}`} title="Başka bir renk" value={color} onChange={setColor} label="Başka bir ana renk" />
+            <ColorPick className={`pick ${SWATCHES.includes(color) ? "" : "on"}`} title="Another color" value={color} onChange={setColor} label="Another main color" />
           </div>
         </div>
         <div className="toneset">
-          <span className="flabel">İkinci ton</span>
+          <span className="flabel">Second tone</span>
           <div className="swatches">
-            <button type="button" className={`auto ${color2 ? "" : "on"}`} onClick={() => setColor2("")} aria-label="Otomatik" title="Ana rengin yakın tonları">A</button>
+            <button type="button" className={`auto ${color2 ? "" : "on"}`} onClick={() => setColor2("")} aria-label="Automatic" title="Close tones of the main color">A</button>
             {SWATCHES.filter((c) => c !== color).map((c) => (
               <button type="button" key={c} className={c === color2 ? "on" : ""} style={{ background: c }} onClick={() => setColor2(c)} aria-label={c} />
             ))}
-            <ColorPick className={`pick ${color2 && !SWATCHES.includes(color2) ? "on" : ""}`} title="Başka bir renk" value={color2 || color} onChange={setColor2} label="Başka bir ikinci ton" />
+            <ColorPick className={`pick ${color2 && !SWATCHES.includes(color2) ? "on" : ""}`} title="Another color" value={color2 || color} onChange={setColor2} label="Another second tone" />
           </div>
         </div>
         <label className="field">
-          <span className="flabel">Kısa açıklama</span>
-          <input maxLength={80} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ör. Oyun projelerim, sosyal medya" />
+          <span className="flabel">Short description</span>
+          <input maxLength={80} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="E.g. My game projects, social media" />
         </label>
         {confirm && onDelete ? (
           <div className="wdel">
-            <p><b>{world?.name}</b> silinsin mi? {stats}</p>
+            <p>Delete <b>{world?.name}</b>? {stats}</p>
             <div className="foot">
               <span />
-              <button type="button" className="btn" onClick={() => setConfirm(false)}>Vazgeç</button>
-              <button type="button" className="btn dangerfill" onClick={onDelete}>Evet, sil</button>
+              <button type="button" className="btn" onClick={() => setConfirm(false)}>Cancel</button>
+              <button type="button" className="btn dangerfill" onClick={onDelete}>Yes, delete</button>
             </div>
           </div>
         ) : (
         <div className="foot">
-          {onDelete ? <button type="button" className="btn danger" onClick={() => setConfirm(true)}>Dünyayı sil</button> : null}
+          {onDelete ? <button type="button" className="btn danger" onClick={() => setConfirm(true)}>Delete world</button> : null}
           <span />
-          <button type="button" className="btn" onClick={onClose}>Vazgeç</button>
-          <button className="btn primary" disabled={!name.trim()}>{world ? "Kaydet" : "Oluştur"}</button>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={!name.trim()}>{world ? "Save" : "Create"}</button>
         </div>
         )}
       </motion.form>
@@ -354,12 +354,12 @@ function removeWorld(s: State, id: string) {
 function deleteStats(s: State, id: string) {
   const w = takeWorld(s, id);
   const parts = [
-    w.projects.length && `${w.projects.length} proje`,
-    w.tasks.length && `${w.tasks.length} görev`,
-    w.automations.length && `${w.automations.length} otomasyon`,
-    w.inbox.length && `${w.inbox.length} not`,
-    w.runs.length && `${w.runs.length} çıktı`,
-    w.sessions.length && `${w.sessions.length} odak kaydı`,
+    w.projects.length && `${w.projects.length} ${w.projects.length === 1 ? "project" : "projects"}`,
+    w.tasks.length && `${w.tasks.length} ${w.tasks.length === 1 ? "task" : "tasks"}`,
+    w.automations.length && `${w.automations.length} ${w.automations.length === 1 ? "automation" : "automations"}`,
+    w.inbox.length && `${w.inbox.length} ${w.inbox.length === 1 ? "note" : "notes"}`,
+    w.runs.length && `${w.runs.length} ${w.runs.length === 1 ? "output" : "outputs"}`,
+    w.sessions.length && `${w.sessions.length} focus ${w.sessions.length === 1 ? "session" : "sessions"}`,
   ].filter(Boolean);
-  return parts.length ? `İçindekiler de silinir: ${parts.join(", ")}. Hemen ardından geri alabilirsin.` : "İçinde hiçbir şey yok.";
+  return parts.length ? `Everything inside goes too: ${parts.join(", ")}. You can undo right after.` : "There is nothing inside.";
 }

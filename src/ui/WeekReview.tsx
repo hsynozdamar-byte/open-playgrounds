@@ -59,7 +59,7 @@ export function WeekReview({ ctx, start, onClose }: { ctx: Ctx; start: string; o
     const was = r.left.map((t) => ({ id: t.id, day: t.day }));
     const blocks = s.blocks.filter((b) => b.taskId && ids.includes(b.taskId));
     ctx.mutate((st) => moveLeft(st, ids, next));
-    toast(`${ids.length} görev ${dayLong(next)} gününe taşındı`, () => ctx.mutate((st) => {
+    toast(`${ids.length} ${ids.length === 1 ? "task" : "tasks"} moved to ${dayLong(next)}`, () => ctx.mutate((st) => {
       for (const w of was) { const t = st.tasks.find((x) => x.id === w.id); if (t) t.day = w.day; }
       st.blocks = [...st.blocks.filter((b) => !(b.taskId && ids.includes(b.taskId))), ...blocks];
     }));
@@ -67,18 +67,18 @@ export function WeekReview({ ctx, start, onClose }: { ctx: Ctx; start: string; o
 
   return (
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div className="modal review" role="dialog" aria-label="Hafta özeti" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
+      <motion.div className="modal review" role="dialog" aria-label="Week review" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
         <header className="bkhead">
           <div>
-            <h2>Hafta özeti</h2>
-            <p>{range(start)} · {totalWork ? `${dur(totalWork)} çalışıldı` : "Çalışma kaydı yok"}{totalPlan ? `, ${dur(totalPlan)} planlıydı` : ""}</p>
+            <h2>Week review</h2>
+            <p>{range(start)} · {totalWork ? `${dur(totalWork)} worked` : "No work recorded"}{totalPlan ? `, ${dur(totalPlan)} planned` : ""}</p>
           </div>
-          <button className="iconbtn" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          <button className="iconbtn" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </header>
 
         <section className="rvsec">
-          <h3>Dünyalar</h3>
-          {!r.worlds.length ? <p className="muted">Bu hafta planlanan ya da çalışılan süre yok.</p> : (
+          <h3>Worlds</h3>
+          {!r.worlds.length ? <p className="muted">No planned or worked time this week.</p> : (
             <ul className="rvworlds">
               {r.worlds.map(({ w, planned, worked }) => (
                 <li key={w.id} style={{ ["--w" as string]: w.color }}>
@@ -92,22 +92,22 @@ export function WeekReview({ ctx, start, onClose }: { ctx: Ctx; start: string; o
               ))}
             </ul>
           )}
-          {r.worlds.length > 0 && <p className="rvkey"><i className="work" />çalışılan <i className="plan" />planlanan</p>}
+          {r.worlds.length > 0 && <p className="rvkey"><i className="work" />worked <i className="plan" />planned</p>}
         </section>
 
         <div className="rvcols">
-          <TaskList ctx={ctx} title="Biten" items={r.done} empty="Bu hafta biten görev yok." />
-          <TaskList ctx={ctx} title="Kaçan deadline" items={r.missed} empty="Kaçan deadline yok." danger />
+          <TaskList ctx={ctx} title="Done" items={r.done} empty="No tasks done this week." />
+          <TaskList ctx={ctx} title="Missed deadlines" items={r.missed} empty="No missed deadlines." danger />
         </div>
 
         <section className="rvsec rvleft">
-          <h3>Kalanlar <span className="n">{r.left.length}</span></h3>
+          <h3>Left over <span className="n">{r.left.length}</span></h3>
           {r.left.length ? (
             <>
               <TaskList ctx={ctx} items={r.left} />
-              <button className="btn primary" onClick={carry}>Kalan {r.left.length} görevi gelecek haftaya taşı</button>
+              <button className="btn primary" onClick={carry}>Move {r.left.length} {r.left.length === 1 ? "task" : "tasks"} to next week</button>
             </>
-          ) : <p className="muted">Bu haftaya planlı açık görev kalmadı.</p>}
+          ) : <p className="muted">No open tasks planned for this week.</p>}
         </section>
       </motion.div>
     </div>
@@ -127,7 +127,7 @@ function TaskList({ ctx, title, items, empty, danger }: { ctx: Ctx; title?: stri
           </button>
         </li>
       ))}
-      {items.length > list.length && <li className="more">ve {items.length - list.length} görev daha</li>}
+      {items.length > list.length && <li className="more">and {items.length - list.length} more</li>}
     </ul>
   );
   if (!title) return body;

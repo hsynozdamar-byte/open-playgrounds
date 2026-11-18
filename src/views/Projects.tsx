@@ -46,8 +46,8 @@ export function Projects({ ctx }: { ctx: Ctx }) {
       <PageHead
         ctx={ctx}
        
-        title="Projeler"
-        sub={route.lens === ALL ? "Tüm dünyalarındaki projeler." : "Bu dünyanın projeleri ve görevleri."}
+        title="Projects"
+        sub={route.lens === ALL ? "Projects across all your worlds." : "This world's projects and tasks."}
       />
       {solo ? <WorldSection ctx={ctx} world={solo} solo /> : <AllWorlds ctx={ctx} />}
     </div>
@@ -69,20 +69,20 @@ function WorldSection({ ctx, world, solo }: { ctx: Ctx; world: World; solo: bool
             <Orb world={world} size={22} />
           </button>
           <div className="wtext">
-            <button className="wname" onClick={() => ctx.go({ lens: world.id })}>{world.name}<span className="wcount">{projects.length ? `${projects.length} proje` : "Proje yok"}</span></button>
+            <button className="wname" onClick={() => ctx.go({ lens: world.id })}>{world.name}<span className="wcount">{projects.length ? `${projects.length} ${projects.length === 1 ? "project" : "projects"}` : "No projects"}</span></button>
             {world.description && <p className="wabout">{world.description}</p>}
           </div>
         </header>
       )}
 
       <section className="card wgroup">
-      <div className="cardhead"><FolderKanban size={15} className="hicon" /><h3>Projeler</h3><span className="n">{projects.length || ""}</span></div>
+      <div className="cardhead"><FolderKanban size={15} className="hicon" /><h3>Projects</h3><span className="n">{projects.length || ""}</span></div>
       <ul className="strip ptiles">
-        <AddTile items={[{ label: "Yeni proje", onClick: () => openProjectForm({ worldId: world.id }) }]} />
+        <AddTile items={[{ label: "New project", onClick: () => openProjectForm({ worldId: world.id }) }]} />
         {projects.map((p) => <ProjectTile key={p.id} p={p} ctx={ctx} />)}
         {loose.length > 0 && (
           <li><button className="ptile2 loose" onClick={() => ctx.go({ lens: world.id, project: `none:${world.id}` })}>
-            <b>Projesiz görevler</b><span className="ptsub">{loose.length} açık görev</span>
+            <b>Tasks without a project</b><span className="ptsub">{loose.length} open {loose.length === 1 ? "task" : "tasks"}</span>
           </button></li>
         )}
       </ul>
@@ -90,7 +90,7 @@ function WorldSection({ ctx, world, solo }: { ctx: Ctx; world: World; solo: bool
       {rest.length > 0 && (
         <>
           <button className="foldbtn prest" onClick={() => setShowRest(!showRest)}>
-            {showRest ? "Gizle" : `Beklemede ve biten projeler · ${rest.length}`}
+            {showRest ? "Hide" : `Paused and done projects · ${rest.length}`}
           </button>
           {showRest && <ul className="strip ptiles">{rest.map((p) => <ProjectTile key={p.id} p={p} ctx={ctx} />)}</ul>}
         </>
@@ -110,11 +110,11 @@ function AllWorlds({ ctx }: { ctx: Ctx }) {
       {full.map((w) => <WorldGroup key={w.id} ctx={ctx} world={w} />)}
       {empty.length > 0 && (
         <section className="card wempty">
-          <p>Projesi olmayan dünyalar</p>
+          <p>Worlds without projects</p>
           <ul>
             {empty.map((w) => (
               <li key={w.id} style={{ ["--w" as string]: w.color }}>
-                <button className="wechip" onClick={() => openProjectForm({ worldId: w.id })} title={`${w.name} için yeni proje`}>
+                <button className="wechip" onClick={() => openProjectForm({ worldId: w.id })} title={`New project in ${w.name}`}>
                   <Orb world={w} size={16} /><span>{w.name}</span><b>+</b>
                 </button>
               </li>
@@ -141,17 +141,17 @@ function WorldGroup({ ctx, world }: { ctx: Ctx; world: World }) {
         <button className="wgname" onClick={() => ctx.go({ lens: world.id })}>
           <Orb world={world} size={18} />
           <b>{world.name}</b>
-          <span>{active.length ? `${active.length} aktif proje` : "Aktif proje yok"}</span>
+          <span>{active.length ? `${active.length} active ${active.length === 1 ? "project" : "projects"}` : "No active projects"}</span>
         </button>
-        {rest.length > 0 && <button className="link wgrest" onClick={() => setShowRest(!showRest)}>{showRest ? "Beklemede ve bitenleri gizle" : `Beklemede ve biten · ${rest.length}`}</button>}
+        {rest.length > 0 && <button className="link wgrest" onClick={() => setShowRest(!showRest)}>{showRest ? "Hide paused and done" : `Paused and done · ${rest.length}`}</button>}
       </header>
       {/* Projeler eşit boyda kutular, soldan sağa; sığmayan yana kayar. İlk kutu yeni proje. */}
       <ul className="strip ptiles">
-        <AddTile items={[{ label: "Yeni proje", onClick: () => openProjectForm({ worldId: world.id }) }]} />
+        <AddTile items={[{ label: "New project", onClick: () => openProjectForm({ worldId: world.id }) }]} />
         {rows.map((p) => <ProjectTile key={p.id} p={p} ctx={ctx} />)}
         {loose > 0 && (
           <li><button className="ptile2 loose" onClick={() => ctx.go({ lens: world.id, project: `none:${world.id}` })}>
-            <b>Projesiz görevler</b><span className="ptsub">{loose} açık görev</span>
+            <b>Tasks without a project</b><span className="ptsub">{loose} open {loose === 1 ? "task" : "tasks"}</span>
           </button></li>
         )}
       </ul>
@@ -164,14 +164,14 @@ function ProjectTile({ p, ctx }: { p: Project; ctx: Ctx }) {
   const s = ctx.state;
   const tasks = s.tasks.filter((t) => t.projectId === p.id);
   const open = tasks.filter((t) => t.status !== "done").length;
-  const line = autoLine(s, p) ?? (tasks.length ? `${open} açık görev` : "Görev yok");
+  const line = autoLine(s, p) ?? (tasks.length ? `${open} open ${open === 1 ? "task" : "tasks"}` : "No tasks");
   const late = p.deadline && p.status !== "done" && p.deadline < today();
   return (
     <li>
       <button className={`ptile2 p-${p.status}`} onClick={() => ctx.go({ lens: p.worldId, project: p.id })}>
         <span className="pttop"><b>{p.name}</b>{p.status !== "active" && <span className={`pst ps-${p.status}`}><i />{PSTATUS_LABEL[p.status]}</span>}</span>
         <span className="ptsub">{line}</span>
-        <span className={`ptwhen ${late ? "late" : ""}`}>{p.deadline ? `⚑ ${relDay(p.deadline)}` : p.ongoing ? <><Repeat size={12} />Sürekli</> : null}</span>
+        <span className={`ptwhen ${late ? "late" : ""}`}>{p.deadline ? `⚑ ${relDay(p.deadline)}` : p.ongoing ? <><Repeat size={12} />Ongoing</> : null}</span>
       </button>
     </li>
   );
@@ -189,7 +189,7 @@ function autoLine(s: Ctx["state"], p: Project): string | null {
   const coming = ghosts(s, p.worldId, wk.filter((d) => d >= t)).filter((g) => ids.has(g.a.id)).length;
   const waiting = s.runs.filter((r) => r.status === "ready" && runOfTask(s.runs, r.taskId) === r && ids.has(s.tasks.find((x) => x.id === r.taskId)?.autoId ?? "")).length;
   const open = s.tasks.filter((x) => x.projectId === p.id && !x.autoId && x.status !== "done").length;
-  return [`${autos.length}\u00a0otomasyon`, `bu hafta ${made + coming}\u00a0gönderi`, waiting ? `${waiting}\u00a0onayını bekliyor` : "", open ? `${open}\u00a0açık görev` : ""].filter(Boolean).join(" · ");
+  return [`${autos.length}\u00a0${autos.length === 1 ? "automation" : "automations"}`, `${made + coming}\u00a0${made + coming === 1 ? "post" : "posts"} this week`, waiting ? `${waiting}\u00a0awaiting approval` : "", open ? `${open}\u00a0open ${open === 1 ? "task" : "tasks"}` : ""].filter(Boolean).join(" · ");
 }
 
 function ProjectRow({ p, ctx }: { p: Project; ctx: Ctx }) {
@@ -205,11 +205,11 @@ function ProjectRow({ p, ctx }: { p: Project; ctx: Ctx }) {
         <span className="prname">{p.name}{p.status !== "active" && <span className={`pst ps-${p.status}`}><i />{PSTATUS_LABEL[p.status]}</span>}</span>
         <span className="progress" style={autoLine(s, p) ? { visibility: "hidden" } : undefined}><span style={{ width: `${tasks.length ? (done / tasks.length) * 100 : 0}%` }} /></span>
         <span className="prstat">
-          {autoLine(s, p) ?? <>{tasks.length ? `${tasks.length - done} açık · ${done} bitti` : "Görev yok"}
-          {doing > 0 && <b> · {doing} yapılıyor</b>}
-          {overdue > 0 && <em className="plate"> · {overdue} gecikmiş</em>}</>}
+          {autoLine(s, p) ?? <>{tasks.length ? `${tasks.length - done} open · ${done} done` : "No tasks"}
+          {doing > 0 && <b> · {doing} doing</b>}
+          {overdue > 0 && <em className="plate"> · {overdue} late</em>}</>}
         </span>
-        <span className={`prdl ${late ? "late" : ""}`}>{p.deadline ? `⚑ ${relDay(p.deadline)}` : p.ongoing ? <><Repeat size={12} />Sürekli</> : ""}</span>
+        <span className={`prdl ${late ? "late" : ""}`}>{p.deadline ? `⚑ ${relDay(p.deadline)}` : p.ongoing ? <><Repeat size={12} />Ongoing</> : ""}</span>
       </button>
     </li>
   );
@@ -238,13 +238,13 @@ function ProjectCard({ p, ctx, i }: { p: Project; ctx: Ctx; i: number }) {
       </span>
       <span className="progress"><motion.span animate={{ width: `${tasks.length ? (done / tasks.length) * 100 : 0}%` }} /></span>
       <span className="pstat">
-        {autoLine(s, p) ?? <>{tasks.length ? `${tasks.length - done} açık · ${done} bitti` : "Görev yok"}
-        {doing > 0 && <b> · {doing} yapılıyor</b>}
-        {overdue > 0 && <em className="plate"> · {overdue} gecikmiş</em>}
+        {autoLine(s, p) ?? <>{tasks.length ? `${tasks.length - done} open · ${done} done` : "No tasks"}
+        {doing > 0 && <b> · {doing} doing</b>}
+        {overdue > 0 && <em className="plate"> · {overdue} late</em>}
         {sec >= 60 && ` · ${spent(sec)}`}</>}
       </span>
-      {p.deadline && <span className={`pdl ${late ? "late" : ""}`}>⚑ {late ? `Deadline geçti · ${relDay(p.deadline)}` : relDay(p.deadline)}</span>}
-      {!p.deadline && p.ongoing && <span className="pdl"><Repeat size={12} />Sürekli</span>}
+      {p.deadline && <span className={`pdl ${late ? "late" : ""}`}>⚑ {late ? `Deadline passed · ${relDay(p.deadline)}` : relDay(p.deadline)}</span>}
+      {!p.deadline && p.ongoing && <span className="pdl"><Repeat size={12} />Ongoing</span>}
     </motion.button>
   );
 }
@@ -273,77 +273,77 @@ function ProjectPage({ ctx, world, project }: { ctx: Ctx; world: World; project?
   const del = () => {
     if (!project) return;
     const { index: _i, project: p, ...rest } = takeProject(s, project.id);
-    binIt(ctx, "project", project.name, { projects: [p], ...rest }, (st) => removeProject(st, project.id), `${project.name} silindi`);
+    binIt(ctx, "project", project.name, { projects: [p], ...rest }, (st) => removeProject(st, project.id), `${project.name} deleted`);
     ctx.go({ project: undefined, lens: world.id });
   };
   const move = (to: string) => {
     if (!project || to === world.id) return;
     ctx.mutate((st) => moveProject(st, project.id, to));
     ctx.go({ lens: to, project: project.id });
-    toast(`${project.name}, ${worldOf(s, to).name} dünyasına taşındı`, () => ctx.mutate((st) => moveProject(st, project.id, world.id)));
+    toast(`${project.name} moved to ${worldOf(s, to).name}`, () => ctx.mutate((st) => moveProject(st, project.id, world.id)));
   };
 
   return (
     <div className="ppage" style={{ ["--w" as string]: world.color }}>
       <header className="card pagehead pphead">
         <div className="pptext">
-          <button className="ppcrumb" onClick={() => ctx.go({ project: undefined, lens: world.id })} title={`${world.name} projeleri`}><ChevronLeft size={15} /><Orb world={world} size={14} />{world.name}<em>›</em>Projeler</button>
+          <button className="ppcrumb" onClick={() => ctx.go({ project: undefined, lens: world.id })} title={`${world.name} projects`}><ChevronLeft size={15} /><Orb world={world} size={14} />{world.name}<em>›</em>Projects</button>
           <div className="pptitle">
             {project ? (
               <input key={project.id} className="ppname" defaultValue={project.name} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== project.name) set((x) => (x.name = v)); }} />
             ) : (
-              <h1>Projesiz görevler</h1>
+              <h1>Tasks without a project</h1>
             )}
             {project && (
               <div className="ppmore">
-                <button className="iconbtn" onClick={() => setMenu(!menu)} aria-label="Diğer" aria-expanded={menu}><MoreHorizontal size={18} /></button>
+                <button className="iconbtn" onClick={() => setMenu(!menu)} aria-label="More" aria-expanded={menu}><MoreHorizontal size={18} /></button>
                 {menu && (
                   <div className="ppmenu" onMouseLeave={() => setMenu(false)}>
                     {/* Dünya değiştirmek nadir ve büyük bir iş: başlıkta değil, menüde (2026-11-01). */}
-                    {s.worlds.length > 1 && <p className="ppmenuh">Başka dünyaya taşı</p>}
+                    {s.worlds.length > 1 && <p className="ppmenuh">Move to another world</p>}
                     {s.worlds.filter((w) => w.id !== world.id).map((w) => <button key={w.id} onClick={() => (setMenu(false), move(w.id))}><i className="ppwdot" style={{ background: w.color }} />{w.name}</button>)}
-                    <button className="danger" onClick={() => (setMenu(false), setAsk(true))}><Trash2 size={14} />Projeyi sil</button>
+                    <button className="danger" onClick={() => (setMenu(false), setAsk(true))}><Trash2 size={14} />Delete project</button>
                   </div>
                 )}
               </div>
             )}
           </div>
           {project && (
-            <textarea key={`d-${project.id}`} className="wabout" rows={1} defaultValue={project.description} placeholder="Proje hakkında kısa not: hedef, kapsam, linkler" onBlur={(e) => { const v = e.target.value; if (v !== (project.description ?? "")) set((x) => (x.description = v)); }} />
+            <textarea key={`d-${project.id}`} className="wabout" rows={1} defaultValue={project.description} placeholder="A short note about the project: goal, scope, links" onBlur={(e) => { const v = e.target.value; if (v !== (project.description ?? "")) set((x) => (x.description = v)); }} />
           )}
-          {!project && <p className="sub">{tasks.length - done} açık · {done} bitti{sec >= 60 ? ` · ${spent(sec)} çalışıldı` : ""}</p>}
+          {!project && <p className="sub">{tasks.length - done} open · {done} done{sec >= 60 ? ` · ${spent(sec)} worked` : ""}</p>}
         </div>
         {project && (
           <div className="ppctl">
-            {autoLine(s, project) ? <span className="ppstat">{autoLine(s, project)}</span> : <span className="ppstat"><b>{tasks.length - done}</b> açık<i /><b>{done}</b> bitti{sec >= 60 && <><i /><b>{spent(sec)}</b> çalışıldı</>}</span>}
+            {autoLine(s, project) ? <span className="ppstat">{autoLine(s, project)}</span> : <span className="ppstat"><b>{tasks.length - done}</b> open<i /><b>{done}</b> done{sec >= 60 && <><i /><b>{spent(sec)}</b> worked</>}</span>}
             <div className="dlin">
-              <span>Durum</span>
-              <Select className="ppick" label="Durum" value={project.status} onChange={(v) => set((x) => (x.status = v as Project["status"]))}
+              <span>Status</span>
+              <Select className="ppick" label="Status" value={project.status} onChange={(v) => set((x) => (x.status = v as Project["status"]))}
                 groups={[{ options: (["active", "paused", "done"] as const).map((st) => ({ value: st, label: PSTATUS_LABEL[st] })) }]}>
                 <i className={`pstdot ps-${project.status}`} />{PSTATUS_LABEL[project.status]}
               </Select>
             </div>
             <div className="dlin">
-              <span>Zaman</span>
+              <span>Time</span>
               <DatePick
                 value={project.deadline ?? ""}
                 onChange={(v) => set((x) => { x.deadline = v || null; if (v) delete x.ongoing; })}
                 label="Deadline"
-                placeholder={project.ongoing ? "Sürekli" : "Deadline yok"}
+                placeholder={project.ongoing ? "Ongoing" : "No deadline"}
                 icon={project.ongoing && !project.deadline ? <Repeat size={15} /> : undefined}
                 className={project.ongoing && !project.deadline ? "has" : ""}
-                extra={<button type="button" className={`dpongo ${project.ongoing && !project.deadline ? "on" : ""}`} onClick={() => set((x) => { if (x.ongoing && !x.deadline) delete x.ongoing; else { x.ongoing = true; x.deadline = null; } })}><Repeat size={13} />Sürekli proje</button>}
+                extra={<button type="button" className={`dpongo ${project.ongoing && !project.deadline ? "on" : ""}`} onClick={() => set((x) => { if (x.ongoing && !x.deadline) delete x.ongoing; else { x.ongoing = true; x.deadline = null; } })}><Repeat size={13} />Ongoing project</button>}
               />
             </div>
           </div>
         )}
         {project && ask && (
           <div className="wdel ppdel">
-            <p><b>{project.name}</b> silinsin mi? {projectStats(s, project.id)}</p>
+            <p>Delete <b>{project.name}</b>? {projectStats(s, project.id)}</p>
             <div className="foot">
               <span />
-              <button className="btn" onClick={() => setAsk(false)}>Vazgeç</button>
-              <button className="btn dangerfill" onClick={del}>Evet, sil</button>
+              <button className="btn" onClick={() => setAsk(false)}>Cancel</button>
+              <button className="btn dangerfill" onClick={del}>Yes, delete</button>
             </div>
           </div>
         )}
@@ -358,13 +358,13 @@ function ProjectPage({ ctx, world, project }: { ctx: Ctx; world: World; project?
       {project ? (
         <div className="pplayout">
           {/* Üst satır: Oluştur ve Görevler aynı boyda; altındaki boşluk iki sütunda tek çizgi. */}
-          <section className="card ppmake" aria-label="Oluştur">
-              <button className="ppmk" onClick={() => { const t = newTask(world.id, "Yeni görev", { projectId: project.id }); ctx.mutate((st) => void st.tasks.push(t)); openNew(ctx, t.id); }}><span className="ppmki"><ListPlus size={17} /></span><span><b>Görev ekle</b><em>Sen ya da Rou yapar</em></span></button>
-              <button className="ppmk" onClick={() => setNewPost(true)}><span className="ppmki"><Send size={16} /></span><span><b>Gönderi oluştur</b><em>Bir kez paylaşılır</em></span></button>
-              <button className="ppmk" onClick={() => openAutoForm({ worldId: world.id, projectId: project.id })}><span className="ppmki"><Repeat size={16} /></span><span><b>Otomasyon kur</b><em>Düzenli tekrarlanır</em></span></button>
+          <section className="card ppmake" aria-label="Create">
+              <button className="ppmk" onClick={() => { const t = newTask(world.id, "New task", { projectId: project.id }); ctx.mutate((st) => void st.tasks.push(t)); openNew(ctx, t.id); }}><span className="ppmki"><ListPlus size={17} /></span><span><b>Add task</b><em>You or Rou do it</em></span></button>
+              <button className="ppmk" onClick={() => setNewPost(true)}><span className="ppmki"><Send size={16} /></span><span><b>Create post</b><em>Shared once</em></span></button>
+              <button className="ppmk" onClick={() => openAutoForm({ worldId: world.id, projectId: project.id })}><span className="ppmki"><Repeat size={16} /></span><span><b>Set up automation</b><em>Repeats on a schedule</em></span></button>
           </section>
           <section className="card kbcard pptasks">
-            <div className="cardhead"><ListChecks size={15} className="hicon" /><h3>Görevler</h3><span className="n">{open.length || ""}</span></div>
+            <div className="cardhead"><ListChecks size={15} className="hicon" /><h3>Tasks</h3><span className="n">{open.length || ""}</span></div>
             <ProjectBoard ctx={ctx} projectId={project.id} manualOnly />
           </section>
           <aside className="ppside">
@@ -379,9 +379,9 @@ function ProjectPage({ ctx, world, project }: { ctx: Ctx; world: World; project?
         </div>
       ) : (
         <section className="card kbcard">
-          <div className="cardhead"><ListChecks size={15} className="hicon" /><h3>Görevler</h3><span className="n">{open.length || ""}</span></div>
-          <h4 className="kbsub">Açık görevler<span>{open.length || ""}</span></h4>
-          {open.length > 0 ? <TaskList tasks={open} ctx={ctx} o={{ day: true }} /> : <p className="kbempty">Açık görev yok.</p>}
+          <div className="cardhead"><ListChecks size={15} className="hicon" /><h3>Tasks</h3><span className="n">{open.length || ""}</span></div>
+          <h4 className="kbsub">Open tasks<span>{open.length || ""}</span></h4>
+          {open.length > 0 ? <TaskList tasks={open} ctx={ctx} o={{ day: true }} /> : <p className="kbempty">No open tasks.</p>}
         </section>
       )}
     </div>

@@ -12,10 +12,10 @@ export const incomingSources = (ctx: Ctx): Src[] =>
 
 export function incomingSummary(ctx: Ctx) {
   const n = incomingSources(ctx).length;
-  return n ? `${n} kaynak · okuma yakında` : "Mail, Slack ekle; Defter'e düşer";
+  return n ? `${n} ${n === 1 ? "source" : "sources"} · reading soon` : "Add mail, Slack; lands in the Notebook";
 }
 
-const missing = (a: Account) => `${FEEDS[a.platform as keyof typeof FEEDS]?.field.toLocaleLowerCase("tr") ?? "adres"} yok`;
+const missing = (a: Account) => `No ${FEEDS[a.platform as keyof typeof FEEDS]?.field.toLocaleLowerCase("en-US") ?? "address"}`;
 
 export function Incoming({ ctx }: { ctx: Ctx }) {
   const list = incomingSources(ctx);
@@ -25,32 +25,32 @@ export function Incoming({ ctx }: { ctx: Ctx }) {
     <section className="card autodetail studio">
       <header className="sthead">
         <div className="adtext">
-          <h2>Gelenler</h2>
-          <p className="sub">Mailler, mesajlar ve toplantılar buradan Defter'e düşer. Hiçbir şeye cevap yazılmaz.</p>
+          <h2>Incoming</h2>
+          <p className="sub">Mail, messages and meetings land in the Notebook from here. Nothing gets a reply.</p>
         </div>
       </header>
 
       <div className="stbox">
         <div className="stboxhead">
-          <h3>Kaynaklar</h3>
+          <h3>Sources</h3>
           <span className="n">{list.length || ""}</span>
         </div>
         {list.length ? (
           <ul className="acclist">
-            {list.map((a) => <AccountTile key={a.id} ctx={ctx} a={a} world={a.world}><span className="accuse">{a.world.name} dünyası{!a.handle ? ` · ${missing(a)}` : ""}</span></AccountTile>)}
+            {list.map((a) => <AccountTile key={a.id} ctx={ctx} a={a} world={a.world}><span className="accuse">{a.world.name} world{!a.handle ? ` · ${missing(a)}` : ""}</span></AccountTile>)}
           </ul>
         ) : (
-          <p className="muted stnote">Gmail, Slack, Google Takvim ya da ClickUp ekle. Her kaynak bir dünyaya bağlıdır; gelenler o dünyanın Defter'ine düşer.</p>
+          <p className="muted stnote">Add Gmail, Slack, Google Calendar or ClickUp. Each source belongs to a world; what arrives lands in that world's Notebook.</p>
         )}
-        {first && <div className="stadd"><AddRow label="Kaynak ekle" onClick={() => openAccountForm({ worldId: first, group: "feed", pickWorld: all })} /></div>}
+        {first && <div className="stadd"><AddRow label="Add source" onClick={() => openAccountForm({ worldId: first, group: "feed", pickWorld: all })} /></div>}
       </div>
 
       <div className="stbox">
-        <div className="stboxhead"><h3>Nasıl çalışır</h3></div>
+        <div className="stboxhead"><h3>How it works</h3></div>
         <ol className="ststeps">
-          <li><b>Ekle</b><span>Kaynağı ve hangi dünyaya ait olduğunu seç.</span></li>
-          <li><b>Okunur</b><span>Yeni mailler ve mesajlar Defter'e not olarak düşer. Bu adım henüz bağlı değil.</span></li>
-          <li><b>Karar ver</b><span>Defter'de göreve çevirir, projeye koyar ya da arşivlersin.</span></li>
+          <li><b>Add</b><span>Pick the source and the world it belongs to.</span></li>
+          <li><b>Read</b><span>New mail and messages land in the Notebook as notes. This step is not connected yet.</span></li>
+          <li><b>Decide</b><span>In the Notebook you turn them into tasks, put them in a project or archive them.</span></li>
         </ol>
       </div>
     </section>

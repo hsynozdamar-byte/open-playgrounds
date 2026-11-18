@@ -49,7 +49,7 @@ export type RouAction =
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const AT = /^([01]\d|2[0-3]):[0-5]\d$/;
 const mins = (n: unknown) => (typeof n === "number" && n >= 5 && n <= 240 ? Math.round(n) : null);
-const dayText = (d: string | null | undefined) => (d ? relDay(d) : "tarihsiz");
+const dayText = (d: string | null | undefined) => (d ? relDay(d) : "someday");
 
 // Kartta görünecek metin. Geçersizse null: kart çıkmaz.
 // Onaydan sonra iş açık mı kalır: paylaşılacak gönderi (paylaşılınca biter) ya da Rou'ya verilmiş tek iş (Rou devam eder).
@@ -66,33 +66,33 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
     case "start": {
       if (!task || task.status === "done") return null;
       const m = mins(a.minutes);
-      return { verb: "Başlat", what: task.title, detail: m ? `${m} dk pomodoro` : "Serbest süre" };
+      return { verb: "Start", what: task.title, detail: m ? `${m} min pomodoro` : "Open-ended" };
     }
     case "pause":
-      return s.timer && !s.timer.pausedAt ? { verb: "Duraklat", what: s.tasks.find((x) => x.id === s.timer!.taskId)?.title ?? "Zamanlayıcı" } : null;
+      return s.timer && !s.timer.pausedAt ? { verb: "Pause", what: s.tasks.find((x) => x.id === s.timer!.taskId)?.title ?? "Timer" } : null;
     case "resume":
-      return s.timer?.pausedAt ? { verb: "Devam et", what: s.tasks.find((x) => x.id === s.timer!.taskId)?.title ?? "Zamanlayıcı" } : null;
+      return s.timer?.pausedAt ? { verb: "Resume", what: s.tasks.find((x) => x.id === s.timer!.taskId)?.title ?? "Timer" } : null;
     case "stop":
-      return s.timer ? { verb: "Bitir, kaydet", what: s.tasks.find((x) => x.id === s.timer!.taskId)?.title ?? "Zamanlayıcı" } : null;
+      return s.timer ? { verb: "Stop and save", what: s.tasks.find((x) => x.id === s.timer!.taskId)?.title ?? "Timer" } : null;
     case "add_task": {
       if (typeof a.title !== "string" || !a.title.trim() || !s.worlds.some((w) => w.id === a.worldId)) return null;
       if (a.projectId && !s.projects.some((p) => p.id === a.projectId && p.worldId === a.worldId)) return null;
       if (a.day && !DAY.test(a.day)) return null;
       const p = a.projectId ? s.projects.find((x) => x.id === a.projectId)?.name : null;
       const at = a.day && a.at && AT.test(a.at) ? ` ${a.at}` : "";
-      return { verb: "Görev ekle", what: a.title.trim(), detail: [worldOf(s, a.worldId).name, p, `${dayText(a.day)}${at}`].filter(Boolean).join(" · ") };
+      return { verb: "Add task", what: a.title.trim(), detail: [worldOf(s, a.worldId).name, p, `${dayText(a.day)}${at}`].filter(Boolean).join(" · ") };
     }
     case "move":
       if (!task || (a.day !== null && !DAY.test(a.day))) return null;
-      return { verb: "Taşı", what: task.title, detail: `${dayText(task.day)} → ${dayText(a.day)}` };
+      return { verb: "Move", what: task.title, detail: `${dayText(task.day)} → ${dayText(a.day)}` };
     case "done":
-      return task && task.status !== "done" ? { verb: "Bitti yap", what: task.title } : null;
+      return task && task.status !== "done" ? { verb: "Mark done", what: task.title } : null;
     case "note":
       if (typeof a.title !== "string" || !a.title.trim() || (a.worldId && !s.worlds.some((w) => w.id === a.worldId))) return null;
-      return { verb: "Deftere not", what: a.title.trim(), detail: a.worldId ? worldOf(s, a.worldId).name : undefined };
+      return { verb: "Note to Notebook", what: a.title.trim(), detail: a.worldId ? worldOf(s, a.worldId).name : undefined };
     case "add_world":
-      if (typeof a.name !== "string" || !a.name.trim() || s.worlds.some((w) => w.name.toLocaleLowerCase("tr") === a.name.trim().toLocaleLowerCase("tr"))) return null;
-      return { verb: "Dünya aç", what: a.name.trim(), detail: a.description?.trim() || undefined };
+      if (typeof a.name !== "string" || !a.name.trim() || s.worlds.some((w) => w.name.toLocaleLowerCase() === a.name.trim().toLocaleLowerCase())) return null;
+      return { verb: "New world", what: a.name.trim(), detail: a.description?.trim() || undefined };
     case "approve": {
       const r = s.runs.find((x) => x.id === a.runId && x.status === "ready");
       // Karttaki Onayla'nın gizlendiği durumlarda sohbetten de onaylanmaz: revize istenmiş, seçim bekliyor, ses/video/görsel eksik.
@@ -100,16 +100,16 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       const t = s.tasks.find((x) => x.id === r.taskId);
       const auto = t?.autoId ? s.automations.find((x) => x.id === t.autoId) : undefined;
       if (auto && t && ["voice", "video"].includes(stagesOf(s, auto, t, r).current ?? "")) return null;
-      return { verb: "Onayla", what: t?.title ?? r.title, detail: approveKeepsOpen(s, r) ? "Çıktı onaylanır; paylaşım adımı sürer" : "Çıktı onaylanır, görev biter" };
+      return { verb: "Approve", what: t?.title ?? r.title, detail: approveKeepsOpen(s, r) ? "Output is approved; the share step continues" : "Output is approved, the task is done" };
     }
     // Paylaş: Rou gönderiyi kendi hesabında paylaştırır; X'te metindeki tweete yanıt ya da alıntı olabilir (server/publish.mjs).
     case "share": {
       const r = s.runs.find((x) => x.id === a.runId && (x.status === "ready" || x.status === "approved"));
-      return r ? { verb: "Paylaş", what: s.tasks.find((x) => x.id === r.taskId)?.title ?? r.title, detail: r.status === "ready" ? "Onaylanır ve hesabında paylaşılır" : "Hesabında paylaşılır" } : null;
+      return r ? { verb: "Share", what: s.tasks.find((x) => x.id === r.taskId)?.title ?? r.title, detail: r.status === "ready" ? "Approved and shared on its account" : "Shared on its account" } : null;
     }
     case "auto":
       if (typeof a.text !== "string" || !a.text.trim()) return null;
-      return { verb: "Otomasyon kur", what: a.text.trim(), detail: `${a.worldId && s.worlds.some((w) => w.id === a.worldId) ? `${worldOf(s, a.worldId).name} · ` : ""}Form dolu açılır, sen kaydedersin` };
+      return { verb: "Set up automation", what: a.text.trim(), detail: `${a.worldId && s.worlds.some((w) => w.id === a.worldId) ? `${worldOf(s, a.worldId).name} · ` : ""}The form opens filled in, you save it` };
     // Revize: kullanıcı sohbette bir çıktıya itiraz ettiyse not işin revize geçmişine yazılır ve Rou yeniden hazırlar.
     case "revise": {
       const run = s.runs.find((x) => x.id === a.runId);
@@ -121,9 +121,9 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
         if (!mv || "error" in mv) return null;
         const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === mv.to.accountId);
         const where = [worldOf(s, mv.to.worldId).name, s.projects.find((p) => p.id === mv.to.projectId)?.name, acc ? `${platformName(acc)} ${acc.name}` : null].filter(Boolean).join(" · ");
-        return { verb: "Taşı, revize et", what: t.title, detail: `${where}${t.autoId ? " · otomasyondan ayrılır, tek seferlik gönderi olur" : ""}. ${a.note.trim().slice(0, 140)}` };
+        return { verb: "Move and revise", what: t.title, detail: `${where}${t.autoId ? " · leaves the automation, becomes a one-off post" : ""}. ${a.note.trim().slice(0, 140)}` };
       }
-      return { verb: "Revize et", what: t.title, detail: a.note.trim().slice(0, 160) };
+      return { verb: "Revise", what: t.title, detail: a.note.trim().slice(0, 160) };
     }
     // Kopya gönderi: çıktı başka bir hesapta da paylaşılacak. Kopya gönderi işi olarak açılır (task.post), Onay bekliyor'da durur.
     case "copy_post": {
@@ -131,7 +131,7 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       const r = copyPost(structuredClone(s), a.runId, a.accountId, { day: a.day ?? undefined, at: a.at ?? undefined, ids: { taskId: "x", runId: "y" } });
       if ("error" in r) return null;
       const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === a.accountId)!;
-      return { verb: "Kopya gönderi aç", what: r.task.title, detail: [`${platformName(acc)} ${acc.name || acc.handle || ""}`.trim(), worldOf(s, r.task.worldId).name, `${dayText(r.task.day)}${r.task.post?.at ? ` ${r.task.post.at}` : ""}`, "metin ve medya aynen, onayını bekler"].join(" · ") };
+      return { verb: "Copy post", what: r.task.title, detail: [`${platformName(acc)} ${acc.name || acc.handle || ""}`.trim(), worldOf(s, r.task.worldId).name, `${dayText(r.task.day)}${r.task.post?.at ? ` ${r.task.post.at}` : ""}`, "same text and media, waits for your approval"].join(" · ") };
     }
     // Kullanıcının verdiği son metin: kelimesi kelimesine çıktıya yazılır (görseller aynen kalır).
     case "set_text": {
@@ -139,64 +139,64 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       const t = run && s.tasks.find((x) => x.id === run.taskId);
       // Paylaşılmış ya da hazırlanmakta olan çıktının metni değiştirilmez.
       if (!run || !["ready", "approved", "failed"].includes(run.status) || typeof a.text !== "string" || !a.text.trim()) return null;
-      return { verb: "Metni koy", what: t?.title ?? run.title, detail: `${a.text.trim().slice(0, 140)}… Kelimesi kelimesine; görseller aynı kalır` };
+      return { verb: "Set text", what: t?.title ?? run.title, detail: `${a.text.trim().slice(0, 140)}… Word for word; images stay the same` };
     }
     case "set_example": {
       const p = s.projects.find((x) => x.id === a.projectId);
       if (!p || typeof a.text !== "string" || !a.text.trim()) return null;
-      return { verb: "Onaylı örnek yap", what: p.name, detail: `${a.text.trim().slice(0, 120)}… Projenin bütün taslakları bu sesi hedefler` };
+      return { verb: "Make approved example", what: p.name, detail: `${a.text.trim().slice(0, 120)}… Every draft in the project aims for this voice` };
     }
     case "set_guide":
       if (typeof a.text !== "string" || a.text.trim().length < 40) return null;
-      return { verb: "Yazım rehberini değiştir", what: a.text.trim().split("\n")[0].slice(0, 80), detail: `${a.mode === "replace" ? "Eski rehberin yerine geçer" : "Başa geçer, eski rehber altta kalır"}. Rou bütün taslakları bununla yazar` };
+      return { verb: "Change writing guide", what: a.text.trim().split("\n")[0].slice(0, 80), detail: `${a.mode === "replace" ? "Replaces the old guide" : "Goes on top, the old guide stays below"}. Rou writes every draft with it` };
     case "prepare": {
       const auto = s.automations.find((x) => x.id === task?.autoId);
       if (!task || task.status === "done" || auto?.who !== "claude") return null;
       if (s.runs.some((r) => r.taskId === task.id && (r.status === "working" || r.status === "ready"))) return null;
-      return { verb: "Hazırlat", what: task.title, detail: auto.browser ? `${auto.browser.name} üzerinde, yalnız okur ve öneri çıkarır` : "Claude hazırlar, sen onaylarsın" };
+      return { verb: "Prepare", what: task.title, detail: auto.browser ? `In ${auto.browser.name}, only reads and makes suggestions` : "Claude prepares, you approve" };
     }
     case "remember":
       if (typeof a.text !== "string" || !a.text.trim()) return null;
-      return { verb: "Hatırla", what: a.text.trim(), detail: a.shared === false ? "Yalnız bu Rou bilir" : "Tüm Rou'lar bilir" };
+      return { verb: "Remember", what: a.text.trim(), detail: a.shared === false ? "Only this Rou knows" : "Every Rou knows" };
     case "forget": {
       const m = s.memory?.find((x) => x.id === a.memId);
-      return m ? { verb: "Unut", what: m.text } : null;
+      return m ? { verb: "Forget", what: m.text } : null;
     }
     case "change":
       if (typeof a.text !== "string" || !a.text.trim()) return null;
-      return { verb: "Rou yapsın", what: a.text.trim(), detail: `${a.files?.length ? `${a.files.length} ekle birlikte. ` : ""}Kod, sistem ya da veri değişebilir; kod kontrol edilir, bozulursa geri alınır` };
+      return { verb: "Let Rou do it", what: a.text.trim(), detail: `${a.files?.length ? `With ${a.files.length} attachment${a.files.length === 1 ? "" : "s"}. ` : ""}Code, system or data may change; code is checked and rolled back if it breaks` };
     case "undo_change": {
       const c = s.changes?.find((x) => x.id === a.changeId && !x.undone);
-      return c ? { verb: "Geri al", what: c.text, detail: "Uygulama bu değişiklikten önceki hâline döner" } : null;
+      return c ? { verb: "Undo", what: c.text, detail: "The app goes back to how it was before this change" } : null;
     }
     case "add_project": {
       if (typeof a.name !== "string" || !a.name.trim() || !s.worlds.some((w) => w.id === a.worldId)) return null;
       if (a.deadline && !DAY.test(a.deadline)) return null;
-      if (s.projects.some((p) => p.worldId === a.worldId && p.name.toLocaleLowerCase("tr") === a.name.trim().toLocaleLowerCase("tr"))) return null;
-      return { verb: "Proje aç", what: a.name.trim(), detail: [worldOf(s, a.worldId).name, a.deadline ? `deadline ${relDay(a.deadline)}` : ""].filter(Boolean).join(" · ") };
+      if (s.projects.some((p) => p.worldId === a.worldId && p.name.toLocaleLowerCase() === a.name.trim().toLocaleLowerCase())) return null;
+      return { verb: "New project", what: a.name.trim(), detail: [worldOf(s, a.worldId).name, a.deadline ? `deadline ${relDay(a.deadline)}` : ""].filter(Boolean).join(" · ") };
     }
     case "edit_task": {
       if (!task) return null;
       const parts: string[] = [];
-      if (typeof a.title === "string" && a.title.trim() && a.title.trim() !== task.title) parts.push(`ad: ${a.title.trim()}`);
+      if (typeof a.title === "string" && a.title.trim() && a.title.trim() !== task.title) parts.push(`name: ${a.title.trim()}`);
       if (a.deadline !== undefined) {
         if (a.deadline !== null && !DAY.test(a.deadline)) return null;
-        parts.push(a.deadline ? `deadline ${relDay(a.deadline)}` : "deadline kalkar");
+        parts.push(a.deadline ? `deadline ${relDay(a.deadline)}` : "no deadline");
       }
       if (a.projectId !== undefined) {
         const p = a.projectId ? s.projects.find((x) => x.id === a.projectId) : null;
         if (a.projectId && !p) return null;
-        parts.push(p ? `proje: ${worldOf(s, p.worldId).name} › ${p.name}` : "projesiz");
+        parts.push(p ? `project: ${worldOf(s, p.worldId).name} › ${p.name}` : "no project");
       }
-      if (mins(a.minutes)) parts.push(`tahmin ${mins(a.minutes)} dk`);
-      if (typeof a.notes === "string" && a.notes.trim()) parts.push("nota ekler");
+      if (mins(a.minutes)) parts.push(`estimate ${mins(a.minutes)} min`);
+      if (typeof a.notes === "string" && a.notes.trim()) parts.push("adds to notes");
       const steps = cleanSteps(a.steps);
-      if (steps.length) parts.push(`${steps.length} alt adım: ${steps.slice(0, 3).join(", ")}${steps.length > 3 ? "…" : ""}`);
-      return parts.length ? { verb: "Düzenle", what: task.title, detail: parts.join(" · ") } : null;
+      if (steps.length) parts.push(`${steps.length} subtask${steps.length === 1 ? "" : "s"}: ${steps.slice(0, 3).join(", ")}${steps.length > 3 ? "…" : ""}`);
+      return parts.length ? { verb: "Edit", what: task.title, detail: parts.join(" · ") } : null;
     }
     case "schedule":
       if (!task || task.status === "done" || !DAY.test(a.day) || !AT.test(a.at)) return null;
-      return { verb: "Takvime koy", what: task.title, detail: `${relDay(a.day)} ${a.at}, ${mins(a.minutes) ?? task.estimate ?? 60} dk` };
+      return { verb: "Put on calendar", what: task.title, detail: `${relDay(a.day)} ${a.at}, ${mins(a.minutes) ?? task.estimate ?? 60} min` };
     case "note_place": {
       if (!note || note.state !== "new") return null;
       const p = a.projectId ? s.projects.find((x) => x.id === a.projectId) : null;
@@ -204,7 +204,7 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       const wid = p ? p.worldId : a.worldId ?? null;
       if (wid && !s.worlds.some((w) => w.id === wid)) return null;
       if (wid === (note.worldId ?? null) && (p?.id ?? null) === (note.projectId ?? null)) return null;
-      return { verb: "Yerleştir", what: note.title, detail: wid ? [worldOf(s, wid).name, p?.name].filter(Boolean).join(" › ") : "Dünyasız" };
+      return { verb: "Place", what: note.title, detail: wid ? [worldOf(s, wid).name, p?.name].filter(Boolean).join(" › ") : "No world" };
     }
     case "note_task": {
       if (!note || note.state !== "new" || note.taskId) return null;
@@ -214,34 +214,34 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       if (!wid || !s.worlds.some((w) => w.id === wid)) return null;
       if (a.day && !DAY.test(a.day)) return null;
       const at = a.day && a.at && AT.test(a.at) ? ` ${a.at}` : "";
-      return { verb: "Göreve çevir", what: a.title?.trim() || note.title, detail: [worldOf(s, wid).name, p?.name, `${dayText(a.day)}${at}`].filter(Boolean).join(" · ") };
+      return { verb: "Make a task", what: a.title?.trim() || note.title, detail: [worldOf(s, wid).name, p?.name, `${dayText(a.day)}${at}`].filter(Boolean).join(" · ") };
     }
     case "note_attach":
       if (!note || note.state !== "new" || !task) return null;
-      return { verb: a.as === "steps" ? "Alt adım yap" : "Göreve ekle", what: note.title, detail: `→ ${task.title}${a.as === "steps" ? `, ${noteSteps(note).length} adım` : ", görevin notuna"}` };
+      return { verb: a.as === "steps" ? "Make subtasks" : "Add to task", what: note.title, detail: `→ ${task.title}${a.as === "steps" ? `, ${noteSteps(note).length} steps` : ", to the task's notes"}` };
     case "note_edit": {
       if (!note) return null;
       const cat = a.category && CATS.includes(a.category) ? a.category : undefined;
       const title = typeof a.title === "string" && a.title.trim() ? a.title.trim() : undefined;
       const body = typeof a.body === "string" ? a.body.trim() : undefined;
       if (!cat && !title && body === undefined) return null;
-      return { verb: "Notu düzenle", what: title ?? note.title, detail: [title && title !== note.title ? `eski ad: ${note.title}` : "", cat ? CAT_LABEL[cat] : "", body !== undefined ? "metni yeniden yazılır" : ""].filter(Boolean).join(" · ") || undefined };
+      return { verb: "Edit note", what: title ?? note.title, detail: [title && title !== note.title ? `old name: ${note.title}` : "", cat ? CAT_LABEL[cat] : "", body !== undefined ? "text is rewritten" : ""].filter(Boolean).join(" · ") || undefined };
     }
     case "edit_project": {
       const p = s.projects.find((x) => x.id === a.projectId);
       const c = projectChanges(a, p);
-      return p && c?.length ? { verb: "Projeyi güncelle", what: p.name, detail: c.join(" · ") } : null;
+      return p && c?.length ? { verb: "Update project", what: p.name, detail: c.join(" · ") } : null;
     }
     case "edit_auto": {
       const x = s.automations.find((y) => y.id === a.autoId);
       const c = autoChanges(a, x);
-      return x && c?.length ? { verb: "Otomasyonu güncelle", what: x.title, detail: c.join(" · ") } : null;
+      return x && c?.length ? { verb: "Update automation", what: x.title, detail: c.join(" · ") } : null;
     }
     case "note_archive":
-      return note && note.state === "new" ? { verb: "Arşivle", what: note.title } : null;
+      return note && note.state === "new" ? { verb: "Archive", what: note.title } : null;
     case "plan": {
       const ok = planSteps(a, s).filter((x) => x.d).length;
-      return ok ? { verb: "Toplu", what: a.title?.trim() || "Rou'nun önerileri", detail: `${ok} adım` } : null;
+      return ok ? { verb: "Batch", what: a.title?.trim() || "Rou's suggestions", detail: `${ok} step${ok === 1 ? "" : "s"}` } : null;
     }
     default:
       return null;
@@ -249,7 +249,7 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
 }
 
 const CATS: NoteCategory[] = ["note", "idea", "todo", "link"];
-const CAT_LABEL: Record<NoteCategory, string> = { note: "Not", idea: "Fikir", todo: "Yapılacak", link: "Link" };
+const CAT_LABEL: Record<NoteCategory, string> = { note: "Note", idea: "Idea", todo: "To do", link: "Link" };
 const cleanSteps = (l: unknown) => (Array.isArray(l) ? l : []).filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()).slice(0, 20);
 // Notun alt adımları: gövdenin her satırı (liste işaretleri atılır); gövde yoksa başlık tek adım.
 const noteSteps = (n: State["inbox"][number]) => {
@@ -303,34 +303,34 @@ export function apply(a: RouAction, ctx: Ctx, rouId?: string, picked?: Set<numbe
   if (a.type === "change" || a.type === "undo_change") {
     const [url, body] = a.type === "change" ? ["/api/change", { text: a.text.trim(), rouId, files: Array.isArray(a.files) ? a.files : [] }] : ["/api/change/undo", { changeId: a.changeId, rouId }];
     void fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
-      .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }))
-      .then((r) => (!r.ok ? toast(r.error ?? "Başlatılamadı") : r.queued && toast(`Sıraya alındı (${r.queued}. sırada)`)));
+      .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }))
+      .then((r) => (!r.ok ? toast(r.error ?? "Couldn't start") : r.queued && toast(`Queued (number ${r.queued} in line)`)));
     return;
   }
   if (a.type === "revise") {
     const run = ctx.state.runs.find((x) => x.id === a.runId);
     void fetch("/api/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: run?.taskId, feedback: a.note, rouId, worldId: a.worldId ?? undefined, projectId: a.projectId ?? undefined, accountId: a.accountId ?? undefined }) })
-      .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }))
-      .then((r) => toast(r.ok ? (r.queued ? (r.message ?? "Revize sıraya alındı") : "Revize notu kaydedildi; bitince sonucu sohbette gösteririm.") : r.error ?? "Başlatılamadı"));
+      .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }))
+      .then((r) => toast(r.ok ? (r.queued ? (r.message ?? "Revision queued") : "Revision note saved; I'll show the result in the chat when it's done.") : r.error ?? "Couldn't start"));
     return;
   }
   if (a.type === "set_text") {
     void fetch("/api/run-text", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: a.runId, text: a.text }) })
-      .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }))
-      .then((r) => toast(r.ok ? "Metin olduğu gibi kondu." : r.error ?? "Yapılamadı"));
+      .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }))
+      .then((r) => toast(r.ok ? "Text set as is." : r.error ?? "Couldn't do it"));
     return;
   }
   if (a.type === "share") {
     const run = ctx.state.runs.find((x) => x.id === a.runId);
     void fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: a.runId, approve: run?.status === "ready" }) })
-      .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }))
-      .then((r) => toast(r.ok ? "Paylaşım başladı" : `Paylaşılamadı: ${r.error}`));
+      .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }))
+      .then((r) => toast(r.ok ? "Sharing started" : `Couldn't share: ${r.error}`));
     return;
   }
   if (a.type === "prepare") {
     void fetch("/api/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: a.taskId }) })
-      .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }))
-      .then((r) => toast(r.ok ? "Hazırlanıyor. Çıktı onay için düşecek." : r.error ?? "Başlatılamadı"));
+      .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }))
+      .then((r) => toast(r.ok ? "Preparing. The output will come in for approval." : r.error ?? "Couldn't start"));
     return;
   }
   const before = structuredClone(ctx.state);
@@ -348,11 +348,11 @@ export function apply(a: RouAction, ctx: Ctx, rouId?: string, picked?: Set<numbe
       const id = applyData(step, m, after, rouId);
       if (id && "ref" in raw && typeof raw.ref === "string") refs[raw.ref] = id;
     }
-    return void toast(`Rou ${done.length} adımı yaptı`, () => ctx.mutate((s) => revert(s, after, before)));
+    return void toast(`Rou did ${done.length} step${done.length === 1 ? "" : "s"}`, () => ctx.mutate((s) => revert(s, after, before)));
   }
   if (["start", "pause", "resume", "stop"].includes(a.type)) applyTimer(a, m, ctx);
   else applyData(a, m, ctx.state, rouId);
-  toast("Rou yaptı", () => ctx.mutate((s) => revert(s, after, before)));
+  toast("Rou did it", () => ctx.mutate((s) => revert(s, after, before)));
 }
 
 function applyTimer(a: RouAction, m: Ctx["mutate"], ctx: Ctx) {
@@ -591,9 +591,9 @@ function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): s
 // Proje ve otomasyon düzenlemesi: Rou konuşmada verilen kalıcı kararları (ton, kural, ritim) kayda yazar.
 // Metin alanları (açıklama, talimat, marka) tam yeni hâliyle gelir; değişmeyen alan yazılmaz.
 const STATUS: ProjectStatus[] = ["active", "paused", "done"];
-const STATUS_TR = { active: "sürüyor", paused: "durdu", done: "bitti" };
-const WHO_AUTO: Record<string, string> = { me: "Sen", claude: "Rou" };
-const WD = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+const STATUS_TR = { active: "active", paused: "paused", done: "done" };
+const WHO_AUTO: Record<string, string> = { me: "You", claude: "Rou" };
+const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
 const short = (v: string) => (v.length > 90 ? `${v.slice(0, 90)}…` : v);
 const cleanDays = (v: unknown) => (Array.isArray(v) && v.length && v.every((d) => Number.isInteger(d) && d >= 0 && d <= 6) ? [...new Set(v as number[])].sort() : null);
@@ -610,29 +610,29 @@ function projectChanges(a: Extract<RouAction, { type: "edit_project" }>, p?: Sta
   if (a.deadline && !DAY.test(a.deadline)) return null;
   const c: string[] = [];
   const name = text(a.name), desc = text(a.description);
-  if (name && name !== p.name) c.push(`ad: ${name}`);
-  if (desc && desc !== p.description) c.push(`açıklama: ${short(desc)}`);
-  if (a.deadline !== undefined && (a.deadline || null) !== p.deadline) c.push(a.deadline ? `deadline ${relDay(a.deadline)}` : "deadline kalkar");
-  if (typeof a.ongoing === "boolean" && a.ongoing !== !!p.ongoing) c.push(a.ongoing ? "sürekli proje" : "sürekli değil");
+  if (name && name !== p.name) c.push(`name: ${name}`);
+  if (desc && desc !== p.description) c.push(`description: ${short(desc)}`);
+  if (a.deadline !== undefined && (a.deadline || null) !== p.deadline) c.push(a.deadline ? `deadline ${relDay(a.deadline)}` : "no deadline");
+  if (typeof a.ongoing === "boolean" && a.ongoing !== !!p.ongoing) c.push(a.ongoing ? "ongoing project" : "not ongoing");
   if (a.status && STATUS.includes(a.status) && a.status !== p.status) c.push(STATUS_TR[a.status]);
   const b = cleanBrand(a.brand);
-  const LB = { audience: "kitle", use: "ton / kullan", avoid: "kaçın" } as const;
-  if (b) for (const k of ["audience", "use", "avoid"] as const) if (b[k] !== undefined && b[k] !== (p.brand?.[k] ?? "")) c.push(`${LB[k]}: ${short(b[k] || "boş")}`);
-  if (b?.pillars && b.pillars.join("|") !== (p.brand?.pillars ?? []).join("|")) c.push(`başlıklar: ${b.pillars.join(", ") || "boş"}`);
+  const LB = { audience: "audience", use: "tone / use", avoid: "avoid" } as const;
+  if (b) for (const k of ["audience", "use", "avoid"] as const) if (b[k] !== undefined && b[k] !== (p.brand?.[k] ?? "")) c.push(`${LB[k]}: ${short(b[k] || "empty")}`);
+  if (b?.pillars && b.pillars.join("|") !== (p.brand?.pillars ?? []).join("|")) c.push(`pillars: ${b.pillars.join(", ") || "empty"}`);
   return c.length ? c : null;
 }
 function autoChanges(a: Extract<RouAction, { type: "edit_auto" }>, x?: Automation) {
   if (!x) return null;
   const c: string[] = [];
   const title = text(a.title), action = text(a.action);
-  if (title && title !== x.title) c.push(`ad: ${title}`);
-  if (action && action !== x.action) c.push(`talimat: ${short(action)}`);
+  if (title && title !== x.title) c.push(`name: ${title}`);
+  if (action && action !== x.action) c.push(`instruction: ${short(action)}`);
   const days = cleanDays(a.days), times = cleanTimes(a.times);
-  if (days && days.join() !== [...x.days].sort().join()) c.push(`günler: ${days.map((d) => WD[d]).join(", ")}`);
-  if (times && times.join() !== [...x.times].sort().join()) c.push(`saat: ${times.join(", ") || "saatsiz"}`);
-  if (a.who && WHO_AUTO[a.who] && a.who !== x.who) c.push(`yapan: ${WHO_AUTO[a.who]}`);
-  if ((a.status === "active" || a.status === "paused") && a.status !== x.status) c.push(a.status === "active" ? "çalışır" : "durur");
+  if (days && days.join() !== [...x.days].sort().join()) c.push(`days: ${days.map((d) => WD[d]).join(", ")}`);
+  if (times && times.join() !== [...x.times].sort().join()) c.push(`time: ${times.join(", ") || "no time"}`);
+  if (a.who && WHO_AUTO[a.who] && a.who !== x.who) c.push(`done by: ${WHO_AUTO[a.who]}`);
+  if ((a.status === "active" || a.status === "paused") && a.status !== x.status) c.push(a.status === "active" ? "runs" : "pauses");
   const visual = text(a.visual);
-  if (visual && visual !== (x.visual ?? "")) c.push(`görsel kuralı: ${short(visual.split("\n").at(-1) ?? visual)}`);
+  if (visual && visual !== (x.visual ?? "")) c.push(`visual rule: ${short(visual.split("\n").at(-1) ?? visual)}`);
   return c.length ? c : null;
 }

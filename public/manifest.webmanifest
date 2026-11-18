@@ -1,9 +1,16 @@
 {
   "name": "Playgrounds",
   "short_name": "Playgrounds",
+  "description": "A local-first planner you share with your AI tools.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f5f7",
   "theme_color": "#f4f5f7",
-  "icons": [{ "src": "/apple-touch-icon.png", "sizes": "512x512", "type": "image/png" }]
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

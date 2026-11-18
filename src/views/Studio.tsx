@@ -40,7 +40,8 @@ type Acc = Account & { world: World };
 export type Item = { key: string; day: string; time: string; acc?: Acc; plats?: string[]; title: string; format: PostFormat | null; task?: Task; run?: Run; auto?: Automation };
 type St = "plan" | "working" | "ready" | "approved" | "posted" | "failed" | "ghost";
 // Satırdaki durum: gönderinin şu an nerede olduğu, düz dille.
-const ST_LABEL: Record<St, string> = { plan: "Hazır değil", working: "Hazırlanıyor", ready: "Onayını bekliyor", approved: "Onaylandı", posted: "Paylaşıldı", failed: "Hazırlanamadı", ghost: "Hazır değil" };
+const ST_LABEL: Record<St, string> = { plan: "Not ready", working: "Preparing", ready: "Awaiting your approval", approved: "Approved", posted: "Shared", failed: "Couldn't prepare", ghost: "Not ready" };
+const nPosts = (n: number) => `${n} ${n === 1 ? "post" : "posts"}`;
 
 const stOf = (it: Item): St => {
   if (!it.task) return "ghost";
@@ -99,7 +100,7 @@ export function itemOfSlot(s: Ctx["state"], a: Automation, day: string, slot: st
 
 async function prepareMany(ids: string[]) {
   const r = await fetch("/api/prepare-many", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) }).then((x) => x.json()).catch(() => ({ ok: false }));
-  toast(r.ok ? `${ids.length} gönderi sırayla hazırlanıyor` : "Sunucuya ulaşılamadı");
+  toast(r.ok ? `Preparing ${nPosts(ids.length)} one by one` : "Couldn't reach the server");
 }
 
 // Üstteki özet: gönderiler hangi aşamada. Tıklayınca liste o aşamaya süzülür.
@@ -107,17 +108,17 @@ async function prepareMany(ids: string[]) {
 // Sol listedeki "Gönderiler" satırının özeti: hesap adları değil, gönderilerin durumu.
 export function studioSummary(ctx: Ctx) {
   const accs = studioAccounts(ctx);
-  if (!accs.length) return "Hesap ekle, paylaşımların burada toplanır";
+  if (!accs.length) return "Add an account and your posts gather here";
   const items = itemsOf(ctx, accs, Array.from({ length: 14 }, (_, i) => addDays(weekStart(today()), i)));
   const n = (st: St[]) => items.filter((x) => st.includes(stOf(x))).length;
-  return [n(["ready", "failed"]) && `${n(["ready", "failed"])} onay bekliyor`, n(["plan", "ghost", "working", "approved"]) && `${n(["plan", "ghost", "working", "approved"])} sırada`].filter(Boolean).join(" · ") || `${accs.length} hesap · planlı gönderi yok`;
+  return [n(["ready", "failed"]) && `${n(["ready", "failed"])} awaiting approval`, n(["plan", "ghost", "working", "approved"]) && `${n(["plan", "ghost", "working", "approved"])} up next`].filter(Boolean).join(" · ") || `${accs.length} ${accs.length === 1 ? "account" : "accounts"} · no planned posts`;
 }
 
 // Sol menüdeki Gönderiler sayfası: otomasyonlardan çıkan ve planlanan bütün gönderiler tek yerde.
 export function Posts({ ctx }: { ctx: Ctx }) {
   return (
     <div className="autos posts">
-      <PageHead ctx={ctx} title="Gönderiler" sub="Otomasyonların ürettiği ve elle eklediğin bütün gönderiler. Sen onaylamadan hiçbir şey paylaşılmaz." />
+      <PageHead ctx={ctx} title="Posts" sub="Every post your automations make and every one you add by hand. Nothing is shared until you approve it." />
       <AgentAlert ctx={ctx} />
       <Studio ctx={ctx} />
     </div>
@@ -191,28 +192,28 @@ export function Studio({ ctx }: { ctx: Ctx }) {
     <section className="card autodetail studio">
       <div className="stbox">
         <div className="stboxhead">
-          <h3>Paylaşım planı</h3>
+          <h3>Sharing plan</h3>
           {/* Başlıkta tek yer (2026-11-01): Rou'ya talimatla planlat, haftanın konularını düzenle, tek seferlik gönderi oluştur.
               Otomasyon kurmak projenin sayfasında. */}
-          <button className={`btn sm ghost ${noteOpen ? "on" : ""}`} disabled={past} onClick={() => setNoteOpen(!noteOpen)}><Sparkles size={14} />Rou'ya planlat</button>
-          <button className="btn sm ghost" disabled={past} title={past ? "Geçmiş hafta planlanmaz" : undefined} onClick={() => setPlanning(true)}><CalendarRange size={14} />Konuları düzenle</button>
-          <button className="btn sm primary" onClick={() => setCreating(true)}><Plus size={14} />Gönderi oluştur</button>
+          <button className={`btn sm ghost ${noteOpen ? "on" : ""}`} disabled={past} onClick={() => setNoteOpen(!noteOpen)}><Sparkles size={14} />Plan with Rou</button>
+          <button className="btn sm ghost" disabled={past} title={past ? "A past week can't be planned" : undefined} onClick={() => setPlanning(true)}><CalendarRange size={14} />Edit topics</button>
+          <button className="btn sm primary" onClick={() => setCreating(true)}><Plus size={14} />Create post</button>
         </div>
         {/* Süzgeçler tek çerçevede (2026-11-01): solda etiket sütunu, sağda aynı biçimde çipler. Proje seçilince otomasyon satırı o projeye daralır. */}
         {(projs.length > 1 || autos.length > 0) && (
           <div className="stfbar">
             {projs.length > 1 && (
               <div className="stfrow">
-                <span className="stflab"><FolderOpen size={14} />Proje</span>
-                <nav className="stprojs" aria-label="Proje">
-                  <button className={proj ? "" : "on"} onClick={() => (setProj(null), setOnly(null), setSel(null))}>Tümü</button>
+                <span className="stflab"><FolderOpen size={14} />Project</span>
+                <nav className="stprojs" aria-label="Project">
+                  <button className={proj ? "" : "on"} onClick={() => (setProj(null), setOnly(null), setSel(null))}>All</button>
                   {projs.map((p) => <button key={p.id} className={proj === p.id ? "on" : ""} style={{ ["--w" as string]: s.worlds.find((w) => w.id === p.worldId)?.color }} onClick={() => (setProj(p.id), setOnly(null), setSel(null))}><i />{p.name}</button>)}
                 </nav>
               </div>
             )}
             {autos.length > 0 && (
               <div className="stfrow">
-                <span className="stflab"><Repeat size={14} />Otomasyon</span>
+                <span className="stflab"><Repeat size={14} />Automation</span>
                 <AutoChips ctx={ctx} autos={autos} items={all} on={picked0?.id ?? null} onPick={(id) => (setOnly(id), setSel(null))} />
               </div>
             )}
@@ -228,14 +229,14 @@ export function Studio({ ctx }: { ctx: Ctx }) {
         </AnimatePresence>
         <div className="stviewrow">
           <nav className="seg stview" role="tablist">
-            {([["week", "Hafta"], ["month", "Ay"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={view === k ? "on" : ""} onClick={() => (setView(k), setSel(null))}>{l}</button>)}
+            {([["week", "Week"], ["month", "Month"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={view === k} className={view === k ? "on" : ""} onClick={() => (setView(k), setSel(null))}>{l}</button>)}
           </nav>
           {view === "week" ? <WeekNav wk={wk} min={minWk} max={maxWk} onGo={go} /> : (
             <div className="wknav">
-              <button className="iconbtn" onClick={() => setMon(shiftMonth(mon, -1))} aria-label="Önceki ay"><ChevronLeft size={16} /></button>
+              <button className="iconbtn" onClick={() => setMon(shiftMonth(mon, -1))} aria-label="Previous month"><ChevronLeft size={16} /></button>
               <p><b>{monthName(mon)}</b></p>
-              <button className="iconbtn" onClick={() => setMon(shiftMonth(mon, 1))} aria-label="Sonraki ay"><ChevronRight size={16} /></button>
-              {mon !== today().slice(0, 7) && <button className="link" onClick={() => setMon(today().slice(0, 7))}>Bu aya dön</button>}
+              <button className="iconbtn" onClick={() => setMon(shiftMonth(mon, 1))} aria-label="Next month"><ChevronRight size={16} /></button>
+              {mon !== today().slice(0, 7) && <button className="link" onClick={() => setMon(today().slice(0, 7))}>Back to this month</button>}
             </div>
           )}
         </div>
@@ -248,17 +249,17 @@ export function Studio({ ctx }: { ctx: Ctx }) {
         {view === "month" && <MonthGrid s={s} mon={mon} days={mdays} items={vis(mitems)} day={mday} onDay={setMday} card={card} />}
         {view === "month" ? null : !items.length && wk === thisWeek && !s.automations.length ? (
           <ol className="ststeps">
-            <li><b>Planla</b><span>Haftanın gönderileri ve konuları. Konusu boş olanı Rou yazar.</span></li>
-            <li><b>Hazırlat</b><span>Her gönderinin metni ve görseli hazırlanır.</span></li>
-            <li><b>Onayla</b><span>Önizlemeye bakar, onaylarsın. Paylaşım senin tıklamanla yapılır.</span></li>
+            <li><b>Plan</b><span>The week's posts and their topics. Rou writes any topic left empty.</span></li>
+            <li><b>Prepare</b><span>Each post gets its text and visual.</span></li>
+            <li><b>Approve</b><span>You check the preview and approve. Sharing happens on your click.</span></li>
           </ol>
         ) : (
           <>
             {todo.length > 0 && (
               <div className="stprep">
                 <Sparkles size={15} />
-                <span><b>{todo.length} gönderi planlı ama hazır değil.</b> Rou metni ve görseli şimdi hazırlasın, sen önizlemeden onayla.</span>
-                <button className="btn sm primary" onClick={() => prepareMany(todo.map((x) => x.task!.id))}>Hepsini hazırlat</button>
+                <span><b>{nPosts(todo.length)} planned but not ready.</b> Let Rou prepare the text and visual now, then approve from the preview.</span>
+                <button className="btn sm primary" onClick={() => prepareMany(todo.map((x) => x.task!.id))}>Prepare all</button>
               </div>
             )}
             {/* Hafta yedi sütun: boş gün de yerini tutar, haftanın ritmi bir bakışta görünür. */}
@@ -274,7 +275,7 @@ export function Studio({ ctx }: { ctx: Ctx }) {
                   );
                 })}
               </div>
-              {!items.length && <p className="muted stnote">{past ? "Bu hafta paylaşım yok." : "Bu hafta planlı gönderi yok."}</p>}
+              {!items.length && <p className="muted stnote">{past ? "Nothing was shared this week." : "No posts planned this week."}</p>}
             </div>
           </>
         )}
@@ -290,16 +291,16 @@ export function Studio({ ctx }: { ctx: Ctx }) {
     <section className="card autodetail studio staccs">
       <div className="stbox">
         <div className="stboxhead">
-          <h3>Hesaplar</h3>
+          <h3>Accounts</h3>
           <span className="n">{accs.length || ""}</span>
         </div>
         {accs.length ? (
           <ul className="acclist strip">
-            <AddTile items={[{ label: "Hesap ekle", onClick: () => openAccountForm({ worldId: addWorld, group: "post" }) }]} />
-            {(proj ? accs.filter((a) => s.projects.find((p) => p.id === proj)?.accountIds?.includes(a.id)) : accs).map((a) => <AccountTile key={a.id} ctx={ctx} a={a} world={a.world}><span className="accuse">{a.world.name} dünyası{!a.handle && !a.name ? " · adını ekle" : ""}</span>{a.platform === "instagram" && <InsightButton a={a} onOpen={() => setIns(a)} />}</AccountTile>)}
+            <AddTile items={[{ label: "Add account", onClick: () => openAccountForm({ worldId: addWorld, group: "post" }) }]} />
+            {(proj ? accs.filter((a) => s.projects.find((p) => p.id === proj)?.accountIds?.includes(a.id)) : accs).map((a) => <AccountTile key={a.id} ctx={ctx} a={a} world={a.world}><span className="accuse">{a.world.name} world{!a.handle && !a.name ? " · add its name" : ""}</span>{a.platform === "instagram" && <InsightButton a={a} onOpen={() => setIns(a)} />}</AccountTile>)}
           </ul>
         ) : (
-          <p className="muted stnote">Paylaşım yapacağın hesabı ekle: Instagram, LinkedIn ya da X. Gönderiler hesaba göre hazırlanır.</p>
+          <p className="muted stnote">Add the account you share from: Instagram, LinkedIn or X. Posts are prepared for that account.</p>
         )}
       </div>
     </section>
@@ -314,7 +315,7 @@ function postAutos(ctx: Ctx, accs: Acc[]): Automation[] {
   const order = new Map(s.worlds.map((w, i) => [w.id, i]));
   return s.automations
     .filter((a) => (ctx.route.lens === ALL || a.worldId === ctx.route.lens) && (accountOf(s, a) ? ids.has(accountOf(s, a)!.id) : ["post", "video"].includes(outputOf(s, a))))
-    .sort((a, b) => Number(a.status === "paused") - Number(b.status === "paused") || (order.get(a.worldId)! - order.get(b.worldId)!) || a.title.localeCompare(b.title, "tr"));
+    .sort((a, b) => Number(a.status === "paused") - Number(b.status === "paused") || (order.get(a.worldId)! - order.get(b.worldId)!) || a.title.localeCompare(b.title, "en-US"));
 }
 const autoIdOf = (s: Ctx["state"], it: Item) => it.auto?.id ?? (it.task ? autoOf(s, it.task)?.id : undefined);
 const platOf = (s: Ctx["state"], a: Automation) => accountOf(s, a)?.platform ?? platformsOf(s, a)[0];
@@ -343,17 +344,17 @@ function AutoChips({ ctx, autos, items, on, onPick }: { ctx: Ctx; autos: Automat
     else if (right > b.scrollLeft) b.scrollTo({ left: right, behavior: "smooth" });
   }, [on]);
   return (
-    <div ref={box} onScroll={measure} className={`afilts ${edge.l ? "is-l" : ""} ${edge.r ? "is-r" : ""}`} role="tablist" aria-label="Otomasyona göre süz">
-      <button role="tab" aria-selected={!on} className={`afilt ${!on ? "on" : ""}`} onClick={() => onPick(null)}>Tümü</button>
+    <div ref={box} onScroll={measure} className={`afilts ${edge.l ? "is-l" : ""} ${edge.r ? "is-r" : ""}`} role="tablist" aria-label="Filter by automation">
+      <button role="tab" aria-selected={!on} className={`afilt ${!on ? "on" : ""}`} onClick={() => onPick(null)}>All</button>
       {autos.map((a) => {
         const p = platOf(s, a);
         const n = wait(a.id);
         return (
-          <button key={a.id} role="tab" aria-selected={on === a.id} className={`afilt ${on === a.id ? "on" : ""} ${a.status === "paused" ? "is-paused" : ""}`} onClick={() => onPick(on === a.id ? null : a.id)} title={a.status === "paused" ? "Duraklatıldı" : scheduleText(a)}>
+          <button key={a.id} role="tab" aria-selected={on === a.id} className={`afilt ${on === a.id ? "on" : ""} ${a.status === "paused" ? "is-paused" : ""}`} onClick={() => onPick(on === a.id ? null : a.id)} title={a.status === "paused" ? "Paused" : scheduleText(a)}>
             {p && <BrandIcon platform={p} size={14} mono={on === a.id} />}
             <SeriesDot color={a.color} />
             <span>{a.title}</span>
-            {n > 0 && <i className="afiltn" title="Onayını bekliyor">{n}</i>}
+            {n > 0 && <i className="afiltn" title="Awaiting your approval">{n}</i>}
           </button>
         );
       })}
@@ -366,36 +367,36 @@ function AutoRule({ ctx, a }: { ctx: Ctx; a: Automation }) {
   const s = ctx.state;
   const acc = accountOf(s, a);
   const p = s.projects.find((x) => x.id === a.projectId);
-  const who = a.who === "me" ? "Sen yaparsın" : "Rou hazırlar, sen onaylarsın";
+  const who = a.who === "me" ? "You do it" : "Rou prepares, you approve";
   return (
     <div className="arule">
       <span className="aruletext">
         <b>{scheduleText(a)}</b>
-        <span>{[who, acc ? (acc.handle?.startsWith("@") ? acc.handle : acc.name || acc.handle) : null, p?.name].filter(Boolean).join(" · ")}{a.status === "paused" ? " · Duraklatıldı" : ""}</span>
+        <span>{[who, acc ? (acc.handle?.startsWith("@") ? acc.handle : acc.name || acc.handle) : null, p?.name].filter(Boolean).join(" · ")}{a.status === "paused" ? " · Paused" : ""}</span>
       </span>
-      <button className="btn sm" onClick={() => openAutoView(a.id)}><Settings2 size={14} />Ayarlar</button>
+      <button className="btn sm" onClick={() => openAutoView(a.id)}><Settings2 size={14} />Settings</button>
     </div>
   );
 }
 
 // Bugün, Yarın; diğer günler kısa gün adıyla (Pzt, Sal).
-const dayTitle = (d: string, short = false) => { const n = daysBetween(today(), d); const r = n === 0 || n === 1 ? relDay(d) : short ? dayShort(d) : dayName(d); return r.charAt(0).toLocaleUpperCase("tr") + r.slice(1); };
+const dayTitle = (d: string, short = false) => { const n = daysBetween(today(), d); const r = n === 0 || n === 1 ? relDay(d) : short ? dayShort(d) : dayName(d); return r.charAt(0).toLocaleUpperCase("en-US") + r.slice(1); };
 
 // Hesabın okunur adı: tanıtıcı bir adres ise (linkedin.com/company/…) hesabın adı gösterilir.
-const accLabel = (a: Acc) => (a.handle && !a.handle.includes("/") ? a.handle : a.name || a.handle || "adsız");
+const accLabel = (a: Acc) => (a.handle && !a.handle.includes("/") ? a.handle : a.name || a.handle || "unnamed");
 
 // Hesapsız gönderinin platform satırı: otomasyonun platformları, seçilen platform ya da "Rou seçer".
-const platLabel = (it: Item) => (it.plats ?? []).map((p) => PLATFORM_NAME[p] ?? p).join(", ") || (it.task?.post ? "Platformu Rou seçer" : "Hesap seçilmemiş");
+const platLabel = (it: Item) => (it.plats ?? []).map((p) => PLATFORM_NAME[p] ?? p).join(", ") || (it.task?.post ? "Rou picks the platform" : "No account picked");
 
 // Paylaşılmayan çıktı (rapor, tarayıcı işi) bitince "Bitti" der, "Paylaşıldı" değil.
 const shares = (it: Item) => !!it.acc || !!it.plats?.length || !!it.format;
-const stLabel = (it: Item) => { const st = stOf(it); return it.day < today() && !["posted", "approved", "failed"].includes(st) ? "Gecikti" : st === "posted" && !shares(it) ? "Bitti" : ST_LABEL[st]; };
+const stLabel = (it: Item) => { const st = stOf(it); return it.day < today() && !["posted", "approved", "failed"].includes(st) ? "Late" : st === "posted" && !shares(it) ? "Done" : ST_LABEL[st]; };
 const stHint = (it: Item) => {
   const st = stOf(it);
-  if (st === "ghost") return it.auto?.who === "claude" ? "Rou o sabah hazırlar" : "Görev o gün açılır";
-  if (st === "plan") return "Hazırlatılmadı";
-  if (st === "approved") return it.run?.publish?.phase ? "Rou paylaşıyor" : "Saati gelince paylaşılır";
-  if (st === "posted" && it.run?.postedAt) return `${hm(localTs(new Date(it.run.postedAt)))}'da`;
+  if (st === "ghost") return it.auto?.who === "claude" ? "Rou prepares it that morning" : "The task opens that day";
+  if (st === "plan") return "Not prepared";
+  if (st === "approved") return it.run?.publish?.phase ? "Rou is sharing" : "Shared when its time comes";
+  if (st === "posted" && it.run?.postedAt) return `at ${hm(localTs(new Date(it.run.postedAt)))}`;
   return "";
 };
 const StIcon = ({ st }: { st: St }) => (st === "working" ? <RefreshCw size={11} className="spin" /> : st === "posted" || st === "approved" ? <Check size={11} /> : <i />);
@@ -409,10 +410,10 @@ export function PostCard({ it, open, onToggle, s, when }: { it: Item; open: bool
   return (
     <li>
       <button className={`stcard st-${st} ${open ? "on" : ""} ${late ? "is-late" : ""}`} aria-expanded={open} onClick={onToggle} title={stHint(it) || undefined}>
-        <span className="stctop"><span className="mono">{when && <em>{dayTitle(it.day, true)} </em>}{it.time || "–"}</span><span className="stlab"><StIcon st={st} />{st === "ready" ? "Onayda" : stLabel(it)}</span></span>
+        <span className="stctop"><span className="mono">{when && <em>{dayTitle(it.day, true)} </em>}{it.time || "–"}</span><span className="stlab"><StIcon st={st} />{st === "ready" ? "To approve" : stLabel(it)}</span></span>
         <b>{tp?.title ?? (it.task?.post && !auto ? it.title : (it.run?.title && it.run.title !== it.title ? it.run.title : it.run?.body?.split(/[.!?\n]/)[0])) ?? it.title}</b>
         {tp && it.title !== auto?.title && <span className="sttopic">{it.title}</span>}
-        {(auto || it.task?.post) && <span className="stkind">{[auto ? auto.title : "Tek seferlik", projName(s, it)].filter(Boolean).join(" · ")}</span>}
+        {(auto || it.task?.post) && <span className="stkind">{[auto ? auto.title : "One-off", projName(s, it)].filter(Boolean).join(" · ")}</span>}
         <span className="withbrand">{it.acc
           ? <><BrandIcon platform={it.acc.platform} size={12} /><span>{accLabel(it.acc)}{fmt ? ` · ${fmt}` : ""}</span></>
           : <>{(it.plats ?? []).map((p) => <BrandIcon key={p} platform={p as never} size={12} />)}<span>{platLabel(it)}</span></>}</span>
@@ -443,7 +444,7 @@ export function PostView({ ctx, it, onClose }: { ctx: Ctx; it: Item; onClose: ()
   }, [onClose]);
   const goAuto = () => auto && openAutoView(auto.id);
   const make = () => (it.task?.post && !topicOk(it.task.title) ? toast(SHORT_TOPIC) : it.task ? prepareMany([it.task.id]) : auto && runAt(ctx, auto, it.day, it.time));
-  const why = auto?.who === "me" ? "Bu gönderiyi sen hazırlıyorsun." : it.task ? `${maker} saatinden 1 saat önce hazırlar, sen onaylarsın.` : `Beklersen ${maker} ${it.day === today() ? "bugün" : "o gün"} kendisi hazırlar, sen onaylarsın.`;
+  const why = auto?.who === "me" ? "You prepare this post." : it.task ? `${maker} prepares it 1 hour before its time, you approve.` : `If you wait, ${maker} prepares it ${it.day === today() ? "today" : "that day"} on its own, you approve.`;
   return (
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <motion.div className="modal postview" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
@@ -453,13 +454,13 @@ export function PostView({ ctx, it, onClose }: { ctx: Ctx; it: Item; onClose: ()
             <span>{it.acc && <><BrandIcon platform={it.acc.platform} size={13} />{accLabel(it.acc)} · </>}{dayTitle(it.day)} {dayLong(it.day)}{it.time ? ` · ${it.time}` : ""}</span>
           </div>
           <span className={`stlab st-${st}`}><StIcon st={st} />{stLabel(it)}</span>
-          <button className="x" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          <button className="x" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </header>
         <div className="pvmbody">
           {it.run ? <RunCard r={it.run} ctx={ctx} /> : <>
             {auto && !it.task?.post && auto.who !== "me" && ["post", "video"].includes(outputOf(s, auto)) ? <PostTopic ctx={ctx} a={auto} day={it.day} slot={it.time} /> : auto && !it.task?.post ? (
               <section className="dsec">
-                <div className="dsechead"><span className="flabel">Ne yapacak</span></div>
+                <div className="dsechead"><span className="flabel">What it does</span></div>
                 <div className="brief topicbox is-read"><p>{it.task?.notes || auto.action || auto.title}</p></div>
               </section>
             ) : (
@@ -472,15 +473,15 @@ export function PostView({ ctx, it, onClose }: { ctx: Ctx; it: Item; onClose: ()
               </section>
             )}
             <section className="dsec">
-              <div className="dsechead"><span className="flabel">Süreç</span></div>
+              <div className="dsechead"><span className="flabel">Process</span></div>
               <p className="pvmwhy">{why}</p>
             </section>
           </>}
         </div>
         <footer className="pvmfoot">
           {auto && <button className="stsrc" onClick={goAuto}><Repeat size={13} /><span>{auto.title}</span><ChevronRight size={13} /></button>}
-          {it.task && <button className="btn sm ghost" onClick={() => (onClose(), ctx.open(it.task!.id))}>Görevi aç</button>}
-          {!it.run && auto?.who !== "me" && <button className="btn sm primary" onClick={make}>Şimdi hazırlat</button>}
+          {it.task && <button className="btn sm ghost" onClick={() => (onClose(), ctx.open(it.task!.id))}>Open task</button>}
+          {!it.run && auto?.who !== "me" && <button className="btn sm primary" onClick={make}>Prepare now</button>}
         </footer>
       </motion.div>
     </div>
@@ -497,21 +498,21 @@ function PostTopic({ ctx, a, day, slot }: { ctx: Ctx; a: Automation; day: string
   const save = () => { const v = title.replace(/\s+/g, " ").trim(); if (v !== (t?.title ?? "") || brief.trim() !== (t?.brief ?? "")) setTopic(ctx, a, day, slot, v ? { title: v, brief: brief.trim() } : null); };
   return (
     <section className="dsec">
-      <div className="dsechead"><span className="flabel">Konu</span>{!t && a.who !== "me" ? <button className="link" disabled={busy} onClick={async () => { setBusy(true); await suggestTopics(ctx, a, 6); setBusy(false); }}>{busy ? "Rou yazıyor…" : "Rou önersin"}</button> : <span className="muted">Boş kalırsa Rou yazar</span>}</div>
+      <div className="dsechead"><span className="flabel">Konu</span>{!t && a.who !== "me" ? <button className="link" disabled={busy} onClick={async () => { setBusy(true); await suggestTopics(ctx, a, 6); setBusy(false); }}>{busy ? "Rou is writing…" : "Let Rou suggest"}</button> : <span className="muted">Left empty, Rou writes it</span>}</div>
       <div className="brief topicbox">
-      <textarea className="ttl" rows={1} value={title} onChange={(e) => setTitle(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), e.currentTarget.blur())} placeholder="Bu gönderinin konusu" aria-label="Konu" />
-      <textarea rows={1} value={brief} onChange={(e) => setBrief(e.target.value)} onBlur={save} placeholder="Ne anlatacak" aria-label="Ne anlatacak" />
+      <textarea className="ttl" rows={1} value={title} onChange={(e) => setTitle(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), e.currentTarget.blur())} placeholder="This post's topic" aria-label="Topic" />
+      <textarea rows={1} value={brief} onChange={(e) => setBrief(e.target.value)} onBlur={save} placeholder="What it should say" aria-label="What it should say" />
       </div>
     </section>
   );
 }
 
 // Hafta gezgini: ‹ hafta adı ve tarih aralığı ›; bu haftada değilse "Bu haftaya dön".
-const weekName = (wk: string) => { const n = daysBetween(weekStart(today()), wk) / 7; return n === 0 ? "Bu hafta" : n === 1 ? "Gelecek hafta" : n === -1 ? "Geçen hafta" : n < 0 ? `${-n} hafta önce` : `${n} hafta sonra`; };
+const weekName = (wk: string) => { const n = daysBetween(weekStart(today()), wk) / 7; return n === 0 ? "This week" : n === 1 ? "Next week" : n === -1 ? "Last week" : n < 0 ? `${-n} weeks ago` : `In ${n} weeks`; };
 // Ay görünümü: ayın haftaları, her gün en çok 3 gönderi (saat, platform, konu), fazlası "+N".
 const monthDays = (m: string) => { const first = `${m}-01`; const start = weekStart(first); const out: string[] = []; for (let d = start; d.slice(0, 7) <= m || out.length % 7; d = addDays(d, 1)) out.push(d); return out; };
 const shiftMonth = (m: string, n: number) => { const [y, mo] = m.split("-").map(Number); const d = new Date(y, mo - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
-const monthName = (m: string) => new Date(`${m}-01T12:00`).toLocaleDateString("tr", { month: "long", year: "numeric" });
+const monthName = (m: string) => new Date(`${m}-01T12:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 function MonthGrid({ s, mon, days, items, day, onDay, card }: { s: Ctx["state"]; mon: string; days: string[]; items: Item[]; day: string | null; onDay: (d: string | null) => void; card: (it: Item) => React.ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
   const of = (d: string) => items.filter((x) => x.day === d).sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
@@ -524,7 +525,7 @@ function MonthGrid({ s, mon, days, items, day, onDay, card }: { s: Ctx["state"];
   return (
     <>
       <div className="stmonth">
-        {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map((d) => <p key={d} className="stmhead">{d}</p>)}
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <p key={d} className="stmhead">{d}</p>)}
         {days.map((d) => {
           const list = of(d);
           return (
@@ -536,23 +537,23 @@ function MonthGrid({ s, mon, days, items, day, onDay, card }: { s: Ctx["state"];
                 const p = it.acc?.platform ?? it.plats?.[0];
                 const r = rowOf(s, it);
                 const t = titleOf(it, r.topic);
-                return <span key={it.key} className={`stmitem st-${r.st} ${t ? "" : "is-empty"}`}>{p && <BrandIcon platform={p as never} size={11} />}<em className="mono">{it.time}</em><span>{t || "Konu yok"}</span></span>;
+                return <span key={it.key} className={`stmitem st-${r.st} ${t ? "" : "is-empty"}`}>{p && <BrandIcon platform={p as never} size={11} />}<em className="mono">{it.time}</em><span>{t || "No topic"}</span></span>;
               })}
-              {list.length > 3 && <span className="stmmore">+{list.length - 3} daha</span>}
+              {list.length > 3 && <span className="stmmore">+{list.length - 3} more</span>}
               {list.length > 0 && <span className="stmdots" aria-hidden="true">{list.slice(0, 6).map((it) => <i key={it.key} className={`st-${rowOf(s, it).st}`} />)}</span>}
             </div>
           );
         })}
       </div>
       {day && (
-        <section className="stmday" ref={panel} aria-label="Günün gönderileri">
+        <section className="stmday" ref={panel} aria-label="Posts of the day">
           <header>
-            <h4>{new Date(`${day}T12:00`).toLocaleDateString("tr", { weekday: "long", day: "numeric", month: "long" })}</h4>
-            <span className="n">{shown.length ? `${shown.length} gönderi` : "Gönderi yok"}</span>
-            <span className="stmdaysum">{Object.entries(counts).map(([st, n]) => <span key={st} className={`stlab st-${st}`}><StIcon st={st as St} />{n} {ST_LABEL[st as St].toLocaleLowerCase("tr")}</span>)}</span>
-            <button className="iconbtn" onClick={() => onDay(null)} aria-label="Günü kapat" title="Kapat"><X size={16} /></button>
+            <h4>{new Date(`${day}T12:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</h4>
+            <span className="n">{shown.length ? nPosts(shown.length) : "No posts"}</span>
+            <span className="stmdaysum">{Object.entries(counts).map(([st, n]) => <span key={st} className={`stlab st-${st}`}><StIcon st={st as St} />{n} {ST_LABEL[st as St].toLocaleLowerCase("en-US")}</span>)}</span>
+            <button className="iconbtn" onClick={() => onDay(null)} aria-label="Close day" title="Close"><X size={16} /></button>
           </header>
-          {shown.length ? <ul className="stcards stmdaycards">{shown.map(card)}</ul> : <p className="stmdayempty">Bu gün için planlı gönderi yok.</p>}
+          {shown.length ? <ul className="stcards stmdaycards">{shown.map(card)}</ul> : <p className="stmdayempty">No posts planned for this day.</p>}
         </section>
       )}
     </>
@@ -561,7 +562,7 @@ function MonthGrid({ s, mon, days, items, day, onDay, card }: { s: Ctx["state"];
 
 // Durum süzgeçleri: Onayını bekliyor (hazır ya da hatalı), Hazırlanacak (konusu olan plan), Konusu boş, Paylaşıldı.
 type StKey = "all" | "you" | "plan" | "empty" | "posted";
-const ST_TILES: { id: Exclude<StKey, "all">; label: string }[] = [{ id: "you", label: "Onayını bekliyor" }, { id: "plan", label: "Hazırlanacak" }, { id: "empty", label: "Konusu boş" }, { id: "posted", label: "Paylaşıldı" }];
+const ST_TILES: { id: Exclude<StKey, "all">; label: string }[] = [{ id: "you", label: "Awaiting your approval" }, { id: "plan", label: "To prepare" }, { id: "empty", label: "No topic" }, { id: "posted", label: "Shared" }];
 function stMatch(k: StKey, r: Row) {
   const empty = r.editable && !titleOf(r.it, r.topic);
   return k === "all" ? true : k === "you" ? r.st === "ready" || r.st === "failed" : k === "empty" ? empty : k === "plan" ? (r.st === "plan" || r.st === "ghost") && !empty : r.st === "posted";
@@ -575,15 +576,15 @@ function WeekNote({ ctx, week, items, onDone }: { ctx: Ctx; week: string; items:
     if (!note.trim() || busy) return;
     setBusy(true);
     const autoIds = [...new Set(items.map((it) => autoIdOf(s, it)).filter(Boolean))];
-    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week: week < today() ? today() : week, days: 7, note, ...(autoIds.length ? { autoIds } : {}) }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week: week < today() ? today() : week, days: 7, note, ...(autoIds.length ? { autoIds } : {}) }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setBusy(false);
-    toast(r.ok ? (r.filled ? `Rou ${r.filled} gönderinin konusunu talimatına göre kurdu` : "Değişecek konu çıkmadı") : r.error ?? "Planlanamadı");
+    toast(r.ok ? (r.filled ? `Rou set the topics of ${nPosts(r.filled)} from your note` : "No topics needed changing") : r.error ?? "Couldn't plan");
     if (r.ok) { setNote(""); onDone?.(); }
   };
   return (
     <div className="pspnote stnote2">
-      <textarea rows={2} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="Bu hafta nasıl planlansın? Ör. yeni sürümü anlat, Cuma blog yazısına geç" />
-      <button className="btn sm primary" disabled={!note.trim() || busy} onClick={run}>{busy ? "Rou planlıyor…" : "Rou bu talimatla planlasın"}</button>
+      <textarea rows={2} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="How should this week be planned? E.g. talk about the new release, switch to the blog post on Friday" />
+      <button className="btn sm primary" disabled={!note.trim() || busy} onClick={run}>{busy ? "Rou is planning…" : "Let Rou plan with this"}</button>
     </div>
   );
 }
@@ -592,10 +593,10 @@ function WeekNav({ wk, min, max, onGo }: { wk: string; min: string; max: string;
   const cur = weekStart(today());
   return (
     <div className="wknav">
-      <button className="iconbtn" disabled={wk <= min} onClick={() => onGo(addDays(wk, -7))} aria-label="Önceki hafta"><ChevronLeft size={16} /></button>
+      <button className="iconbtn" disabled={wk <= min} onClick={() => onGo(addDays(wk, -7))} aria-label="Previous week"><ChevronLeft size={16} /></button>
       <p><b>{weekName(wk)}</b><span>{range(wk)}</span></p>
-      <button className="iconbtn" disabled={wk >= max} onClick={() => onGo(addDays(wk, 7))} aria-label="Sonraki hafta"><ChevronRight size={16} /></button>
-      {wk !== cur && <button className="link" onClick={() => onGo(cur)}>Bu haftaya dön</button>}
+      <button className="iconbtn" disabled={wk >= max} onClick={() => onGo(addDays(wk, 7))} aria-label="Next week"><ChevronRight size={16} /></button>
+      {wk !== cur && <button className="link" onClick={() => onGo(cur)}>Back to this week</button>}
     </div>
   );
 }
@@ -619,9 +620,9 @@ function PlanWeek({ ctx, accounts, week, min, max, onWeek, onClose }: { ctx: Ctx
   }, [onClose]);
   const fill = async () => {
     setBusy(true);
-    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setBusy(false);
-    toast(!r.ok ? `Konular gelmedi: ${r.error ?? "hata"}` : r.filled ? `${r.filled} gönderinin konusu yazıldı` : "Boş konu kalmadı");
+    toast(!r.ok ? `No topics came back: ${r.error ?? "error"}` : r.filled ? `Topics written for ${nPosts(r.filled)}` : "No empty topics left");
   };
   const prep = () => {
     queueSlots(ctx, ready.filter((r) => r.auto && !r.it.task).map((r) => ({ a: r.auto!, day: r.it.day, slot: r.slot })), ready.filter((r) => r.it.task).map((r) => r.it.task!.id));
@@ -631,20 +632,20 @@ function PlanWeek({ ctx, accounts, week, min, max, onWeek, onClose }: { ctx: Ctx
       <motion.div className="modal planweek" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
         <div className="afhead">
           <div>
-            <h2 className="mtitle">Haftayı planla</h2>
-            <p className="muted msub">Haftanın gönderileri ve her birinin konusu. Rou bu konulara göre yazar.</p>
+            <h2 className="mtitle">Plan the week</h2>
+            <p className="muted msub">The week's posts and each one's topic. Rou writes from these topics.</p>
           </div>
-          <button type="button" className="x" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          <button type="button" className="x" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
         <WeekNav wk={week} min={min} max={max} onGo={onWeek} />
         <div className="pwsum">
-          <p><b>{items.length} gönderi</b><span>{[rows.length - open.length && `${rows.length - open.length} hazırlandı`, open.length - empty.length && `${open.length - empty.length} konusu belli`, empty.length && `${empty.length} konusu boş`].filter(Boolean).join(" · ")}</span></p>
+          <p><b>{nPosts(items.length)}</b><span>{[rows.length - open.length && `${rows.length - open.length} prepared`, open.length - empty.length && `${open.length - empty.length} with a topic`, empty.length && `${empty.length} without a topic`].filter(Boolean).join(" · ")}</span></p>
           {(empty.length > 0 || busy) && <button className="btn sm primary" disabled={busy} onClick={fill}>
-            {busy ? <><RefreshCw size={14} className="spin" />Rou konuları yazıyor…</> : <><Sparkles size={14} />Boş {empty.length} konuyu Rou yazsın</>}
+            {busy ? <><RefreshCw size={14} className="spin" />Rou is writing topics…</> : <><Sparkles size={14} />Let Rou write {empty.length} empty {empty.length === 1 ? "topic" : "topics"}</>}
           </button>}
         </div>
         <div className="pwlist">
-          {!items.length && <p className="muted stnote">Bu hafta gönderi yok. Aşağıdan ekleyebilirsin.</p>}
+          {!items.length && <p className="muted stnote">No posts this week. You can add one below.</p>}
           {days.map((d) => {
             const list = rows.filter((r) => r.it.day === d);
             if (!list.length) return null;
@@ -658,10 +659,10 @@ function PlanWeek({ ctx, accounts, week, min, max, onWeek, onClose }: { ctx: Ctx
         </div>
         {adding ? <AddPost ctx={ctx} days={days} onDone={() => setAdding(false)} /> : null}
         <div className="foot">
-          {!adding && <button type="button" className="btn ghost" onClick={() => setAdding(true)}><Plus size={14} />Gönderi ekle</button>}
+          {!adding && <button type="button" className="btn ghost" onClick={() => setAdding(true)}><Plus size={14} />Add post</button>}
           <span style={{ flex: 1 }} />
-          {ready.length > 0 && <button type="button" className="btn pwprep" onClick={prep}><Sparkles size={14} />Konusu olan {ready.length} gönderiyi hazırlat</button>}
-          <button type="button" className="btn primary" onClick={onClose}>Bitti</button>
+          {ready.length > 0 && <button type="button" className="btn pwprep" onClick={prep}><Sparkles size={14} />Prepare {ready.length} {ready.length === 1 ? "post" : "posts"} with a topic</button>}
+          <button type="button" className="btn primary" onClick={onClose}>Done</button>
         </div>
       </motion.div>
     </div>
@@ -705,17 +706,17 @@ function SumList({ ctx, rows, days, solo, onOpen }: { ctx: Ctx; rows: Row[]; day
               const t = titleOf(it, r.topic);
               const brief = briefOf(it, r.topic);
               const plats = it.acc ? [it.acc.platform] : it.plats ?? [];
-              const where = [auto ? auto.title : `Tek seferlik · ${it.acc ? accLabel(it.acc) : platLabel(it)}`, solo || projName(s, it) === auto?.title ? "" : projName(s, it)].filter(Boolean).join(" · ");
+              const where = [auto ? auto.title : `One-off · ${it.acc ? accLabel(it.acc) : platLabel(it)}`, solo || projName(s, it) === auto?.title ? "" : projName(s, it)].filter(Boolean).join(" · ");
               return (
                 <li key={it.key}>
                   <button className="psitem" onClick={() => onOpen(r)}>
                     <span className="pstime mono">{it.time || "–"}</span>
                     <span className="pstext">
                       <span className="psmeta">{plats.map((p) => <BrandIcon key={p} platform={p as never} size={12} />)}<span>{where}</span></span>
-                      <b className={t ? "" : "is-none"}>{t || "Konu henüz yok"}</b>
+                      <b className={t ? "" : "is-none"}>{t || "No topic yet"}</b>
                       {brief && <span className="psbrief">{brief}</span>}
                     </span>
-                    <span className={`psst st-${r.editable && !t ? "empty" : r.st}`}>{r.editable && !t ? "Konu yok" : stLabel(it)}</span>
+                    <span className={`psst st-${r.editable && !t ? "empty" : r.st}`}>{r.editable && !t ? "No topic" : stLabel(it)}</span>
                     <ChevronRight size={14} className="pschev" />
                   </button>
                 </li>
@@ -733,14 +734,14 @@ function useFill(from: string, days: number, autoIds?: string[]) {
   const [busy, setBusy] = useState(false);
   const fill = async () => {
     setBusy(true);
-    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week: from, days, autoIds }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week: from, days, autoIds }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setBusy(false);
-    toast(!r.ok ? `Konular gelmedi: ${r.error ?? "hata"}` : r.filled ? `${r.filled} gönderinin konusu yazıldı` : "Boş konu kalmadı");
+    toast(!r.ok ? `No topics came back: ${r.error ?? "error"}` : r.filled ? `Topics written for ${nPosts(r.filled)}` : "No empty topics left");
   };
   return { busy, fill };
 }
 const FillBtn = ({ n, busy, fill }: { n: number; busy: boolean; fill: () => void }) => (n > 0 || busy ? (
-  <button className="btn sm" disabled={busy} onClick={fill}>{busy ? <><RefreshCw size={14} className="spin" />Rou yazıyor…</> : <><Sparkles size={14} />Boş {n} konuyu Rou yazsın</>}</button>
+  <button className="btn sm" disabled={busy} onClick={fill}>{busy ? <><RefreshCw size={14} className="spin" />Rou is writing…</> : <><Sparkles size={14} />Let Rou write {n} empty {n === 1 ? "topic" : "topics"}</>}</button>
 ) : null);
 
 // Gönderiler › Plan özeti: görünen haftanın (süzgeç uygulanmış) gönderileri, düğmenin altında açılır kutu.
@@ -757,10 +758,10 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
   const isEmpty = (r: Row) => r.editable && !titleOf(r.it, r.topic);
   const isPlan = (r: Row) => (r.st === "plan" || r.st === "ghost") && !isEmpty(r);
   const STATS = [
-    { id: "you", label: "Onayını bekliyor", n: allRows.filter(isYou).length },
-    { id: "plan", label: "Hazırlanacak", n: allRows.filter(isPlan).length },
-    { id: "empty", label: "Konusu boş", n: allRows.filter(isEmpty).length },
-    { id: "posted", label: "Paylaşıldı", n: allRows.filter((r) => r.st === "posted").length },
+    { id: "you", label: "Awaiting your approval", n: allRows.filter(isYou).length },
+    { id: "plan", label: "To prepare", n: allRows.filter(isPlan).length },
+    { id: "empty", label: "No topic", n: allRows.filter(isEmpty).length },
+    { id: "posted", label: "Shared", n: allRows.filter((r) => r.st === "posted").length },
   ] as const;
   const rows = stf === "all" ? allRows : allRows.filter(stf === "you" ? isYou : stf === "plan" ? isPlan : stf === "empty" ? isEmpty : (r: Row) => r.st === "posted");
   const { busy, fill } = useFill(week < today() ? today() : week, 7);
@@ -771,9 +772,9 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
     if (!note.trim() || replanning) return;
     setReplanning(true);
     const autoIds = [...new Set(items.map((it) => autoIdOf(s, it)).filter(Boolean))];
-    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week: week < today() ? today() : week, days: 7, note, ...(autoIds.length ? { autoIds } : {}) }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+    const r = await fetch("/api/plan-week-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ week: week < today() ? today() : week, days: 7, note, ...(autoIds.length ? { autoIds } : {}) }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setReplanning(false);
-    toast(r.ok ? (r.filled ? `Rou ${r.filled} gönderinin konusunu talimatına göre kurdu` : "Değişecek konu çıkmadı") : r.error ?? "Planlanamadı");
+    toast(r.ok ? (r.filled ? `Rou set the topics of ${nPosts(r.filled)} from your note` : "No topics needed changing") : r.error ?? "Couldn't plan");
     if (r.ok) setNote("");
   };
   useLayoutEffect(() => {
@@ -799,15 +800,15 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
     return () => { removeEventListener("mousedown", down); removeEventListener("keydown", key); };
   }, [anchor, onClose]);
   const head = inline
-    ? <div className="cardhead"><AlignLeft size={15} className="hicon" /><h3>Plan özeti</h3><span className="n">{weekName(week)} · {range(week)} · {items.length ? `${items.length} gönderi` : "gönderi yok"}</span></div>
+    ? <div className="cardhead"><AlignLeft size={15} className="hicon" /><h3>Plan summary</h3><span className="n">{weekName(week)} · {range(week)} · {items.length ? nPosts(items.length) : "no posts"}</span></div>
     : <div className="psphead">
-        <p><b>{weekName(week)}</b><span>{range(week)} · {items.length ? `${items.length} gönderi` : "gönderi yok"}</span></p>
-        <button className="x" onClick={onClose} aria-label="Kapat"><X size={16} /></button>
+        <p><b>{weekName(week)}</b><span>{range(week)} · {items.length ? nPosts(items.length) : "no posts"}</span></p>
+        <button className="x" onClick={onClose} aria-label="Close"><X size={16} /></button>
       </div>;
   const noteBox = week >= weekStart(today()) && (
     <div className="pspnote">
-      <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Bu hafta nasıl planlansın? Ör. yeni sürümü anlat, Cuma blog yazısına geç" />
-      <button className="btn sm primary" disabled={!note.trim() || replanning} onClick={replan}>{replanning ? "Rou planlıyor…" : "Rou bu talimatla planlasın"}</button>
+      <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="How should this week be planned? E.g. talk about the new release, switch to the blog post on Friday" />
+      <button className="btn sm primary" disabled={!note.trim() || replanning} onClick={replan}>{replanning ? "Rou is planning…" : "Let Rou plan with this"}</button>
     </div>
   );
   const stats = inline && (
@@ -819,20 +820,20 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
       {head}
       {stats}
       {inline && noteBox}
-      {rows.length ? <SumList ctx={ctx} rows={rows} days={days} onOpen={(r) => onOpen(r.it)} /> : <p className="muted stnote">{items.length ? "Bu durumda gönderi yok." : "Bu hafta planlı gönderi yok."}</p>}
+      {rows.length ? <SumList ctx={ctx} rows={rows} days={days} onOpen={(r) => onOpen(r.it)} /> : <p className="muted stnote">{items.length ? "No posts with this status." : "No posts planned this week."}</p>}
       {!inline && noteBox}
       {(empty.length > 0 || busy || (week >= weekStart(today()))) && (
         <div className="pspfoot">
           <FillBtn n={empty.length} busy={busy} fill={fill} />
           <span style={{ flex: 1 }} />
-          {week >= weekStart(today()) && <button className="btn sm ghost" onClick={onPlan}><CalendarRange size={14} />Haftayı planla</button>}
+          {week >= weekStart(today()) && <button className="btn sm ghost" onClick={onPlan}><CalendarRange size={14} />Plan the week</button>}
         </div>
       )}
   </>);
   // inline: Gönderiler'de Paylaşım planının altında sabit bölüm (2026-11-01); değilse düğmenin altında açılan pencere.
   if (inline) return <section className="card autodetail studio stsum">{body}</section>;
   return createPortal(
-    <motion.div ref={box} className="pspop" role="dialog" aria-label="Plan özeti" style={pos ?? { visibility: "hidden" }} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
+    <motion.div ref={box} className="pspop" role="dialog" aria-label="Plan summary" style={pos ?? { visibility: "hidden" }} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
       {body}
     </motion.div>,
     document.body,
@@ -858,12 +859,12 @@ export function PlannedPosts({ ctx, project }: { ctx: Ctx; project: Project }) {
     <section className="card planned">
       <div className="cardhead">
         <CalendarRange size={15} className="hicon" />
-        <h3>Planlanan gönderiler</h3>
+        <h3>Planned posts</h3>
         <span className="n">{rows.length}</span>
         <FillBtn n={empty.length} busy={busy} fill={fill} />
       </div>
       <SumList ctx={ctx} rows={all ? rows : rows.slice(0, PLAN_SHOW)} days={days} solo onOpen={(r) => setSel(r.it.key)} />
-      {rows.length > PLAN_SHOW && <button className="kbdone" onClick={() => setAll(!all)} aria-expanded={all}>{all ? "Daha az göster" : `Tümünü göster (${rows.length})`}<ChevronRight size={13} className={all ? "is-open" : ""} /></button>}
+      {rows.length > PLAN_SHOW && <button className="kbdone" onClick={() => setAll(!all)} aria-expanded={all}>{all ? "Show less" : `Show all (${rows.length})`}<ChevronRight size={13} className={all ? "is-open" : ""} /></button>}
       {picked && <PickedPost key={picked.key} ctx={ctx} it={picked} onClose={() => setSel(null)} />}
     </section>
   );
@@ -878,25 +879,25 @@ function saveTopic(ctx: Ctx, r: Row, title: string, brief: string) {
   if (it.task && v) ctx.mutate((st) => { const t = st.tasks.find((x) => x.id === it.task!.id); if (t) { t.title = v; t.notes = b; if (t.post) t.post.brief = b; } });
 }
 
-const WHO_NAME = { me: "Sen yazarsın", claude: "Rou yazar" } as const;
+const WHO_NAME = { me: "You write it", claude: "Rou writes it" } as const;
 function PlanRow({ ctx, r }: { ctx: Ctx; r: Row }) {
   const { it, auto, topic } = r;
   const [title, setTitle] = useState(topic?.title ?? "");
   const [brief, setBrief] = useState(topic?.brief ?? "");
   useEffect(() => { setTitle(topic?.title ?? ""); setBrief(topic?.brief ?? ""); }, [topic?.title, topic?.brief]);
   const save = () => saveTopic(ctx, r, title, brief);
-  const status = r.editable ? (topic ? "" : "Konu yok") : stLabel(it);
+  const status = r.editable ? (topic ? "" : "No topic") : stLabel(it);
   return (
     <li className={`pwrow ${r.editable ? "" : "is-locked"} ${topic ? "" : "is-empty"} ${status ? "has-st" : ""}`}>
       <span className="pwtime mono">{it.time || "–"}</span>
       <span className="pwacc">
         <span className="withbrand">{it.acc ? <><BrandIcon platform={it.acc.platform} size={13} /><span>{accLabel(it.acc)}</span></> : <>{(it.plats ?? []).map((p) => <BrandIcon key={p} platform={p as never} size={13} />)}<span>{platLabel(it)}</span></>}</span>
-        <em>{[auto ? auto.title : "Tek seferlik", projName(ctx.state, it), WHO_NAME[r.who === "me" ? "me" : "claude"]].filter(Boolean).join(" · ")}</em>
+        <em>{[auto ? auto.title : "One-off", projName(ctx.state, it), WHO_NAME[r.who === "me" ? "me" : "claude"]].filter(Boolean).join(" · ")}</em>
       </span>
       {r.editable ? (
         <span className="pwtopic">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} placeholder={r.who === "me" ? "Konu yaz" : "Konu yaz ya da Rou yazsın"} aria-label="Konu" />
-          <input value={brief} onChange={(e) => setBrief(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} placeholder="Ne anlatacak (isteğe bağlı)" aria-label="Ne anlatacak" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} placeholder={r.who === "me" ? "Write a topic" : "Write a topic or let Rou"} aria-label="Topic" />
+          <input value={brief} onChange={(e) => setBrief(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} placeholder="What it should say (optional)" aria-label="What it should say" />
         </span>
       ) : (
         <span className="pwtopic is-read"><b>{topic?.title ?? it.title}</b>{topic?.brief && <span>{topic.brief}</span>}</span>
@@ -918,13 +919,13 @@ function postProjects(ctx: Ctx) {
 function ProjectPick({ ctx, value, onChange }: { ctx: Ctx; value: string; onChange: (v: string) => void }) {
   const groups = postProjects(ctx);
   const p = ctx.state.projects.find((x) => x.id === value);
-  if (!groups.length) return <span className="pwfixed">Projesiz</span>;
-  return <Select className="selfield" label="Proje" value={value} onChange={onChange} groups={groups.map(({ w, list }) => ({ label: groups.length > 1 ? w.name : undefined, color: groups.length > 1 ? w.color : undefined, options: list.map((x) => ({ value: x.id, label: x.name })) }))}>{p?.name ?? "Proje seç"}</Select>;
+  if (!groups.length) return <span className="pwfixed">No project</span>;
+  return <Select className="selfield" label="Project" value={value} onChange={onChange} groups={groups.map(({ w, list }) => ({ label: groups.length > 1 ? w.name : undefined, color: groups.length > 1 ? w.color : undefined, options: list.map((x) => ({ value: x.id, label: x.name })) }))}>{p?.name ?? "Pick a project"}</Select>;
 }
 function PlatformPick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="seg npplat" role="radiogroup" aria-label="Platform">
-      <button type="button" role="radio" aria-checked={!value} className={!value ? "on" : ""} onClick={() => onChange("")}><Sparkles size={13} />Rou seçsin</button>
+      <button type="button" role="radio" aria-checked={!value} className={!value ? "on" : ""} onClick={() => onChange("")}><Sparkles size={13} />Let Rou pick</button>
       {POST_PLATFORMS.map((p) => <button key={p} type="button" role="radio" aria-checked={value === p} className={value === p ? "on" : ""} onClick={() => onChange(p)}><BrandIcon platform={p} size={13} mono={value !== p} />{PLATFORM_NAME[p] ?? p}</button>)}
     </div>
   );
@@ -936,9 +937,9 @@ const accountFor = (s: Ctx["state"], worldId: string, projectId: string, plat: s
   return social.find((a) => p?.accountIds?.includes(a.id)) ?? social[0];
 };
 const postLine = (s: Ctx["state"], worldId: string, projectId: string, plat: string) => {
-  if (!plat) return "Platformu ve hesabı Rou seçer";
+  if (!plat) return "Rou picks the platform and account";
   const a = accountFor(s, worldId, projectId, plat);
-  return a ? `${PLATFORM_NAME[plat] ?? plat} ${a.handle || a.name || ""}`.trim() : `Bu dünyada ${PLATFORM_NAME[plat] ?? plat} hesabı yok, paylaşımı sen yaparsın`;
+  return a ? `${PLATFORM_NAME[plat] ?? plat} ${a.handle || a.name || ""}`.trim() : `No ${PLATFORM_NAME[plat] ?? plat} account in this world, you share it yourself`;
 };
 function createPost(ctx: Ctx, o: { projectId: string; day: string; time: string; title: string; brief: string; plat: string; mine?: boolean }) {
   const s = ctx.state;
@@ -966,23 +967,23 @@ function AddPost({ ctx, days, onDone }: { ctx: Ctx; days: string[]; onDone: () =
   const add = () => {
     if (!ok) return;
     createPost(ctx, { projectId: pid, day, time, title, brief: notes.trim(), plat });
-    toast("Gönderi eklendi");
+    toast("Post added");
     onDone();
   };
   return (
     <form className="pwadd" onSubmit={(e) => { e.preventDefault(); add(); }}>
-      <label className="fld"><span>Ne anlatılacak</span><input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="ör. Yeni sürüm notları" /><em className="pwhint">Rou bu konuyu proje markası ve hesabın tonuyla yazar.</em></label>
+      <label className="fld"><span>What to say</span><input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g. New release notes" /><em className="pwhint">Rou writes this topic in the project brand and the account's voice.</em></label>
       <div className="pwaddgrid">
-        <label className="fld"><span>Proje</span><ProjectPick ctx={ctx} value={pid} onChange={setPid} /></label>
-        <label className="fld"><span>Gün</span><Select className="selfield" label="Gün" value={day} onChange={setDay} groups={[{ options: days.filter((d) => d >= today()).map((d) => ({ value: d, label: `${dayShort(d)} ${dayNum(d)}` })) }]}>{dayShort(day)} {dayNum(day)}</Select></label>
-        <label className="fld"><span>Saat</span><TimeField value={time} onChange={setTime} label="Saat" /></label>
+        <label className="fld"><span>Project</span><ProjectPick ctx={ctx} value={pid} onChange={setPid} /></label>
+        <label className="fld"><span>Day</span><Select className="selfield" label="Day" value={day} onChange={setDay} groups={[{ options: days.filter((d) => d >= today()).map((d) => ({ value: d, label: `${dayShort(d)} ${dayNum(d)}` })) }]}>{dayShort(day)} {dayNum(day)}</Select></label>
+        <label className="fld"><span>Time</span><TimeField value={time} onChange={setTime} label="Time" /></label>
       </div>
-      <div className="fld"><span>Platform <em>isteğe bağlı</em></span><PlatformPick value={plat} onChange={setPlat} /></div>
-      <label className="fld"><span>Ayrıntı <em>isteğe bağlı</em></span><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ne denedin, ne oldu, neyi vurgulasın" /></label>
+      <div className="fld"><span>Platform <em>optional</em></span><PlatformPick value={plat} onChange={setPlat} /></div>
+      <label className="fld"><span>Details <em>optional</em></span><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What you tried, what happened, what to stress" /></label>
       <div className="pwaddfoot">
-        <p className="pwsumline">{["Tek seferlik gönderi", proj?.name ?? "Projesiz", postLine(s, proj?.worldId ?? "", pid, plat), `${dayShort(day)} ${dayNum(day)}${time ? ` ${time}` : ""}`].join(" · ")}</p>
-        <button type="button" className="btn sm ghost" onClick={onDone}>Vazgeç</button>
-        <button className="btn sm primary" disabled={!ok}>Ekle</button>
+        <p className="pwsumline">{["One-off post", proj?.name ?? "No project", postLine(s, proj?.worldId ?? "", pid, plat), `${dayShort(day)} ${dayNum(day)}${time ? ` ${time}` : ""}`].join(" · ")}</p>
+        <button type="button" className="btn sm ghost" onClick={onDone}>Cancel</button>
+        <button className="btn sm primary" disabled={!ok}>Add</button>
       </div>
     </form>
   );
@@ -1018,7 +1019,7 @@ export function NewPost({ ctx, projectId, onClose }: { ctx: Ctx; projectId?: str
     let image: string | undefined;
     if (mode === "me" && file) {
       const r = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type)}`, { method: "POST", body: file }).then((x) => x.json()).catch(() => ({ ok: false }));
-      if (!r.ok) { setBusy(false); return toast(r.error ?? "Görsel yüklenemedi"); }
+      if (!r.ok) { setBusy(false); return toast(r.error ?? "Couldn't upload the image"); }
       image = `media/${r.file}`;
     }
     const t = createPost(ctx, { projectId: pid, day, time, title, brief: brief.trim(), plat, mine: mode === "me" });
@@ -1036,45 +1037,45 @@ export function NewPost({ ctx, projectId, onClose }: { ctx: Ctx; projectId?: str
     }
     if (mode === "rou" && now) await prepareMany([t.id]);
     setBusy(false);
-    toast(mode === "me" ? "Gönderi onayına eklendi" : now ? "Rou gönderiyi hazırlıyor" : "Gönderi planlandı; Rou saatinden önce hazırlar");
+    toast(mode === "me" ? "Post added for your approval" : now ? "Rou is preparing the post" : "Post planned; Rou prepares it before its time");
     onClose();
   };
   return (
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <motion.form className="modal newpost" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }} onSubmit={(e) => { e.preventDefault(); void create(false); }}>
-        <header className="pvmhead"><div className="pvmwho"><b>Gönderi oluştur</b><span>Bir kez paylaşılacak gönderi; düzenli olanlar için otomasyon kur</span></div><button type="button" className="x" onClick={onClose} aria-label="Kapat"><X size={18} /></button></header>
+        <header className="pvmhead"><div className="pvmwho"><b>Create post</b><span>A post shared once; for regular ones, set up an automation</span></div><button type="button" className="x" onClick={onClose} aria-label="Close"><X size={18} /></button></header>
         <div className="pvmbody">
-          <label className="fld"><span>Ne anlatılacak</span><input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="ör. Yeni sürüm notları" /></label>
+          <label className="fld"><span>What to say</span><input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g. New release notes" /></label>
           <div className="npgrid">
-            <label className="fld"><span>Proje</span><ProjectPick ctx={ctx} value={pid} onChange={setPid} /></label>
-            <label className="fld"><span>Gün</span><DatePick value={day} onChange={(v) => v && setDay(v)} label="Gün" clearable={false} /></label>
-            <label className="fld"><span>Saat</span><TimeField value={time} onChange={setTime} label="Saat" /></label>
+            <label className="fld"><span>Project</span><ProjectPick ctx={ctx} value={pid} onChange={setPid} /></label>
+            <label className="fld"><span>Day</span><DatePick value={day} onChange={(v) => v && setDay(v)} label="Day" clearable={false} /></label>
+            <label className="fld"><span>Time</span><TimeField value={time} onChange={setTime} label="Time" /></label>
           </div>
-          <div className="fld"><span>Platform <em>isteğe bağlı</em></span><PlatformPick value={plat} onChange={setPlat} /><em className="pwhint">{postLine(s, proj?.worldId ?? "", pid, plat)}</em></div>
-          <div className="fld"><span>Metni kim yazacak</span>
-            <div className="seg" role="radiogroup" aria-label="Metni kim yazacak">
-              <button type="button" role="radio" aria-checked={mode === "rou"} className={mode === "rou" ? "on" : ""} onClick={() => setMode("rou")}>Rou yazsın</button>
-              <button type="button" role="radio" aria-checked={mode === "me"} className={mode === "me" ? "on" : ""} onClick={() => setMode("me")}>Ben yazacağım</button>
+          <div className="fld"><span>Platform <em>optional</em></span><PlatformPick value={plat} onChange={setPlat} /><em className="pwhint">{postLine(s, proj?.worldId ?? "", pid, plat)}</em></div>
+          <div className="fld"><span>Who writes the text</span>
+            <div className="seg" role="radiogroup" aria-label="Who writes the text">
+              <button type="button" role="radio" aria-checked={mode === "rou"} className={mode === "rou" ? "on" : ""} onClick={() => setMode("rou")}>Rou writes</button>
+              <button type="button" role="radio" aria-checked={mode === "me"} className={mode === "me" ? "on" : ""} onClick={() => setMode("me")}>I'll write</button>
             </div>
           </div>
-          <div className="fld"><span>Kim paylaşacak</span>
-            <div className="seg" role="radiogroup" aria-label="Kim paylaşacak">
-              <button type="button" role="radio" aria-checked={sharer === "claude"} className={sharer === "claude" ? "on" : ""} onClick={() => setSharer("claude")}>Rou paylaşsın</button>
-              <button type="button" role="radio" aria-checked={sharer === "me"} className={sharer === "me" ? "on" : ""} onClick={() => setSharer("me")}>Ben paylaşacağım</button>
+          <div className="fld"><span>Who shares it</span>
+            <div className="seg" role="radiogroup" aria-label="Who shares it">
+              <button type="button" role="radio" aria-checked={sharer === "claude"} className={sharer === "claude" ? "on" : ""} onClick={() => setSharer("claude")}>Rou shares</button>
+              <button type="button" role="radio" aria-checked={sharer === "me"} className={sharer === "me" ? "on" : ""} onClick={() => setSharer("me")}>I'll share</button>
             </div>
           </div>
           {mode === "rou"
-            ? <label className="fld"><span>Ayrıntı <em>isteğe bağlı</em></span><textarea className="input" rows={3} value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="Ne denedin, ne oldu, neyi neden değiştirdin" /></label>
+            ? <label className="fld"><span>Details <em>optional</em></span><textarea className="input" rows={3} value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="What you tried, what happened, what you changed and why" /></label>
             : <>
-              <label className="fld"><span>Metin</span><textarea className="input" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Gönderinin metni" /></label>
-              <div className="fld"><span>Görsel <em>isteğe bağlı</em></span><label className="npfile"><input type="file" accept="image/*,video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /><span className="btn sm">{file ? "Değiştir" : "Görsel seç"}</span><em>{file ? file.name : "Seçilmedi"}</em></label></div>
+              <label className="fld"><span>Text</span><textarea className="input" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="The post's text" /></label>
+              <div className="fld"><span>Image <em>optional</em></span><label className="npfile"><input type="file" accept="image/*,video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /><span className="btn sm">{file ? "Change" : "Pick image"}</span><em>{file ? file.name : "None picked"}</em></label></div>
             </>}
         </div>
         <footer className="pvmfoot">
-          <span className="pvmwhy">{mode === "me" ? "Onayına düşer" : "Rou saatinden 1 saat önce yazar, sen onaylarsın"}{sharer === "claude" ? "; onaydan sonra Rou paylaşır." : "; paylaşımı sen yaparsın."}</span>
-          <button type="button" className="btn sm ghost" onClick={onClose}>Vazgeç</button>
-          {mode === "rou" && <button type="button" className="btn sm" disabled={!ok || busy} onClick={() => void create(true)}>Şimdi hazırlat</button>}
-          <button className="btn sm primary" disabled={!ok || busy}>{mode === "me" ? "Onaya ekle" : "Planla"}</button>
+          <span className="pvmwhy">{mode === "me" ? "Goes to your approval" : "Rou writes it 1 hour before its time, you approve"}{sharer === "claude" ? "; after approval Rou shares it." : "; you share it yourself."}</span>
+          <button type="button" className="btn sm ghost" onClick={onClose}>Cancel</button>
+          {mode === "rou" && <button type="button" className="btn sm" disabled={!ok || busy} onClick={() => void create(true)}>Prepare now</button>}
+          <button className="btn sm primary" disabled={!ok || busy}>{mode === "me" ? "Add for approval" : "Plan"}</button>
         </footer>
       </motion.form>
     </div>
@@ -1111,12 +1112,12 @@ function WeekReport({ s, wk }: { s: Ctx["state"]; wk: string }) {
   return (
     <section className="stbox streport">
       <div className="stboxhead">
-        <h3>Bu hafta paylaşılan</h3>
-        <span className="n">{r.total} gönderi · {running ? "geçen hafta bu güne kadar" : "geçen hafta"} {r.prev}{r.prev || r.total ? (diff > 0 ? ` (+${diff})` : diff < 0 ? ` (${diff})` : "") : ""}</span>
+        <h3>Shared this week</h3>
+        <span className="n">{nPosts(r.total)} · {running ? "last week to this day" : "last week"} {r.prev}{r.prev || r.total ? (diff > 0 ? ` (+${diff})` : diff < 0 ? ` (${diff})` : "") : ""}</span>
       </div>
       {r.worlds.length ? (
         <div className={`srrail ${edge.l ? "is-l" : ""} ${edge.r ? "is-r" : ""}`}>
-          {edge.l && <button className="srarrow is-prev" aria-label="Önceki dünyalar" onClick={() => page(-1)}><ChevronLeft size={16} /></button>}
+          {edge.l && <button className="srarrow is-prev" aria-label="Previous worlds" onClick={() => page(-1)}><ChevronLeft size={16} /></button>}
           <div ref={rail} className="srworlds" onScroll={() => (measure(), setOpen(null))}>
             {r.worlds.map((w) => {
               const d = w.n - w.prev;
@@ -1133,14 +1134,14 @@ function WeekReport({ s, wk }: { s: Ctx["state"]; wk: string }) {
                   onClick={(e) => (open?.w.id === w.id && !matchMedia("(hover: hover)").matches ? setOpen(null) : show(w, e.currentTarget))}
                 >
                   <span className="srwhead"><i className="srdot" /><b>{w.name}</b></span>
-                  <span className="srwnum"><b>{w.n}</b>{d !== 0 && <small className={d > 0 ? "is-up" : "is-down"} title={running ? "Geçen haftanın aynı gününe göre fark" : "Geçen haftaya göre fark"}>{d > 0 ? `+${d}` : d}</small>}</span>
+                  <span className="srwnum"><b>{w.n}</b>{d !== 0 && <small className={d > 0 ? "is-up" : "is-down"} title={running ? "Change from the same day last week" : "Change from last week"}>{d > 0 ? `+${d}` : d}</small>}</span>
                 </button>
               );
             })}
           </div>
-          {edge.r && <button className="srarrow is-next" aria-label="Sonraki dünyalar" onClick={() => page(1)}><ChevronRight size={16} /></button>}
+          {edge.r && <button className="srarrow is-next" aria-label="Next worlds" onClick={() => page(1)}><ChevronRight size={16} /></button>}
         </div>
-      ) : <p className="srempty">Bu hafta henüz paylaşılan gönderi yok.</p>}
+      ) : <p className="srempty">No posts shared this week yet.</p>}
       {open && <ReportMenu w={open.w} anchor={open.el} onEnter={hold} onLeave={later} onClose={() => setOpen(null)} />}
     </section>
   );
@@ -1171,7 +1172,7 @@ function ReportMenu({ w, anchor, onEnter, onLeave, onClose }: { w: RW; anchor: H
     return () => { removeEventListener("pointerdown", down); removeEventListener("keydown", key); removeEventListener("scroll", scroll, true); };
   }, [anchor, onClose]);
   return createPortal(
-    <motion.div ref={box} className="srmenu" role="dialog" aria-label={`${w.name} paylaşımları`} style={pos ?? { visibility: "hidden" }} onPointerEnter={onEnter} onPointerLeave={(e) => e.pointerType === "mouse" && onLeave()} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
+    <motion.div ref={box} className="srmenu" role="dialog" aria-label={`${w.name} posts`} style={pos ?? { visibility: "hidden" }} onPointerEnter={onEnter} onPointerLeave={(e) => e.pointerType === "mouse" && onLeave()} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
       {w.projects.map((p) => (
         <div key={p.id} className="srproj">
           <p><span>{p.name}</span><span className="srn">{p.n}</span></p>

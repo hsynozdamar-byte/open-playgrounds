@@ -30,15 +30,15 @@ export function weekReport(s: State, wk: string, today?: string): { total: numbe
     const { worldId, projectId, accId } = where(r.taskId);
     const w0 = s.worlds.find((w) => w.id === worldId);
     const wid = w0?.id ?? "none";
-    if (!worlds.has(wid)) worlds.set(wid, { id: wid, name: w0?.name ?? "Dünyasız", color: w0?.color, n: 0, prev: 0, projects: [] });
+    if (!worlds.has(wid)) worlds.set(wid, { id: wid, name: w0?.name ?? "No world", color: w0?.color, n: 0, prev: 0, projects: [] });
     const W = worlds.get(wid)!; W.n++;
     const p0 = s.projects.find((p) => p.id === projectId);
     let P = W.projects.find((p) => p.id === (p0?.id ?? "none"));
-    if (!P) W.projects.push((P = { id: p0?.id ?? "none", name: p0?.name ?? "Projesiz", n: 0, accounts: [] }));
+    if (!P) W.projects.push((P = { id: p0?.id ?? "none", name: p0?.name ?? "No project", n: 0, accounts: [] }));
     P.n++;
     const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === accId);
     let A = P.accounts.find((x) => x.id === (acc?.id ?? "none"));
-    if (!A) P.accounts.push((A = { id: acc?.id ?? "none", name: acc?.name ?? "Hesapsız", platform: String(acc?.platform ?? ""), n: 0 }));
+    if (!A) P.accounts.push((A = { id: acc?.id ?? "none", name: acc?.name ?? "No account", platform: String(acc?.platform ?? ""), n: 0 }));
     A.n++;
   }
   for (const r of old) { const w = worlds.get(s.worlds.find((x) => x.id === where(r.taskId).worldId)?.id ?? "none"); if (w) w.prev++; }

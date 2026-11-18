@@ -13,6 +13,9 @@ import { toast } from "./Toast";
 import { binIt } from "../trashOps";
 import { Select } from "./Select";
 
+// LANGS labels (shared/social.mjs) are Turkish; shown in English here.
+const LANG_NAME: Record<string, string> = { tr: "Turkish", en: "English", "tr+en": "Turkish + English" };
+
 // Hesaplar dünyada durur: paylaşım hesapları (Instagram, LinkedIn...) ve gelen kaynakları (Gmail, Slack...).
 // Hesabın hangi projelerde kullanıldığı (project.accountIds) hesap penceresinin Projeler satırında seçilir.
 // Hesap penceresi her yerden açılır: openAccountForm({ worldId }) yeni, ({ worldId, id }) düzenle, projectId verilirse yeni hesap o projede seçilir.
@@ -20,13 +23,13 @@ import { Select } from "./Select";
 export type AccountDraft = Pick<Account, "platform" | "name" | "handle" | "voice" | "lang" | "login" | "premium">;
 type Kind = Platform | Feed;
 const MAKES: Record<Platform, string> = {
-  instagram: "Gönderi, Reels",
-  linkedin: "Gönderi",
-  x: "Tweet, flood",
-  threads: "Gönderi",
-  tiktok: "Dikey video",
-  youtube: "Dikey video",
-  other: "Düz metin",
+  instagram: "Post, Reels",
+  linkedin: "Post",
+  x: "Tweet, thread",
+  threads: "Post",
+  tiktok: "Vertical video",
+  youtube: "Vertical video",
+  other: "Plain text",
 };
 // Tarayıcıdan paylaşılabilen platformlar (server/publish.mjs HOME ile aynı).
 export const PUBLISHABLE = new Set<string>(["instagram", "linkedin", "x", "threads", "tiktok", "youtube"]);
@@ -48,8 +51,8 @@ export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDr
       {!lock && (
         <>
           {group !== "feed" && <>
-          <p className="accgroup">Paylaşım <span>Gönderi hazırlanır, onaylayınca paylaşılır</span></p>
-          <div className="plattiles" role="radiogroup" aria-label="Paylaşım hesabı">
+          <p className="accgroup">Posting <span>Posts are prepared and shared once you approve</span></p>
+          <div className="plattiles" role="radiogroup" aria-label="Posting account">
             {(Object.keys(PLATFORMS) as Platform[]).map((k) => (
               <button type="button" key={k} role="radio" aria-checked={a.platform === k} className={a.platform === k ? "on" : ""} onClick={() => set({ platform: k })}>
                 <BrandIcon platform={k} size={18} />
@@ -60,8 +63,8 @@ export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDr
           </div>
           </>}
           {group !== "post" && <>
-          <p className="accgroup">Gelenler <span>Buradan gelenler Defter'e düşer</span></p>
-          <div className="plattiles" role="radiogroup" aria-label="Gelen kaynağı">
+          <p className="accgroup">Incoming <span>What arrives here lands in the Notebook</span></p>
+          <div className="plattiles" role="radiogroup" aria-label="Incoming source">
             {(Object.keys(FEEDS) as Feed[]).map((k) => (
               <button type="button" key={k} role="radio" aria-checked={a.platform === k} className={a.platform === k ? "on" : ""} onClick={() => set({ platform: k })}>
                 <BrandIcon platform={k} size={18} />
@@ -74,7 +77,7 @@ export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDr
         </>
       )}
       {lock && (
-        <p className="platag"><BrandIcon platform={a.platform} size={16} /><b>{platformName(a)}</b><span>{feed ? "Gelen kaynağı" : "Paylaşım hesabı"}</span></p>
+        <p className="platag"><BrandIcon platform={a.platform} size={16} /><b>{platformName(a)}</b><span>{feed ? "Incoming source" : "Posting account"}</span></p>
       )}
       {feed ? (
         <>
@@ -83,43 +86,43 @@ export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDr
             <input autoFocus={autoFocus} value={a.handle} onChange={(e) => set({ handle: e.target.value })} placeholder={FEEDS[a.platform as Feed].hint} autoCapitalize="off" spellCheck={false} />
           </label>
           <label className="fld">
-            <span>Ad <em>isteğe bağlı</em></span>
-            <input value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder="Ör. İş maili" />
+            <span>Name <em>optional</em></span>
+            <input value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder="E.g. Work mail" />
           </label>
-          <p className="muted accsoon">Okuma bağlantısı henüz kurulmadı. Kurulunca bu hesaptan gelenler bu dünyanın Defter'ine düşer, sen projeye atarsın.</p>
+          <p className="muted accsoon">Reading is not connected yet. Once it is, what arrives from this account lands in this world's Notebook and you put it in a project.</p>
         </>
       ) : (
         <>
           <label className="fld">
-            <span>{a.platform === "other" ? "Nerede paylaşılacak" : "Görünen ad"}</span>
-            <input autoFocus={autoFocus} value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder={a.platform === "other" ? "Ör. Bülten, blog" : "Ör. Şirket hesabı"} />
+            <span>{a.platform === "other" ? "Where it is shared" : "Display name"}</span>
+            <input autoFocus={autoFocus} value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder={a.platform === "other" ? "E.g. Newsletter, blog" : "E.g. Company account"} />
           </label>
           {a.platform !== "other" && (
             <label className="fld">
-              <span>Kullanıcı adı</span>
-              <input value={a.handle} onChange={(e) => set({ handle: e.target.value })} placeholder="@kullaniciadi" autoCapitalize="off" spellCheck={false} />
+              <span>Username</span>
+              <input value={a.handle} onChange={(e) => set({ handle: e.target.value })} placeholder="@username" autoCapitalize="off" spellCheck={false} />
             </label>
           )}
           {a.platform === "x" && (
             <div className="fld">
-              <span>Hesap</span>
-              <div className="seg" role="radiogroup" aria-label="X hesabı">
-                <button type="button" role="radio" aria-checked={!a.premium} className={!a.premium ? "on" : ""} onClick={() => set({ premium: false })}>Standart · 280</button>
-                <button type="button" role="radio" aria-checked={!!a.premium} className={a.premium ? "on" : ""} onClick={() => set({ premium: true })}>Premium · uzun</button>
+              <span>Account</span>
+              <div className="seg" role="radiogroup" aria-label="X account">
+                <button type="button" role="radio" aria-checked={!a.premium} className={!a.premium ? "on" : ""} onClick={() => set({ premium: false })}>Standard · 280</button>
+                <button type="button" role="radio" aria-checked={!!a.premium} className={a.premium ? "on" : ""} onClick={() => set({ premium: true })}>Premium · long</button>
               </div>
             </div>
           )}
           <div className="fld">
-            <span>Dil</span>
-            <div className="seg" role="radiogroup" aria-label="Dil">
+            <span>Language</span>
+            <div className="seg" role="radiogroup" aria-label="Language">
               {LANGS.map((l) => (
-                <button key={l.id} type="button" role="radio" aria-checked={(a.lang ?? "tr") === l.id} className={(a.lang ?? "tr") === l.id ? "on" : ""} onClick={() => set({ lang: l.id })}>{l.label}</button>
+                <button key={l.id} type="button" role="radio" aria-checked={(a.lang ?? "tr") === l.id} className={(a.lang ?? "tr") === l.id ? "on" : ""} onClick={() => set({ lang: l.id })}>{LANG_NAME[l.id] ?? l.label}</button>
               ))}
             </div>
           </div>
           <label className="fld">
-            <span>Tarz <em>isteğe bağlı</em></span>
-            <textarea rows={2} value={a.voice} onChange={(e) => set({ voice: e.target.value })} placeholder="Nasıl konuşur, neyi asla yazmaz. Uzun rehberi projenin Bilgi kartına ekle." />
+            <span>Voice <em>optional</em></span>
+            <textarea rows={2} value={a.voice} onChange={(e) => set({ voice: e.target.value })} placeholder="How it talks, what it never writes. Put a long guide in the project's Sources card." />
           </label>
         </>
       )}
@@ -199,7 +202,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
         }
         link(st);
       });
-      toast("Hesap güncellendi");
+      toast("Account updated");
     } else {
       ctx.mutate((st) => {
         const w = st.worlds.find((x) => x.id === world.id);
@@ -207,7 +210,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
         (w.accounts ??= []).push({ id, ...next });
         link(st);
       });
-      toast(isFeed(next.platform) ? `${platformName(next)} eklendi. Defter'de Gelenler altında görünür.` : `Hesap eklendi: ${accountLine(next)}`);
+      toast(isFeed(next.platform) ? `${platformName(next)} added. It shows under Incoming in the Notebook.` : `Account added: ${accountLine(next)}`);
     }
     onClose();
   };
@@ -217,7 +220,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
       const w = st.worlds.find((x) => x.id === world.id);
       if (w?.accounts) w.accounts = w.accounts.filter((x) => x.id !== old.id);
       for (const p of st.projects) if (p.accountIds?.includes(old.id)) p.accountIds = p.accountIds.filter((x) => x !== old.id);
-    }, "Hesap kaldırıldı");
+    }, "Account removed");
     onClose();
   };
   const used = s.automations.filter((x) => x.accountId === old?.id).length;
@@ -227,15 +230,15 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
       <motion.form className="modal accform" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} onSubmit={(e) => (e.preventDefault(), save())}>
         <div className="afhead">
           <div>
-            <h2 className="mtitle">{old ? "Hesabı düzenle" : "Hesap ekle"}</h2>
-            <p className="muted msub">{world.name} dünyasının hesabı{project ? `, ${project.name} projesinde kullanılır` : ""}.</p>
+            <h2 className="mtitle">{old ? "Edit account" : "Add account"}</h2>
+            <p className="muted msub">An account of the {world.name} world{project ? `, used in ${project.name}` : ""}.</p>
           </div>
-          <button type="button" className="x" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          <button type="button" className="x" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
         {(req.pickWorld || old) && (
           <div className="fld">
-            <span>Dünya</span>
-            <Select className="selfield" label="Dünya" value={wid} onChange={setWid} groups={[{ options: s.worlds.map((w) => ({ value: w.id, label: w.name, color: w.color })) }]}>
+            <span>World</span>
+            <Select className="selfield" label="World" value={wid} onChange={setWid} groups={[{ options: s.worlds.map((w) => ({ value: w.id, label: w.name, color: w.color })) }]}>
               <i className="soptdot" style={{ ["--w" as string]: s.worlds.find((w) => w.id === wid)?.color }} />{s.worlds.find((w) => w.id === wid)?.name}
             </Select>
           </div>
@@ -243,7 +246,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
         <AccountFields a={a} set={(p) => setA((x) => ({ ...x, ...p }))} lock={!!old} group={req.group} />
         {wprojects.length > 0 && (
           <div className="fld">
-            <span>Projeler <em>{isFeed(a.platform) ? "gelenler bu projelere önerilir" : "bu hesapla paylaşan projeler"}</em></span>
+            <span>Projects <em>{isFeed(a.platform) ? "incoming items are suggested for these projects" : "projects that share from this account"}</em></span>
             <div className="pfaccs">
               {wprojects.map((p) => (
                 <button type="button" key={p.id} className={`accchip pick ${pids.includes(p.id) ? "on" : ""}`} aria-pressed={pids.includes(p.id)} onClick={() => setPids((l) => (l.includes(p.id) ? l.filter((x) => x !== p.id) : [...l, p.id]))}>{p.name}</button>
@@ -252,26 +255,26 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
           </div>
         )}
         <div className="logbox">
-          <p className="accgroup"><KeyRound size={14} />Giriş <span>Yalnız gösterim için; şifre saklanmaz</span></p>
+          <p className="accgroup"><KeyRound size={14} />Sign-in <span>Shown only; the password is not stored here</span></p>
           <div className="logrow">
             <label className="fld">
-              <span>E-posta ya da kullanıcı adı</span>
-              <input value={a.login ?? ""} onChange={(e) => setA((x) => ({ ...x, login: e.target.value }))} placeholder="ornek@gmail.com" autoCapitalize="off" spellCheck={false} autoComplete="off" />
+              <span>Email or username</span>
+              <input value={a.login ?? ""} onChange={(e) => setA((x) => ({ ...x, login: e.target.value }))} placeholder="name@example.com" autoCapitalize="off" spellCheck={false} autoComplete="off" />
             </label>
           </div>
         </div>
         {live && (PUBLISHABLE.has(live.platform) || live.platform === "other") && <BrowserLink ctx={ctx} acc={live} />}
         {confirm ? (
           <div className="wdel">
-            <p><b>{accountLine(a)}</b> kaldırılsın mı?{used ? ` Bu hesabı kullanan ${used} otomasyon düz metin hazırlamaya döner.` : ""}</p>
-            <div className="foot"><span /><button type="button" className="btn" onClick={() => setConfirm(false)}>Vazgeç</button><button type="button" className="btn dangerfill" onClick={remove}>Evet, kaldır</button></div>
+            <p>Remove <b>{accountLine(a)}</b>?{used ? ` ${used} ${used === 1 ? "automation that uses it goes" : "automations that use it go"} back to preparing plain text.` : ""}</p>
+            <div className="foot"><span /><button type="button" className="btn" onClick={() => setConfirm(false)}>Cancel</button><button type="button" className="btn dangerfill" onClick={remove}>Yes, remove</button></div>
           </div>
         ) : (
           <div className="foot">
-            {old && <button type="button" className="btn danger" onClick={() => setConfirm(true)}>Kaldır</button>}
+            {old && <button type="button" className="btn danger" onClick={() => setConfirm(true)}>Remove</button>}
             <span />
-            <button type="button" className="btn" onClick={onClose}>Vazgeç</button>
-            <button className="btn primary">{old ? "Kaydet" : "Hesabı ekle"}</button>
+            <button type="button" className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn primary">{old ? "Save" : "Add account"}</button>
           </div>
         )}
       </motion.form>
@@ -289,22 +292,22 @@ function BrowserLink({ ctx, acc }: { ctx: Ctx; acc: Account }) {
     fetch("/api/pb").then((r) => r.json()).then((x) => { if (on) setLogin(x.profiles?.find((p: { worldId: string }) => p.worldId === world?.id)?.accounts?.[acc.id] ?? null); }).catch(() => on && setLogin(null));
     return () => { on = false; };
   }, [acc.id, world?.id]);
-  const post = (url: string, body: object) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
-  const open = async (asLogin: boolean) => { const r = await post("/api/pb/open", { accountId: acc.id, login: asLogin }); if (!r.ok) toast(r.error ?? "Açılamadı"); };
+  const post = (url: string, body: object) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Could not reach the server" }));
+  const open = async (asLogin: boolean) => { const r = await post("/api/pb/open", { accountId: acc.id, login: asLogin }); if (!r.ok) toast(r.error ?? "Could not open"); };
   return (
     <div className="brlink">
       <div className="brhead">
         <Globe size={15} />
-        <b>Paylaşım yeri</b>
+        <b>Where it is shared</b>
       </div>
       <div className={`brstate ${login === true ? "is-ok" : login === false ? "is-bad" : ""}`}>
         <span>
-          {login === undefined ? "Giriş durumuna bakılıyor…"
-            : login === true ? `Playgrounds tarayıcısında, ${world?.name ?? ""} oturumunda ${platformName(acc)} girişi açık.`
-            : login === false ? `${world?.name ?? ""} oturumunda ${platformName(acc)} girişi yok. Paylaşım için bir kez giriş yap.`
-            : `Paylaşım Playgrounds tarayıcısında, ${world?.name ?? ""} oturumunda yapılır.`}
+          {login === undefined ? "Checking sign-in…"
+            : login === true ? `Signed in to ${platformName(acc)} in the Playgrounds browser, ${world?.name ?? ""} session.`
+            : login === false ? `Not signed in to ${platformName(acc)} in the ${world?.name ?? ""} session. Sign in once to share.`
+            : `Sharing happens in the Playgrounds browser, ${world?.name ?? ""} session.`}
         </span>
-        {login !== true && login !== undefined && <button type="button" className="btn sm" onClick={() => open(login === false)}>{login === false ? "Giriş yap" : "Tarayıcıda aç"}</button>}
+        {login !== true && login !== undefined && <button type="button" className="btn sm" onClick={() => open(login === false)}>{login === false ? "Sign in" : "Open in browser"}</button>}
       </div>
     </div>
   );
@@ -312,7 +315,7 @@ function BrowserLink({ ctx, acc }: { ctx: Ctx; acc: Account }) {
 
 // Hesap kartında yalnız hesabın kendi bilgisi. Kimin paylaşacağı hesabın değil, işin ve otomasyonun ayarıdır (Paylaşan: Rou / Sen).
 export function accountState(a: Account) {
-  if (isFeed(a.platform)) return { ok: false, text: "Okuma bağlantısı yakında" };
+  if (isFeed(a.platform)) return { ok: false, text: "Reading comes soon" };
   return null;
 }
 
@@ -320,7 +323,7 @@ export function AccountTile({ ctx, a, world, tags, children }: { ctx: Ctx; a: Ac
   const st = accountState(a);
   return (
     <li className="accitem">
-      <button className="acchead" onClick={() => openAccountForm({ worldId: world.id, id: a.id })} title="Hesabı düzenle">
+      <button className="acchead" onClick={() => openAccountForm({ worldId: world.id, id: a.id })} title="Edit account">
         <span className="accico" title={platformName(a)}><BrandIcon platform={a.platform} size={18} /></span>
         <span className="accid">
           <b>{a.platform === "other" ? a.name || platformName(a) : a.name || a.handle || world.name}</b>
@@ -330,9 +333,9 @@ export function AccountTile({ ctx, a, world, tags, children }: { ctx: Ctx; a: Ac
       </button>
       <div className="accmeta">
         {st && <span className={`accst ${st.ok ? "is-ok" : ""}`}><i />{st.text}</span>}
-        {a.login && <span className="acctag" title={`Giriş: ${a.login}`}><KeyRound size={12} />Giriş kayıtlı</span>}
+        {a.login && <span className="acctag" title={`Sign-in: ${a.login}`}><KeyRound size={12} />Sign-in saved</span>}
         {tags?.map((x) => <span key={x} className="acctag"><Folder size={12} />{x}</span>)}
-        {tags && !tags.length && <span className="acctag is-none"><Folder size={12} />{isFeed(a.platform) ? "Gelenler Defter'e düşer" : "Projede değil"}</span>}
+        {tags && !tags.length && <span className="acctag is-none"><Folder size={12} />{isFeed(a.platform) ? "Lands in the Notebook" : "In no project"}</span>}
       </div>
       {children}
     </li>
@@ -354,8 +357,8 @@ export function AllAccounts({ ctx }: { ctx: Ctx }) {
   }, []);
   return (
     <section className="card allacc">
-      <div className="sechead"><h2>Hesaplar</h2><span className="n">{n || ""}</span></div>
-      {n === 0 && <p className="muted proempty">Instagram, LinkedIn, X: paylaşım yaptığın hesaplar burada toplanır.</p>}
+      <div className="sechead"><h2>Accounts</h2><span className="n">{n || ""}</span></div>
+      {n === 0 && <p className="muted proempty">Instagram, LinkedIn, X: the accounts you share from gather here.</p>}
       {worlds.map((w) => (
         <div key={w.id} className="aagroup">
           <h3 className="aaworld"><Orb world={w} size={18} />{w.name}<span className="n">{w.accounts!.length}</span></h3>
@@ -368,8 +371,8 @@ export function AllAccounts({ ctx }: { ctx: Ctx }) {
                     <span className="accico" title={platformName(a)}><BrandIcon platform={a.platform} size={16} /></span>
                     <span className="aaid"><b>{a.name || a.handle || platformName(a)}</b><span>{a.handle && a.name ? a.handle : platformName(a)}</span></span>
                     <span className="aatags">
-                      {lg === true && <span className="aatag is-ok"><i />Giriş açık</span>}
-                      {lg === false && <span className="aatag"><i />Giriş yok</span>}
+                      {lg === true && <span className="aatag is-ok"><i />Signed in</span>}
+                      {lg === false && <span className="aatag"><i />Signed out</span>}
                     </span>
                     <Pencil size={14} className="aaedit" />
                   </button>
@@ -379,7 +382,7 @@ export function AllAccounts({ ctx }: { ctx: Ctx }) {
           </ul>
         </div>
       ))}
-      {s.worlds.length > 0 && <div className="stadd"><AddRow label="Hesap ekle" onClick={() => openAccountForm({ worldId: s.worlds[0].id, pickWorld: true })} /></div>}
+      {s.worlds.length > 0 && <div className="stadd"><AddRow label="Add account" onClick={() => openAccountForm({ worldId: s.worlds[0].id, pickWorld: true })} /></div>}
     </section>
   );
 }

@@ -28,7 +28,7 @@ export function splitBody(body: string) {
   return { text: keep.join("\n").replace(/\n{3,}/g, "\n\n").trim(), urls };
 }
 // Metin ve uzak ekler yeniden tek gövdeye: ekler sonda "Görseller:" altında.
-export const joinBody = (text: string, urls: string[]) => (urls.length ? `${text.trim()}\n\nGörseller:\n${urls.join("\n")}` : text.trim());
+export const joinBody = (text: string, urls: string[]) => (urls.length ? `${text.trim()}\n\nImages:\n${urls.join("\n")}` : text.trim());
 
 // cover: video varken ilk görsel onun kapağıdır (render ve pg run --video --img böyle yazar): ayrı ek olarak değil, videonun posteri olarak gösterilir.
 // Videonun kendi kapağı: render çıktısı (-cover.) ya da `pg run --video --img` ile verilen <runId>-0.
@@ -65,13 +65,13 @@ export function Gallery({ items, alt = [] }: { items: MediaItem[]; alt?: string[
             {m.kind === "video"
               ? <video src={srcOf(m.src)} poster={m.poster ? srcOf(m.poster) : undefined} controls playsInline preload="metadata" onLoadedMetadata={k === 0 ? (e) => fit(e.currentTarget.videoWidth, e.currentTarget.videoHeight) : undefined} />
               : <img src={srcOf(m.src)} alt={alt[k] ?? ""} loading="lazy" draggable={false} onLoad={k === 0 ? (e) => fit(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight) : undefined} />}
-            {m.kind === "image" && <button className="galbig" onClick={(e) => (e.stopPropagation(), setBig(m))} aria-label="Tam boyut gör" title="Tam boyut gör"><Maximize2 size={14} /></button>}
+            {m.kind === "image" && <button className="galbig" onClick={(e) => (e.stopPropagation(), setBig(m))} aria-label="View full size" title="View full size"><Maximize2 size={14} /></button>}
           </div>
         ))}
       </div>
       {n > 1 && <>
-        {i > 0 && <button className="pvnav prev" onClick={() => go(i - 1)} aria-label="Önceki">‹</button>}
-        {i < n - 1 && <button className="pvnav next" onClick={() => go(i + 1)} aria-label="Sonraki">›</button>}
+        {i > 0 && <button className="pvnav prev" onClick={() => go(i - 1)} aria-label="Previous">‹</button>}
+        {i < n - 1 && <button className="pvnav next" onClick={() => go(i + 1)} aria-label="Next">›</button>}
         <span className="pvcounter">{i + 1}/{n}</span>
         <div className="pvdots">{items.map((m, k) => <i key={m.src} className={k === i ? "on" : ""} />)}</div>
       </>}
@@ -88,9 +88,9 @@ function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
     return () => window.removeEventListener("keydown", k, true);
   }, [onClose]);
   return createPortal(
-    <div className="gallb" onClick={onClose} role="dialog" aria-label="Görsel">
+    <div className="gallb" onClick={onClose} role="dialog" aria-label="Image">
       <img src={src} alt="" onClick={(e) => e.stopPropagation()} />
-      <button className="gallbx" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+      <button className="gallbx" onClick={onClose} aria-label="Close"><X size={18} /></button>
     </div>,
     document.body,
   );
