@@ -107,7 +107,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     setSel(null);
     if (!blk) return;
     mutate((st) => void (st.blocks = st.blocks.filter((b) => b.id !== id)));
-    toast("Saat takvimden kaldırıldı", () => mutate((st) => void (st.blocks.some((b) => b.id === blk.id) || st.blocks.push(blk))));
+    toast("Block removed from the calendar", () => mutate((st) => void (st.blocks.some((b) => b.id === blk.id) || st.blocks.push(blk))));
   };
 
   // Seçili bloğu Delete ile sil.
@@ -255,15 +255,15 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
           {/* Takvimin kendi araç satırı: gezinme ve görünüm, yönettiği ızgaranın hemen üstünde, sol kenarda. */}
           {!embedded && <div className="caltool">
             <div className="seg sm">
-              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? -7 : -1))} aria-label="Önceki"><ChevronLeft size={16} /></button>
-              <button className={days.includes(t) ? "on" : ""} aria-pressed={days.includes(t)} onClick={() => setAnchor(t)}>Bugün</button>
-              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? 7 : 1))} aria-label="Sonraki"><ChevronRight size={16} /></button>
+              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? -7 : -1))} aria-label="Previous"><ChevronLeft size={16} /></button>
+              <button className={days.includes(t) ? "on" : ""} aria-pressed={days.includes(t)} onClick={() => setAnchor(t)}>Today</button>
+              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? 7 : 1))} aria-label="Next"><ChevronRight size={16} /></button>
             </div>
             <div className="seg sm">
-              <button className={mode === "day" ? "on" : ""} onClick={() => setMode("day")}>Gün</button>
-              <button className={mode === "week" ? "on" : ""} onClick={() => setMode("week")}>Hafta</button>
+              <button className={mode === "day" ? "on" : ""} onClick={() => setMode("day")}>Day</button>
+              <button className={mode === "week" ? "on" : ""} onClick={() => setMode("week")}>Week</button>
             </div>
-            <button className="btn sm" onClick={() => setReview(true)}>Hafta özeti</button>
+            <button className="btn sm" onClick={() => setReview(true)}>Week review</button>
           </div>}
           <div className="chead">
             <span className="gut" />
@@ -276,7 +276,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
           </div>
           {/* Gün satırı yalnız gösterilecek bir şey varsa (deadline, gönderi, saatsiz otomasyon) görünür. */}
           {!embedded && days.some((d) => tasks.some((x) => x.deadline === d && x.status !== "done") || s.projects.filter(inLens(lens)).some((p) => p.deadline === d && p.status !== "done") || posts.some((r) => r.on === d) || ghostList.some((g) => g.day === d && !g.slot)) && <div className="allday">
-            <span className="gut">gün</span>
+            <span className="gut">day</span>
             {days.map((d) => (
               <DropZone key={d} className="adcell" onDrop={(id) => dropTask(id, d, null)}>
                 {[...tasks.filter((x) => x.deadline === d && x.status !== "done"), ...s.projects.filter(inLens(lens)).filter((p) => p.deadline === d && p.status !== "done")].map((x) => (
@@ -384,7 +384,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
       <PageHead
         ctx={ctx}
         title={mode === "week" ? range(days[0]) : `${dayShort(anchor)} ${dayLong(anchor)}`}
-        sub={weekMin ? `${dur(weekMin)} planlı` : "Henüz plan yok, görevi saate sürükle."}
+        sub={weekMin ? `${dur(weekMin)} planned` : "Nothing planned yet. Drag a task onto an hour."}
       />
 
       <AnimatePresence>{review && <WeekReview ctx={ctx} start={weekStart(anchor)} onClose={() => setReview(false)} />}</AnimatePresence>
@@ -395,14 +395,14 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
           {(() => {
             const todayList = visible(t);
             const weekList = days.flatMap((d) => visible(d));
-            const tabs = [["today", "Bugün", todayList], ["week", mode === "week" ? "Bu hafta" : "Bu gün", weekList], ["none", "Tarihsiz", unplanned]] as const;
+            const tabs = [["today", "Today", todayList], ["week", mode === "week" ? "This week" : "This day", weekList], ["none", "Someday", unplanned]] as const;
             const cur = tabs.find((x) => x[0] === trayTab) ?? tabs[0];
             return <>
-              <div className="sechead"><h3>Saatsiz görevler</h3></div>
-              <div className="seg sm traytabs" role="tablist" aria-label="Saatsiz görevler">
+              <div className="sechead"><h3>Tasks without a time</h3></div>
+              <div className="seg sm traytabs" role="tablist" aria-label="Tasks without a time">
                 {tabs.map(([k, l, list]) => <button key={k} role="tab" aria-selected={trayTab === k} className={trayTab === k ? "on" : ""} onClick={() => pickTray(k)}>{l}<span className="tabn">{list.length}</span></button>)}
               </div>
-              <p className="hint">Saate sürükle: takvime girer.{cur[0] === "none" ? " Takvimdeki bir görevi buraya sürükle: takvimden ve günden çıkar." : " Takvimdeki bir görevi buraya sürükle: saati kalkar, günü kalır."}</p>
+              <p className="hint">Drag to an hour to put it on the calendar.{cur[0] === "none" ? " Drag a calendar task here to clear its block and its day." : " Drag a calendar task here to clear its block and keep its day."}</p>
               <DropZone className="traydrop" onDrop={(id) => mutate((st) => {
                 const x = st.tasks.find((y) => y.id === id);
                 const was = st.blocks.find((b) => b.taskId === id && days.includes(tsDay(b.start)));
@@ -412,7 +412,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
                 else if (cur[0] === "today") x.day = t;
                 else if (!x.day && was) x.day = tsDay(was.start);
               })}>
-                <TaskList tasks={[...cur[2]]} ctx={ctx} o={{ world: lens === ALL, day: cur[0] !== "today", grip: true }} empty={cur[0] === "today" ? "Bugün saatsiz görev yok." : cur[0] === "week" ? "Bu hafta saatsiz görev yok." : "Tarihsiz görev yok."} />
+                <TaskList tasks={[...cur[2]]} ctx={ctx} o={{ world: lens === ALL, day: cur[0] !== "today", grip: true }} empty={cur[0] === "today" ? "No tasks without a time today." : cur[0] === "week" ? "No tasks without a time this week." : "No someday tasks."} />
               </DropZone>
             </>;
           })()}
@@ -445,7 +445,7 @@ function lanes(list: Block[]) {
 function GhostView({ g, ctx, a, e, lane, of, onOpen }: { g: { a: Automation }; ctx: Ctx; a: number; e: number; lane: number; of: number; onOpen: (a: Automation) => void }) {
   const len = e - a;
   const tall = (len / 60) * HOUR - 2 >= 48;
-  const by = g.a.who === "me" ? "Sen yaparsın" : "Rou hazırlar";
+  const by = g.a.who === "me" ? "You do it" : "Rou prepares";
   return (
     <button
       className={`blk ghost ${of > 1 ? "is-split" : ""} ${!tall ? "short" : ""}`}
@@ -476,7 +476,7 @@ function BlockView({ b, ctx, a, e, lane = 0, of = 1, sel, dragging, copy, onDown
   const n = new Date();
   const ended = !bot && !late && !!task && task.status !== "done" && s.timer?.taskId !== task.id && tsDay(b.start) === today() && e <= n.getHours() * 60 + n.getMinutes();
   // Alt satırlar: saat (30 dk ve üstü), durum (1 saat ve üstü, kendi satırında; kesilmez).
-  const tag = late ? "Gecikti" : ended ? "Saati geçti" : bot ? stage : "";
+  const tag = late ? "Late" : ended ? "Time is up" : bot ? stage : "";
   const showTag = !!tag && len >= 60 && of === 1;
   // Saat satırı yalnız sığdığında (48px ve üstü); sığmıyorsa blok tek satır, başlık ortada.
   const tall = (len / 60) * HOUR - 2 >= 48;
@@ -485,13 +485,13 @@ function BlockView({ b, ctx, a, e, lane = 0, of = 1, sel, dragging, copy, onDown
     <div
       className={`blk s-${task?.status ?? "todo"} ${task?.status === "done" ? "done" : ""} ${s.timer?.taskId === b.taskId ? "running" : ""} ${sel ? "sel" : ""} ${dragging ? "dragging" : ""} ${copy ? "is-copy" : ""} ${of > 1 ? "is-split" : ""} ${!tall ? "short" : ""} ${late ? "is-late" : ""} ${ended ? "is-ended" : ""} ${bot ? "is-auto" : ""}`}
       style={{ ["--w" as string]: w.color, ["--lines" as string]: lines, top: ((a - START * 60) / 60) * HOUR + 1, height: Math.max(MIN_BLK, (len / 60) * HOUR - 2), ...(of > 1 ? { left: `calc(5px + (100% - 7px) * ${lane / of})`, right: "auto", width: `calc((100% - 7px) / ${of} - 3px)` } : {}) }}
-      title={`${blockTitle(s, b)} · ${fromMin(a)}–${fromMin(e)}${late ? " · Gecikti, bitmedi" : ended ? " · Saati geçti, bitmedi" : bot ? ` · Otomasyon: ${stage}` : ""}`}
+      title={`${blockTitle(s, b)} · ${fromMin(a)}–${fromMin(e)}${late ? " · Late, not done" : ended ? " · Time is up, not done" : bot ? ` · Automation: ${stage}` : ""}`}
       data-blk={b.id}
       onPointerDown={(ev) => onDown(ev, "move")}
     >
       {len >= 45 && <span className="h top" onPointerDown={(ev) => onDown(ev, "top")} />}
       {task && (
-        <button className="bopen" title="Görevi aç" aria-label="Görevi aç" onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => (ev.stopPropagation(), ctx.open(task.id))}>
+        <button className="bopen" title="Open task" aria-label="Open task" onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => (ev.stopPropagation(), ctx.open(task.id))}>
           <ArrowUpRight size={14} />
         </button>
       )}
@@ -518,7 +518,7 @@ function Draft({ top, height, label, onSave, onCancel }: { top: number; height: 
           if (e.key === "Enter") (e.preventDefault(), v.trim() ? onSave(v.trim()) : onCancel());
         }}
         onBlur={() => (v.trim() ? onSave(v.trim()) : onCancel())}
-        placeholder="Ne yapacaksın?"
+        placeholder="What will you do?"
       />
     </form>
   );
@@ -591,7 +591,7 @@ function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx
   const w = worldOf(s, b.worldId);
   const running = s.timer?.taskId === task?.id;
   return createPortal(
-    <div ref={ref} className="blkmenu" role="dialog" aria-label="Takvim saati" style={{ ["--w" as string]: w.color, left: pos?.x ?? -9999, top: pos?.y ?? -9999 }}>
+    <div ref={ref} className="blkmenu" role="dialog" aria-label="Calendar block" style={{ ["--w" as string]: w.color, left: pos?.x ?? -9999, top: pos?.y ?? -9999 }}>
       <div className="bmhead">
         <StatusMark status={task?.status ?? "todo"} size={16} />
         <div>
@@ -600,24 +600,24 @@ function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx
         </div>
       </div>
       {task && (
-        <button onClick={() => (ctx.open(task.id), onClose())}><ArrowUpRight size={16} />Görevi aç</button>
+        <button onClick={() => (ctx.open(task.id), onClose())}><ArrowUpRight size={16} />Open task</button>
       )}
       {task && task.status !== "done" && !running && (
         whoOf(ctx.state, task) === "me"
-          ? <button onClick={() => (startTask(ctx.mutate, task.id), onClose())}><Play size={15} />Başlat</button>
-          : <button onClick={() => (doNow(ctx, task), onClose())}><Play size={15} />Rou şimdi yapsın</button>
+          ? <button onClick={() => (startTask(ctx.mutate, task.id), onClose())}><Play size={15} />Start</button>
+          : <button onClick={() => (doNow(ctx, task), onClose())}><Play size={15} />Let Rou do it now</button>
       )}
       {ask ? (
         <div className="bmconfirm">
-          <b>Bu saat takvimden kaldırılsın mı?</b>
-          <p>{dayLong(tsDay(b.start))} {fromMin(tsMin(b.start))}–{fromMin(tsMin(b.end) || 24 * 60)} saati takvimden silinir. {task ? `“${task.title}” görevi listede kalır.` : ""}</p>
+          <b>Remove this block from the calendar?</b>
+          <p>The block on {dayLong(tsDay(b.start))}, {fromMin(tsMin(b.start))}–{fromMin(tsMin(b.end) || 24 * 60)} is removed from the calendar. {task ? `“${task.title}” stays in your list.` : ""}</p>
           <div className="bmbtns">
-            <button className="btn sm ghost" onClick={() => onAsk(false)}>Vazgeç</button>
-            <button className="btn sm dangerfill" onClick={onRemove}>Kaldır</button>
+            <button className="btn sm ghost" onClick={() => onAsk(false)}>Cancel</button>
+            <button className="btn sm dangerfill" onClick={onRemove}>Remove</button>
           </div>
         </div>
       ) : (
-        <button className="is-danger" onClick={() => onAsk(true)}><CalendarX2 size={16} />Takvimden kaldır<em>Görev kalır</em></button>
+        <button className="is-danger" onClick={() => onAsk(true)}><CalendarX2 size={16} />Remove from calendar<em>Task stays</em></button>
       )}
     </div>,
     document.body,

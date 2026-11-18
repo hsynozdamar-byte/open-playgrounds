@@ -41,7 +41,7 @@ const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./,
 const accName = (a: Acc) => (a.handle?.startsWith("@") ? a.handle : a.name || a.handle || "");
 const PLAT: Record<string, [string, string, string]> = {
   x: ["X", "#111", "X"], instagram: ["IG", "#d6336c", "Instagram"], linkedin: ["in", "#0a66c2", "LinkedIn"], threads: ["@", "#111", "Threads"], tiktok: ["TT", "#111", "TikTok"],
-  youtube: ["YT", "#e62117", "YouTube"], gmail: ["M", "#d93025", "Gmail"], gcal: ["31", "#1a73e8", "Google Takvim"], slack: ["S", "#4a154b", "Slack"], clickup: ["C", "#7b68ee", "ClickUp"],
+  youtube: ["YT", "#e62117", "YouTube"], gmail: ["M", "#d93025", "Gmail"], gcal: ["31", "#1a73e8", "Google Calendar"], slack: ["S", "#4a154b", "Slack"], clickup: ["C", "#7b68ee", "ClickUp"],
 };
 
 export function LiveBrowser({ ctx }: { ctx: Ctx }) {
@@ -63,7 +63,7 @@ export function LiveBrowser({ ctx }: { ctx: Ctx }) {
     <div className={`lb ${lens === ALL ? "has-rail" : ""}`}>
       {/* Üst çubukta dünya seçiliyse (tek dünya) şerit gerekmez. Playgrounds seçiliyken dünyalar solda dar, dikey bir şeritte
           (yalnız simge; ad üzerine gelince): üst çubuktaki dünya satırını tekrar etmez (2026-11-01). Tık: yalnız o; ⌘-tık: yan yana. */}
-      {lens === ALL && <nav className="lb-worlds" aria-label="Dünyalar">
+      {lens === ALL && <nav className="lb-worlds" aria-label="Worlds">
         {ctx.state.worlds.map((w) => {
           const ts = s.tabs.filter((t) => t.worldId === w.id);
           const on = s.shown.includes(w.id);
@@ -76,11 +76,11 @@ export function LiveBrowser({ ctx }: { ctx: Ctx }) {
             </button>
           );
         })}
-        <span className="lb-hint" aria-label="⌘ ile tıkla: yan yana, en çok dört"><Columns2 size={15} /></span>
+        <span className="lb-hint" aria-label="⌘-click: side by side, up to four"><Columns2 size={15} /></span>
       </nav>}
       <div className={`lb-stage n${Math.max(1, shown.length)}`}>
         {shown.map(({ w, p }) => <Pane key={w.id} world={w} p={p} snap={s} many={shown.length > 1} />)}
-        {!shown.length && <p className="lb-none">Üstten bir dünya seç.</p>}
+        {!shown.length && <p className="lb-none">Pick a world at the top.</p>}
       </div>
     </div>
   );
@@ -151,28 +151,28 @@ function Pane({ world, p, snap: s, many }: { world: World; p: PbWorld; snap: Sna
               <Reorder.Item key={t.id} value={t.id} as="button" className={`lb-tab ${t.active ? "is-on" : ""}`} onClick={() => act({ type: "activate", tab: t.id })} title={t.title || t.url}
                 onDragEnd={saveOrder} whileDrag={{ scale: 1.03, zIndex: 2 }} transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}>
                 {t.who ? <i className="lb-who" /> : t.favicon ? <img src={t.favicon} alt="" draggable={false} /> : <span className="lb-fav" />}
-                <span className="lb-tt">{t.title || host(t.url) || "Yeni sekme"}</span>
-                <span className="lb-x" role="button" aria-label="Sekmeyi kapat" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); act({ type: "close", tab: t.id }); }}><X size={12} /></span>
+                <span className="lb-tt">{t.title || host(t.url) || "New tab"}</span>
+                <span className="lb-x" role="button" aria-label="Close tab" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); act({ type: "close", tab: t.id }); }}><X size={12} /></span>
               </Reorder.Item>
             ))}
           </Reorder.Group>
-          <button className="lb-icon" onClick={() => { act({ type: "newTab", world: world.id }); setTimeout(() => addr.current?.focus(), 60); }} title="Yeni sekme (⌘T)" aria-label="Yeni sekme"><Plus size={16} /></button>
+          <button className="lb-icon" onClick={() => { act({ type: "newTab", world: world.id }); setTimeout(() => addr.current?.focus(), 60); }} title="New tab (⌘T)" aria-label="New tab"><Plus size={16} /></button>
         </div>
         {cur?.who && <span className="lb-whochip"><i />{cur.who}</span>}
-        {many && <button className="lb-icon" onClick={() => act({ type: "show", worlds: s.shown.filter((x) => x !== world.id) })} title="Bölmeyi kapat" aria-label="Bölmeyi kapat"><X size={15} /></button>}
+        {many && <button className="lb-icon" onClick={() => act({ type: "show", worlds: s.shown.filter((x) => x !== world.id) })} title="Close pane" aria-label="Close pane"><X size={15} /></button>}
       </header>
       <div className="lb-bar">
-        <button className="lb-icon" disabled={!cur?.canBack} onClick={() => cur && act({ type: "back", tab: cur.id })} aria-label="Geri"><ArrowLeft size={16} /></button>
-        <button className="lb-icon" disabled={!cur?.canFwd} onClick={() => cur && act({ type: "fwd", tab: cur.id })} aria-label="İleri"><ArrowRight size={16} /></button>
-        <button className="lb-icon" disabled={!cur} onClick={() => cur && act({ type: cur.loading ? "stop" : "reload", tab: cur.id })} aria-label={cur?.loading ? "Durdur" : "Yenile"}>{cur?.loading ? <X size={15} /> : <RotateCw size={15} />}</button>
-        <input ref={addr} className="lb-addr" spellCheck={false} placeholder="Adres yaz ya da ara" value={text}
+        <button className="lb-icon" disabled={!cur?.canBack} onClick={() => cur && act({ type: "back", tab: cur.id })} aria-label="Back"><ArrowLeft size={16} /></button>
+        <button className="lb-icon" disabled={!cur?.canFwd} onClick={() => cur && act({ type: "fwd", tab: cur.id })} aria-label="Forward"><ArrowRight size={16} /></button>
+        <button className="lb-icon" disabled={!cur} onClick={() => cur && act({ type: cur.loading ? "stop" : "reload", tab: cur.id })} aria-label={cur?.loading ? "Stop" : "Reload"}>{cur?.loading ? <X size={15} /> : <RotateCw size={15} />}</button>
+        <input ref={addr} className="lb-addr" spellCheck={false} placeholder="Search or type an address" value={text}
           onFocus={(e) => { editing.current = true; e.target.select(); }} onBlur={() => { editing.current = false; setText(cur?.url && !cur.url.startsWith("about:") ? cur.url : ""); }}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") { act({ type: "go", tab: cur?.id, world: world.id, input: text }); e.currentTarget.blur(); }
             if (e.key === "Escape") e.currentTarget.blur();
           }} />
-        {acc && <span className={`lb-sess ${acc.on ? "is-ok" : acc.on === false ? "is-off" : ""}`}><i />{accName(acc)}{acc.on ? ", oturum açık" : acc.on === false ? ", giriş yapılmadı" : ""}</span>}
+        {acc && <span className={`lb-sess ${acc.on ? "is-ok" : acc.on === false ? "is-off" : ""}`}><i />{accName(acc)}{acc.on ? ", signed in" : acc.on === false ? ", not signed in" : ""}</span>}
       </div>
       <div className="lb-body">
         {blank ? <Empty world={world} p={p} sites={s.sites} tab={cur?.id} />
@@ -192,10 +192,10 @@ function Empty({ world, p, sites, tab }: { world: World; p: PbWorld; sites: Snap
       <span className="lb-rou rou-body" aria-hidden />
       <form className="lb-search" onSubmit={(e) => { e.preventDefault(); if (q.trim()) { act({ type: "go", tab, world: world.id, input: q.trim() }); setQ(""); } }}>
         <Search size={17} />
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`${world.name} içinde ara ya da adres yaz`} aria-label="Ara ya da adres yaz" spellCheck={false} />
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search in ${world.name} or type an address`} aria-label="Search or type an address" spellCheck={false} />
       </form>
       {p.accounts.length ? <>
-        <p className="lb-accnote"><Orb world={world} size={16} />{world.name} hesapları</p>
+        <p className="lb-accnote"><Orb world={world} size={16} />{world.name} accounts</p>
         <ul className="lb-accs">
           {p.accounts.map((a) => {
             const [mono, bg, name] = PLAT[a.platform] ?? ["•", "#888", a.platform];
@@ -203,8 +203,8 @@ function Empty({ world, p, sites, tab }: { world: World; p: PbWorld; sites: Snap
             return (
               <li key={a.id}>
                 <span className="lb-plat" style={{ background: bg }}>{mono}</span>
-                <span className="lb-acc"><b>{accName(a)}</b><span className={a.on ? "is-ok" : a.on === false ? "is-off" : ""}>{name}, {a.on ? "oturum açık" : a.on === false ? "giriş yapılmamış" : "oturum bilinmiyor"}</span></span>
-                {site && <button className={`btn sm ${a.on ? "" : "wfill"}`} onClick={() => open(a.on ? site.home : site.login)}>{a.on ? "Aç" : <><LogIn size={14} />Giriş yap</>}</button>}
+                <span className="lb-acc"><b>{accName(a)}</b><span className={a.on ? "is-ok" : a.on === false ? "is-off" : ""}>{name}, {a.on ? "signed in" : a.on === false ? "not signed in" : "sign-in unknown"}</span></span>
+                {site && <button className={`btn sm ${a.on ? "" : "wfill"}`} onClick={() => open(a.on ? site.home : site.login)}>{a.on ? "Open" : <><LogIn size={14} />Sign in</>}</button>}
               </li>
             );
           })}

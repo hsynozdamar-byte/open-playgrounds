@@ -13,10 +13,10 @@ export function accountForRun(s: State, r: Run): Acc {
   const task = s.tasks.find((t) => t.id === r.taskId);
   const acc = accountOf(s, taskRef(s, task));
   const color = worldOf(s, task?.worldId ?? null)?.color ?? "#3b86e8";
-  return { name: acc?.name || acc?.project?.name || "Hesap", handle: acc?.handle ?? "", color, platform: acc?.platform ?? "", label: acc ? platformName(acc) : "", premium: !!acc?.premium };
+  return { name: acc?.name || acc?.project?.name || "Account", handle: acc?.handle ?? "", color, platform: acc?.platform ?? "", label: acc ? platformName(acc) : "", premium: !!acc?.premium };
 }
 
-const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toLocaleUpperCase("tr");
+const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toLocaleUpperCase("en-US");
 function Avatar({ acc, size = 36 }: { acc: Acc; size?: number }) {
   return <span className="pvav" style={{ ["--c" as string]: acc.color, width: size, height: size }}>{initials(acc.name)}</span>;
 }
@@ -42,18 +42,18 @@ function Folded({ text, chars, lines, more, children }: { text: string; chars: n
       {children}
       {open || !cut ? text : cut}
       {cut && !open && <>… <button className="pvmore" onClick={() => setOpen(true)}>{more}</button></>}
-      {cut && open && <> <button className="pvmore" onClick={() => setOpen(false)}>daha az göster</button></>}
+      {cut && open && <> <button className="pvmore" onClick={() => setOpen(false)}>show less</button></>}
     </p>
   );
 }
 
 const Tags = ({ tags }: { tags: string[] }) => (tags.length ? <p className="pvtags">{tags.join(" ")}</p> : null);
 
-// LinkedIn ve platformu "Diğer" olan hesabın düz gönderisi. LinkedIn feed'deki gibi: metin, altında görsel (yoksa "Görsel eksik").
+// LinkedIn ve platformu "Diğer" olan hesabın düz gönderisi. LinkedIn feed'deki gibi: metin, altında görsel (yoksa "Image missing").
 const whenOf = (r: Run) => {
   const at = r.postedAt;
-  if (!at) return "şimdi";
-  return new Date(at).toLocaleDateString("tr", { day: "numeric", month: "short" });
+  if (!at) return "now";
+  return new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 function TextPost({ post, acc, r, compact }: { post: Extract<Post, { format: "linkedin" | "text" }>; acc: Acc; r: Run; compact?: boolean }) {
@@ -63,8 +63,8 @@ function TextPost({ post, acc, r, compact }: { post: Extract<Post, { format: "li
         <Avatar acc={acc} size={44} />
         <div className="pvwho"><b>{acc.name}</b><span>{acc.handle && !acc.handle.includes("/") ? acc.handle : acc.label}</span>{!compact && <span>{whenOf(r)}</span>}</div>
       </header>
-      {missingImage(r) ? <p className="pvnoimg">{r.phase ? `${r.phase}…` : "Görsel eksik"}</p> : <Media r={r} />}
-      {compact ? <p className="pvtext pvclamp">{post.text}</p> : <Folded text={post.text} chars={LI_FOLD} lines={3} more="daha fazla" />}
+      {missingImage(r) ? <p className="pvnoimg">{r.phase ? `${r.phase}…` : "Image missing"}</p> : <Media r={r} />}
+      {compact ? <p className="pvtext pvclamp">{post.text}</p> : <Folded text={post.text} chars={LI_FOLD} lines={3} more="more" />}
     </div>
   );
 }
@@ -88,7 +88,7 @@ function Tweets({ post, acc, compact, r }: { post: Extract<Post, { format: "twee
           {i === 0 && (post.quote || post.reply) && <XQuote t={(post.quote ?? post.reply)!} reply={!post.quote} />}
           <span className={`pvcount ${t.length > max ? "is-over" : ""}`}>
             {many && <b>{i + 1}/{post.tweets.length}</b>}
-            {acc.premium && post.format !== "threads" ? `${t.length} karakter` : `${t.length}/${max}`}
+            {acc.premium && post.format !== "threads" ? `${t.length} characters` : `${t.length}/${max}`}
           </span>
         </article>
       ))}
@@ -107,7 +107,7 @@ function XQuote({ t, reply }: { t: XTarget; reply: boolean }) {
   );
   return (
     <a className="pvq" href={t.url} target="_blank" rel="noreferrer">
-      <span className="pvq-label">{reply ? "Yanıt" : "Alıntı"}</span>
+      <span className="pvq-label">{reply ? "Reply" : "Quote"}</span>
       <div className="pvq-who">{t.avatar && <img src={t.avatar} alt="" />}<b>{t.name ?? t.url}</b>{t.handle && <span>{t.handle}</span>}</div>
       {t.text && <p className="pvq-text">{t.text}</p>}
       {thumb(t.media)}
@@ -149,8 +149,8 @@ function Carousel({ post, r, acc }: { post: Extract<Post, { format: "ig_post" }>
       </div>
       {n > 1 && (
         <>
-          {i > 0 && <button className="pvnav prev" onClick={() => go(i - 1)} aria-label="Önceki slayt">‹</button>}
-          {i < n - 1 && <button className="pvnav next" onClick={() => go(i + 1)} aria-label="Sonraki slayt">›</button>}
+          {i > 0 && <button className="pvnav prev" onClick={() => go(i - 1)} aria-label="Previous slide">‹</button>}
+          {i < n - 1 && <button className="pvnav next" onClick={() => go(i + 1)} aria-label="Next slide">›</button>}
           <span className="pvcounter">{i + 1}/{n}</span>
         </>
       )}
@@ -165,7 +165,7 @@ function Instagram({ post, acc, r }: { post: Extract<Post, { format: "ig_post" }
     <div className="pv pv-ig">
       <header className="pvhead"><Avatar acc={acc} size={32} /><b>{handle}</b></header>
       <Carousel post={post} r={r} acc={acc} />
-      <Folded text={post.caption} chars={IG_FOLD} lines={2} more="devamı"><b>{handle}</b> </Folded>
+      <Folded text={post.caption} chars={IG_FOLD} lines={2} more="more"><b>{handle}</b> </Folded>
       <Tags tags={post.hashtags} />
     </div>
   );
@@ -196,9 +196,9 @@ function ReelVideo({ src, poster }: { src: string; poster?: string }) {
     <>
       <video ref={v} src={src} poster={poster} autoPlay muted loop playsInline controls={false} onClick={toggle}
         onLoadedMetadata={(e) => setD(e.currentTarget.duration)} onPlay={() => setPaused(false)} onPause={() => setPaused(true)} />
-      {paused && <button className="pvplay" onClick={toggle} aria-label="Oynat"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5v14l11-7z" fill="currentColor" /></svg></button>}
+      {paused && <button className="pvplay" onClick={toggle} aria-label="Play"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5v14l11-7z" fill="currentColor" /></svg></button>}
       <span className="pvtime mono">{clock(t)} / {clock(d)}</span>
-      <div className="pvbar" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); seek(e); }} onPointerMove={(e) => e.buttons && seek(e)} role="slider" aria-label="Videoda konum" aria-valuemin={0} aria-valuemax={Math.round(d)} aria-valuenow={Math.round(t)}>
+      <div className="pvbar" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); seek(e); }} onPointerMove={(e) => e.buttons && seek(e)} role="slider" aria-label="Video position" aria-valuemin={0} aria-valuemax={Math.round(d)} aria-valuenow={Math.round(t)}>
         <i style={{ width: d ? `${(t / d) * 100}%` : 0 }} />
       </div>
     </>
@@ -223,13 +223,13 @@ function Reel({ post, acc, r }: { post: Extract<Post, { format: "ig_reel" | "sho
         </div>
       </div>
       <div className="pvside">
-        <Folded text={post.caption} chars={IG_FOLD} lines={2} more="devamı"><b>{handle}</b> </Folded>
+        <Folded text={post.caption} chars={IG_FOLD} lines={2} more="more"><b>{handle}</b> </Folded>
         <Tags tags={post.hashtags} />
-        <button className="pvmore" onClick={() => setScript(!script)}>{script ? "Senaryoyu gizle" : `Senaryo · ${post.scenes.length + (post.hook ? 1 : 0)} sahne`}</button>
+        <button className="pvmore" onClick={() => setScript(!script)}>{script ? "Hide script" : `Script · ${post.scenes.length + (post.hook ? 1 : 0)} scenes`}</button>
         {script && (
           <ol className="pvscript">
             {post.hook && <li><span className="mono">Hook</span>{post.hook}</li>}
-            {post.scenes.map((x, k) => <li key={k}><span className="mono">{x.sec} sn</span>{x.text}</li>)}
+            {post.scenes.map((x, k) => <li key={k}><span className="mono">{x.sec} s</span>{x.text}</li>)}
           </ol>
         )}
       </div>
@@ -257,12 +257,12 @@ export function PostPreview({ r, s, compact }: { r: Run; s: State; compact?: boo
       {!compact && issues.length > 0 && <ul className="pvissues">{issues.map((x) => <li key={x}>{x}</li>)}</ul>}
       {!compact && r.review?.score != null && (
         <details className={`pvreview ${r.review.score < 8 ? "is-low" : ""}`} open={r.review.score < 8}>
-          <summary>{r.review.score < 8 ? `Rou'nun kontrolünden geçmedi: ${r.review.score}/10, yayınlanacak kalitede değil` : `Rou'nun kontrolü: ${r.review.score}/10`}{(r.review.rounds ?? 1) > 1 ? ` · ${r.review.rounds} tur` : ""}</summary>
+          <summary>{r.review.score < 8 ? `Didn't pass Rou's check: ${r.review.score}/10, not ready to publish` : `Rou's check: ${r.review.score}/10`}{(r.review.rounds ?? 1) > 1 ? ` · ${r.review.rounds} rounds` : ""}</summary>
           {!!r.review.notes?.length && <ul>{r.review.notes.map((x) => <li key={x}>{x}</li>)}</ul>}
         </details>
       )}
-      {!compact && r.needs?.length ? <div className="pvneeds"><b>Daha iyi görsel için Rou'nun ihtiyacı</b><ul>{r.needs.map((x) => <li key={x}>{x}</li>)}</ul></div> : null}
-      {r.renderError && <p className="pvissues">{isVideo(post.format) ? "Video" : "Görseller"} üretilemedi: {r.renderError}</p>}
+      {!compact && r.needs?.length ? <div className="pvneeds"><b>What Rou needs for a better visual</b><ul>{r.needs.map((x) => <li key={x}>{x}</li>)}</ul></div> : null}
+      {r.renderError && <p className="pvissues">Couldn't make the {isVideo(post.format) ? "video" : "images"}: {r.renderError}</p>}
     </div>
   );
 }
@@ -272,7 +272,7 @@ export function PostPreview({ r, s, compact }: { r: Run; s: State; compact?: boo
 export function DraftPost({ r, s, compact }: { r: Run; s: State; compact?: boolean }) {
   const task = s.tasks.find((t) => t.id === r.taskId);
   const acc = accountForRun(s, r);
-  const name = acc.name === "Hesap" ? s.projects.find((p) => p.id === task?.projectId)?.name ?? worldOf(s, task?.worldId ?? null).name : acc.name;
+  const name = acc.name === "Account" ? s.projects.find((p) => p.id === task?.projectId)?.name ?? worldOf(s, task?.worldId ?? null).name : acc.name;
   const who = { ...acc, name };
   const pls = platformsOf(s, s.automations.find((a) => a.id === task?.autoId));
   // X ya da Threads taslağı (yalnız metin): gönderi kartıyla aynı görünüm.

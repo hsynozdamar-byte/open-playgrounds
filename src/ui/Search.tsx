@@ -20,14 +20,14 @@ const fold = (x: string) => x.toLocaleLowerCase("tr").normalize("NFD").replace(/
 type Kind = "task" | "project" | "note" | "auto" | "world" | "cmd";
 type Hit = { kind: Kind; id: string; title: string; meta: string; worldId: string | null; score: number; done?: boolean; status?: State["tasks"][number]["status"] };
 
-const GROUP: Record<Kind, string> = { cmd: "Komutlar", task: "Görevler", project: "Projeler", note: "Defter", auto: "Otomasyonlar", world: "Dünyalar" };
+const GROUP: Record<Kind, string> = { cmd: "Commands", task: "Tasks", project: "Projects", note: "Notebook", auto: "Automations", world: "Worlds" };
 const ORDER: Kind[] = ["world", "project", "task", "auto", "note", "cmd"];
 // Aramadan çalışan komutlar: id → başlık ve arama kelimeleri.
 const CMDS: { id: string; title: string; meta: string; words: string }[] = [
-  { id: "backups", title: "Yedekten geri dön", meta: "Günlük yedekler", words: "yedek geri dön backup kurtar" },
-  { id: "world", title: "Yeni dünya", meta: "Dünya ekle", words: "yeni dünya ekle oluştur" },
+  { id: "backups", title: "Restore from backup", meta: "Daily backups", words: "backup restore recover undo" },
+  { id: "world", title: "New world", meta: "Add a world", words: "new world add create" },
 ];
-const DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // Başlıkta baştan eşleşme en üstte, sonra kelime başı, sonra içinde; yalnız açıklamada geçen en altta.
 function score(q: string, title: string, rest: string[]) {
@@ -50,7 +50,7 @@ export function find(s: State, raw: string): Hit[] {
       .filter((x) => x.status !== "done" && x.day && x.day <= t)
       .sort((a, b) => (a.day! < b.day! ? -1 : a.day! > b.day! ? 1 : (a.order ?? 0) - (b.order ?? 0)))
       .slice(0, 8)
-      .map((x) => ({ kind: "task", id: x.id, title: x.title, meta: [wname(x.worldId), x.projectId ? proj.get(x.projectId)?.name : "", x.day === t ? "bugün" : relDay(x.day!)].filter(Boolean).join(" · "), worldId: x.worldId, score: 1, status: x.status }));
+      .map((x) => ({ kind: "task", id: x.id, title: x.title, meta: [wname(x.worldId), x.projectId ? proj.get(x.projectId)?.name : "", x.day === t ? "today" : relDay(x.day!)].filter(Boolean).join(" · "), worldId: x.worldId, score: 1, status: x.status }));
   }
   for (const w of s.worlds) {
     const n = score(q, w.name, [w.description]);
@@ -63,24 +63,24 @@ export function find(s: State, raw: string): Hit[] {
   for (const x of s.tasks) {
     const n = score(q, x.title, [x.notes, ...x.checklist.map((c) => c.text)]);
     if (!n) continue;
-    const when = x.status === "done" ? "bitti" : x.day ? relDay(x.day) : "tarihsiz";
+    const when = x.status === "done" ? "done" : x.day ? relDay(x.day) : "someday";
     out.push({ kind: "task", id: x.id, title: x.title, meta: [wname(x.worldId), x.projectId ? proj.get(x.projectId)?.name : "", when].filter(Boolean).join(" · "), worldId: x.worldId, score: n - (x.status === "done" ? 25 : 0), done: x.status === "done", status: x.status });
   }
   for (const a of s.automations) {
     const n = score(q, a.title, [a.action]);
-    const days = a.days.length === 7 ? "Her gün" : a.days.map((d) => DAYS[d]).join(", ");
+    const days = a.days.length === 7 ? "Every day" : a.days.map((d) => DAYS[d]).join(", ");
     if (n) out.push({ kind: "auto", id: a.id, title: a.title, meta: [wname(a.worldId), days, a.times.join(", ")].filter(Boolean).join(" · "), worldId: a.worldId, score: n - (a.status === "paused" ? 10 : 0) });
   }
   for (const i of s.inbox) {
     const n = score(q, i.title, [i.body, i.from]);
-    if (n) out.push({ kind: "note", id: i.id, title: i.title, meta: [wname(i.worldId), i.state === "done" ? "arşivde" : ""].filter(Boolean).join(" · ") || "Defter", worldId: i.worldId, score: n - (i.state === "done" ? 20 : 0), done: i.state === "done" });
+    if (n) out.push({ kind: "note", id: i.id, title: i.title, meta: [wname(i.worldId), i.state === "done" ? "archived" : ""].filter(Boolean).join(" · ") || "Notebook", worldId: i.worldId, score: n - (i.state === "done" ? 20 : 0), done: i.state === "done" });
   }
   for (const c of CMDS) {
     const n = score(q, c.title, [c.words]);
     if (n) out.push({ kind: "cmd", id: c.id, title: c.title, meta: c.meta, worldId: null, score: n });
   }
   // Her grupta en iyi 6, gruplar sabit sırada.
-  return ORDER.flatMap((k) => out.filter((h) => h.kind === k).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "tr")).slice(0, 6));
+  return ORDER.flatMap((k) => out.filter((h) => h.kind === k).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "en")).slice(0, 6));
 }
 
 export function SearchHost({ ctx }: { ctx: Ctx }) {
@@ -142,14 +142,14 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
   let last: Kind | null = null;
   return (
     <div className="scrim search-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div className="palette" role="dialog" aria-label="Ara" initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.14 }}>
+      <motion.div className="palette" role="dialog" aria-label="Search" initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.14 }}>
         <label className="pfield">
           <SearchIcon size={18} />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Görev, proje, not ya da otomasyon ara" aria-label="Ara" />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Search tasks, projects, notes and automations" aria-label="Search" />
           <button type="button" className="pesc" onClick={onClose}>Esc</button>
         </label>
         <ul ref={list} className="presults">
-          {!q.trim() && hits.length > 0 && <li className="pgroup">Bugün ve gecikenler</li>}
+          {!q.trim() && hits.length > 0 && <li className="pgroup">Today and late</li>}
           {hits.map((h, i) => {
             const head = q.trim() && h.kind !== last ? GROUP[h.kind] : null;
             last = h.kind;
@@ -175,8 +175,8 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
               </li>
             );
           })}
-          {q.trim() && !hits.length && <li className="pnone">“{q.trim()}” için bir şey bulunamadı.</li>}
-          {!q.trim() && !hits.length && <li className="pnone">Bugün için açık görev yok. Aramak için yaz.</li>}
+          {q.trim() && !hits.length && <li className="pnone">Nothing found for “{q.trim()}”.</li>}
+          {!q.trim() && !hits.length && <li className="pnone">No open tasks for today. Type to search.</li>}
         </ul>
       </motion.div>
     </div>

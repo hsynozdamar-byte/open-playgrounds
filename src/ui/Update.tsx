@@ -67,9 +67,9 @@ export function UpdateBar() {
       {state !== "idle" && (
         <motion.div className="updbar" role="status" initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }} transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}>
           <RefreshCw size={16} className={state === "busy" ? "spin" : ""} />
-          <span>{state === "busy" ? (jobs.length ? `Bitince güncellenecek: ${jobs[0]}${jobs.length > 1 ? ` +${jobs.length - 1}` : ""}` : "Güncelleniyor…") : state === "error" ? "Derlenemedi, terminalde bak" : "Güncelleme var"}</span>
-          {state === "ready" && <button className="btn sm primary" onClick={go}>Güncelle</button>}
-          {state === "error" && <button className="btn sm" onClick={() => setState("ready")}>Kapat</button>}
+          <span>{state === "busy" ? (jobs.length ? `Updates when this is done: ${jobs[0]}${jobs.length > 1 ? ` +${jobs.length - 1}` : ""}` : "Updating…") : state === "error" ? "Build failed, check the terminal" : "Update available"}</span>
+          {state === "ready" && <button className="btn sm primary" onClick={go}>Update</button>}
+          {state === "error" && <button className="btn sm" onClick={() => setState("ready")}>Close</button>}
         </motion.div>
       )}
     </AnimatePresence>

@@ -81,7 +81,7 @@ export function RouButton({ waiting = 0 }: { waiting?: number }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [away, setAway] = useState(false);
   return (
-    <button ref={ref} className={`roubtn${away ? " is-away" : ""}`} onClick={() => openRou()} aria-label={waiting ? `Rou ile konuş, ${waiting} öneri onay bekliyor` : "Rou ile konuş"} title="Rou ile konuş">
+    <button ref={ref} className={`roubtn${away ? " is-away" : ""}`} onClick={() => openRou()} aria-label={waiting ? `Talk to Rou, ${waiting} suggestion${waiting === 1 ? "" : "s"} awaiting approval` : "Talk to Rou"} title="Talk to Rou">
       <RouMascot size={30} lively />
       {waiting > 0 && <span className="roudot" aria-hidden />}
       <span className="name">Rou</span>
@@ -96,12 +96,12 @@ export function RouButton({ waiting = 0 }: { waiting?: number }) {
 // Onay bekleyen = yalnız şu an Onayla'ya basılabilecek öneriler; onaylanan, vazgeçilen, geçersizleşen ve "Geri al" satırları girmez.
 // Değişiklikler = Rou'nun kendi yaptığı işlerin durumu: şimdi çalışan, sırada bekleyen, yapılanlar (Geri al) ve olmayanlar.
 type Cat = "all" | "wait" | "change";
-const CATS: { id: Cat; label: string }[] = [{ id: "all", label: "Sohbet" }, { id: "wait", label: "Onay bekleyen" }, { id: "change", label: "Değişiklikler" }];
+const CATS: { id: Cat; label: string }[] = [{ id: "all", label: "Chat" }, { id: "wait", label: "Awaiting approval" }, { id: "change", label: "Changes" }];
 const live = (a: RouAction | undefined, act: string | undefined, s: Ctx["state"]) => !!a && !act && a.type !== "undo_change" && !!describe(a, s);
 type Msg = { role: "user" | "rou"; text: string; at?: string; error?: boolean; action?: RouAction; act?: "done" | "no"; show?: string[]; files?: Att[] };
 const KEY = "pg-rou-chat";
 // Kullanıcının adı (Profil, localStorage pg-profile); yoksa "Kullanıcı".
-const myName = () => { try { return (JSON.parse(localStorage.getItem("pg-profile") || "{}").name as string)?.trim() || "Kullanıcı"; } catch { return "Kullanıcı"; } };
+const myName = () => { try { return (JSON.parse(localStorage.getItem("pg-profile") || "{}").name as string)?.trim() || "User"; } catch { return "User"; } };
 const CLEARED = "pg-rou-cleared"; // "Yeni sohbet": kanalın bundan önceki mesajları gizlenir
 const cleared = () => { try { return localStorage.getItem(CLEARED) ?? ""; } catch { return ""; } };
 // Eskiden sohbet tarayıcıda (localStorage) dururdu; ilk açılışta veriye taşınır.
@@ -123,7 +123,7 @@ async function reloadWhenUp(wait: number) {
   }
 }
 
-const STARTERS = ["Bugün ne var?", "Geciken işlerim neler?", "Bu hafta neye odaklanmalıyım?"];
+const STARTERS = ["What's on today?", "Which tasks are late?", "What should I focus on this week?"];
 
 const PICK = "pg-rou-pick"; // seçili Rou (cihazda)
 const picked = () => { try { return localStorage.getItem(PICK) ?? DEFAULT_ROU; } catch { return DEFAULT_ROU; } };
@@ -132,7 +132,7 @@ const WIDE = "pg-rou-list"; // Rou listesi açık mı (masaüstü; varsayılan k
 // Rou'nun önerisi onay bekliyor mu: kendi sohbetinde, varsayılan Rou'da dış öneri kanalında da.
 const pendingOf = (s: Ctx["state"], id: string) =>
   chatOf(s, id).some((m) => live(m.action as RouAction | undefined, m.act, s)) || (id === DEFAULT_ROU && rouWaiting(s) > 0);
-const roleOf = (r: RouDef) => r.persona.trim().split("\n")[0] || (r.id === DEFAULT_ROU ? "Playgrounds asistanın" : "Görev talimatı yok");
+const roleOf = (r: RouDef) => r.persona.trim().split("\n")[0] || (r.id === DEFAULT_ROU ? "Your Playgrounds assistant" : "No instructions");
 
 // Sohbet paneli: solda Rou'lar, sağda seçili Rou'nun sohbeti. Masaüstünde sağ üstte yüzen geniş panel, mobilde alttan açılan sayfa.
 export function RouChat({ ctx }: { ctx: Ctx }) {
@@ -252,8 +252,8 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
   const addFiles = (files: File[]) => {
     for (const f of files.slice(0, 8)) {
       const key = uid();
-      setAtts((l) => [...l, { key, file: "", name: f.name || "görsel.png", kind: f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : f.type.startsWith("audio/") ? "audio" : "file", up: true, preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined }]);
-      void uploadFile(f, f.name || "görsel.png").then((r) => {
+      setAtts((l) => [...l, { key, file: "", name: f.name || "image.png", kind: f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : f.type.startsWith("audio/") ? "audio" : "file", up: true, preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined }]);
+      void uploadFile(f, f.name || "image.png").then((r) => {
         if ("error" in r) { toast(`${f.name}: ${r.error}`); setAtts((l) => l.filter((x) => x.key !== key)); return; }
         setAtts((l) => l.map((x) => (x.key === key ? { ...x, ...r, up: false } : x)));
       });
@@ -272,9 +272,9 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     // İliştirilen iş/çıktı: sunucuya giden son mesajın başına içeriğiyle eklenir (sohbette yalnız soru ve kart görünür).
     const me = myName();
     const about = refTask || refRun ? [
-      `[${me} şu görev hakkında soruyor: "${refTask?.title ?? refRun?.title}" (görev ${refTask?.id ?? "-"}, durum ${refTask?.status ?? "-"}${refTask?.who ? `, yapan ${refTask.who === "claude" ? "Rou" : me}` : ""})`,
-      refTask?.notes ? `Görevin notu: ${refTask.notes.slice(0, 800)}` : "",
-      refRun ? `Çıktı ${refRun.id} (${refRun.status}):\n${(refRun.body ?? "").slice(0, 2500)}` : "",
+      `[${me} is asking about this task: "${refTask?.title ?? refRun?.title}" (task ${refTask?.id ?? "-"}, status ${refTask?.status ?? "-"}${refTask?.who ? `, done by ${refTask.who === "claude" ? "Rou" : me}` : ""})`,
+      refTask?.notes ? `Task notes: ${refTask.notes.slice(0, 800)}` : "",
+      refRun ? `Output ${refRun.id} (${refRun.status}):\n${(refRun.body ?? "").slice(0, 2500)}` : "",
       "]",
     ].filter(Boolean).join("\n") : "";
     setRef(null);
@@ -285,13 +285,13 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     setMood("think");
     const r = await fetch("/api/rou", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: next.map(({ role, text, files }, i) => ({ role, text: i === next.length - 1 && about ? `${about}\n\n${text}` : text, ...(files ? { files } : {}) })), lens: ctx.route.lens, rouId: id }) })
       .then((x) => x.json())
-      .catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+      .catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setBusy(null);
     const at = new Date().toISOString();
     // İstenen iş hemen yapılır; yalnız paylaşma, onaylama gibi işler kartta onay bekler (rouActions runsAtOnce).
     const now = r.ok && r.action && describe(r.action, ctx.state) && runsAtOnce(r.action);
     if (now) apply(r.action, ctx, id);
-    setMsgs(id, (m) => [...m, r.ok ? { role: "rou", text: r.text, at, ...(r.action ? { action: r.action } : {}), ...(now ? { act: "done" as const } : {}), ...(r.show?.length ? { show: r.show } : {}) } : { role: "rou", text: `Şu an cevap veremedim. ${r.error ?? ""}`.trim(), at, error: true }]);
+    setMsgs(id, (m) => [...m, r.ok ? { role: "rou", text: r.text, at, ...(r.action ? { action: r.action } : {}), ...(now ? { act: "done" as const } : {}), ...(r.show?.length ? { show: r.show } : {}) } : { role: "rou", text: `I couldn't answer right now. ${r.error ?? ""}`.trim(), at, error: true }]);
     setMood(r.ok ? "happy" : "idle");
     setTimeout(() => setMood("idle"), 1400);
   };
@@ -312,10 +312,10 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 420, damping: 34 }}
           >
-            <nav className="rlist" aria-label="Rou'lar">
+            <nav className="rlist" aria-label="Rous">
               <div className="rlhead">
-                <span>Rou'lar</span>
-                <button className="iconbtn" onClick={toggleList} aria-label={wide ? "Listeyi daralt" : "Listeyi aç"} title={wide ? "Listeyi daralt" : "Listeyi aç"} aria-expanded={wide}>{wide ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}</button>
+                <span>Rous</span>
+                <button className="iconbtn" onClick={toggleList} aria-label={wide ? "Collapse list" : "Expand list"} title={wide ? "Collapse list" : "Expand list"} aria-expanded={wide}>{wide ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}</button>
               </div>
               <ul>
                 {rous.map((r) => (
@@ -323,12 +323,12 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
                     <button className={r.id === cur.id ? "is-on" : ""} onClick={() => choose(r.id)} aria-current={r.id === cur.id} title={wide ? undefined : `${r.name}: ${roleOf(r)}`}>
                       <RouMascot size={30} color={r.color} mood={busy === r.id ? "think" : "idle"} />
                       <span className="rlt"><b>{r.name}</b><span>{roleOf(r)}</span></span>
-                      {pendingOf(ctx.state, r.id) && <span className="rldot" aria-label="Onay bekleyen öneri var" />}
+                      {pendingOf(ctx.state, r.id) && <span className="rldot" aria-label="A suggestion is awaiting approval" />}
                     </button>
                   </li>
                 ))}
               </ul>
-              <button className={`rlnew ${view === "new" ? "is-on" : ""}`} onClick={() => setView("new")} title="Yeni Rou" aria-label="Yeni Rou"><Plus size={16} /><span>Yeni Rou</span></button>
+              <button className={`rlnew ${view === "new" ? "is-on" : ""}`} onClick={() => setView("new")} title="New Rou" aria-label="New Rou"><Plus size={16} /><span>New Rou</span></button>
             </nav>
             <div className={`rpane ${drag ? "is-drop" : ""}`}
               onDragOver={(e) => { if ([...e.dataTransfer.types].includes("Files")) (e.preventDefault(), setDrag(true)); }}
@@ -339,19 +339,19 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
               <RouMascot size={36} color={cur.color} mood={thinking ? "think" : mood} lively />
               <div className="rct">
                 <b>{cur.name}</b>
-                <span>{thinking ? "Düşünüyor…" : view === "memory" ? "Hafızası" : roleOf(cur)}</span>
+                <span>{thinking ? "Thinking…" : view === "memory" ? "Memory" : roleOf(cur)}</span>
               </div>
-              <button className={`iconbtn ${view === "memory" ? "is-on" : ""}`} onClick={() => setView(view === "memory" ? "chat" : "memory")} aria-label="Hafıza" aria-pressed={view === "memory"} title={`${cur.name} hafızası`}><Brain size={16} /></button>
-              <button className="iconbtn" onClick={() => setView("edit")} aria-label="Düzenle" title={`${cur.name} düzenle`}><Pencil size={15} /></button>
+              <button className={`iconbtn ${view === "memory" ? "is-on" : ""}`} onClick={() => setView(view === "memory" ? "chat" : "memory")} aria-label="Memory" aria-pressed={view === "memory"} title={`${cur.name}'s memory`}><Brain size={16} /></button>
+              <button className="iconbtn" onClick={() => setView("edit")} aria-label="Edit" title={`Edit ${cur.name}`}><Pencil size={15} /></button>
               {view === "chat" && rows.length > 0 && (
-                <button className="iconbtn" onClick={reset} aria-label="Yeni sohbet" title="Yeni sohbet"><RotateCcw size={16} /></button>
+                <button className="iconbtn" onClick={reset} aria-label="New chat" title="New chat"><RotateCcw size={16} /></button>
               )}
-              <button className="iconbtn" onClick={() => setOpen(false)} aria-label="Kapat" title="Kapat"><X size={18} /></button>
+              <button className="iconbtn" onClick={() => setOpen(false)} aria-label="Close" title="Close"><X size={18} /></button>
             </header>
 
             {view === "memory" ? <MemoryView ctx={ctx} rou={cur} /> : <>
             {(counts.wait > 0 || hasChanges) && (
-              <div className="rcats" role="tablist" aria-label="Sohbeti süz">
+              <div className="rcats" role="tablist" aria-label="Filter chat">
                 {CATS.filter((c) => (c.id !== "change" || hasChanges) && (c.id !== "wait" || counts.wait > 0)).map((c) => (
                   <button key={c.id} role="tab" aria-selected={cat === c.id} className={cat === c.id ? "is-on" : ""} onClick={() => setCat(c.id)}>
                     {c.label}{c.id !== "all" && counts[c.id] > 0 && <span className="rccount">{counts[c.id]}</span>}
@@ -364,24 +364,24 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
                 <>
                   <div className="rchello">
                     <RouMascot size={64} color={cur.color} mood={mood} lively />
-                    <b>Merhaba, ben {cur.name}.</b>
-                    <p>{cur.persona.trim() || "Sıradaki görevlerin ve otomasyon çıktıların burada. Sor ya da görev yaptır: başlat, ekle, taşı, otomasyon kur, hazırlat, hatırla."}</p>
+                    <b>Hi, I'm {cur.name}.</b>
+                    <p>{cur.persona.trim() || "Your next tasks and automation outputs are here. Ask, or give me a job: start, add, move, set up an automation, prepare, remember."}</p>
                   </div>
                   <Briefing ctx={ctx} onOpen={() => setOpen(false)} />
                   <div className="rcstart">
-                    {[...STARTERS, ...(ctx.state.runs.some((r) => r.post) ? ["Son gönderileri göster"] : [])].map((s) => <button key={s} onClick={() => send(s)}>{s}</button>)}
+                    {[...STARTERS, ...(ctx.state.runs.some((r) => r.post) ? ["Show recent posts"] : [])].map((s) => <button key={s} onClick={() => send(s)}>{s}</button>)}
                   </div>
                 </>
               ) : (
                 shown.map((row) => row.n ? (
                   <motion.div key={row.key} className="rmwrap rou" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
                     <span className="rmwho">{cur.name}</span>
-                    <div className="rmsg rou rnotice"><b>{row.n.title}: {KIND_LINE[row.n.kind].toLocaleLowerCase("tr")}.</b>{row.n.text ? ` ${row.n.text}` : ""}</div>
+                    <div className="rmsg rou rnotice"><b>{row.n.title}: {KIND_LINE[row.n.kind].toLocaleLowerCase()}.</b>{row.n.text ? ` ${row.n.text}` : ""}</div>
                     <NoticeCtas ctx={ctx} n={row.n} close={() => setOpen(false)} />
                   </motion.div>
                 ) : row.t ? (
                   <motion.div key={row.key} className="rmwrap rou" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-                    <span className="rmwho">{row.t.from === "agent" ? row.t.name || "Araç" : cur.name}</span>
+                    <span className="rmwho">{row.t.from === "agent" ? row.t.name || "Tool" : cur.name}</span>
                     <div className="rmsg rou">{row.t.text}</div>
                     {row.t.show && <Shown ids={row.t.show} ctx={ctx} />}
                     {row.t.action && (
@@ -411,25 +411,25 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
                   </motion.div>
                 ))
               )}
-              {thinking && <div className="rmsg rou typing" aria-label={`${cur.name} yazıyor`}><i /><i /><i /></div>}
+              {thinking && <div className="rmsg rou typing" aria-label={`${cur.name} is typing`}><i /><i /><i /></div>}
               {changing && (ch!.rouId ?? DEFAULT_ROU) === cur.id && <ChangeLine phase={ch!.phase} text={ch!.text} />}
             </div>
 
             {(refTask || refRun) && (
               <div className="rcref">
-                <span><b>Bu görev hakkında</b>{refTask?.title ?? refRun?.title}</span>
-                <button type="button" className="iconbtn" onClick={() => setRef(null)} aria-label="İlişiği kaldır"><X size={14} /></button>
+                <span><b>About this task</b>{refTask?.title ?? refRun?.title}</span>
+                <button type="button" className="iconbtn" onClick={() => setRef(null)} aria-label="Remove attachment"><X size={14} /></button>
               </div>
             )}
             <AttChips list={atts} onRemove={(k) => setAtts((l) => l.filter((x) => x.key !== k))} />
             <form className="rcinput" onSubmit={(e) => (e.preventDefault(), send(text))}>
               <input ref={fileIn} type="file" multiple hidden accept="image/*,video/*,audio/*,.pdf,.txt,.md,.csv,.json" onChange={(e) => (addFiles([...(e.target.files ?? [])]), (e.target.value = ""))} />
-              <button type="button" className="iconbtn rcattach" onClick={() => fileIn.current?.click()} aria-label="Dosya ekle" title="Görsel, video, ses ya da belge ekle"><Paperclip size={17} /></button>
+              <button type="button" className="iconbtn rcattach" onClick={() => fileIn.current?.click()} aria-label="Add file" title="Add an image, video, audio or document"><Paperclip size={17} /></button>
               <textarea
                 ref={input}
                 rows={1}
                 value={text}
-                placeholder={voice.state === "rec" ? `Dinliyorum… ${voice.sec} sn. Bitince ✓, vazgeçmek için ×.` : voice.state === "busy" ? "Yazıya döküyorum…" : cur.name === "Rou" ? "Rou'ya sor…" : "Sor ya da görev ver…"}
+                placeholder={voice.state === "rec" ? `Listening… ${voice.sec} s. ✓ when done, × to cancel.` : voice.state === "busy" ? "Transcribing…" : cur.name === "Rou" ? "Ask Rou…" : "Ask or give a task…"}
                 onChange={(e) => setText(e.target.value)}
                 onPaste={(e) => { const f = [...e.clipboardData.files]; if (f.length) (e.preventDefault(), addFiles(f)); }}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send(text))}
@@ -437,15 +437,15 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
               {voice.state === "rec" ? (
                 <>
                   <span className="rcrec" aria-live="polite"><i />{Math.floor(voice.sec / 60)}:{String(voice.sec % 60).padStart(2, "0")}</span>
-                  <button type="button" className="iconbtn rccancel" onClick={voice.cancel} aria-label="Kaydı at" title="Kaydı at"><X size={16} /></button>
-                  <button type="button" className="btn rcsend rcmic is-rec" onClick={voice.finish} aria-label="Kaydı bitir" title="Bitir, yazıya dök"><Check size={16} /></button>
+                  <button type="button" className="iconbtn rccancel" onClick={voice.cancel} aria-label="Discard recording" title="Discard recording"><X size={16} /></button>
+                  <button type="button" className="btn rcsend rcmic is-rec" onClick={voice.finish} aria-label="Finish recording" title="Finish and transcribe"><Check size={16} /></button>
                 </>
               ) : (
-                <button type="button" className="iconbtn rcmic" onClick={voice.start} disabled={voice.state === "busy"} aria-label="Sesle yaz" title="Sesle yaz">
+                <button type="button" className="iconbtn rcmic" onClick={voice.start} disabled={voice.state === "busy"} aria-label="Dictate" title="Dictate">
                   {voice.state === "busy" ? <Loader2 size={16} className="spin" /> : <Mic size={17} />}
                 </button>
               )}
-              <button className="btn primary rcsend" disabled={!!busy || uploading || voice.state !== "idle" || (!text.trim() && !atts.length)} aria-label="Gönder"><ArrowUp size={16} /></button>
+              <button className="btn primary rcsend" disabled={!!busy || uploading || voice.state !== "idle" || (!text.trim() && !atts.length)} aria-label="Send"><ArrowUp size={16} /></button>
             </form>
             </>}
             </>}
@@ -489,7 +489,7 @@ function RouForm({ ctx, rou, onDone }: { ctx: Ctx; rou?: RouDef; onDone: (id?: s
       s.memory = s.memory?.filter((m) => m.rouId !== rou.id);
     });
     onDone();
-    toast(`${rou.name} silindi`, () => ctx.mutate((s) => {
+    toast(`${rou.name} deleted`, () => ctx.mutate((s) => {
       if (s.rous?.some((x) => x.id === rou.id)) return;
       (s.rous ??= []).splice(Math.max(1, Math.min(i, s.rous.length)), 0, rou);
       setChat(s, rou.id, () => chat);
@@ -501,36 +501,36 @@ function RouForm({ ctx, rou, onDone }: { ctx: Ctx; rou?: RouDef; onDone: (id?: s
       <header className="rchead">
         <RouMascot size={36} color={color} />
         <div className="rct">
-          <b>{rou ? `${rou.name} düzenle` : "Yeni Rou"}</b>
-          <span>Ad, renk ve görev talimatı</span>
+          <b>{rou ? `Edit ${rou.name}` : "New Rou"}</b>
+          <span>Name, color and instructions</span>
         </div>
-        <button type="button" className="iconbtn" onClick={() => onDone(rou?.id)} aria-label="Vazgeç" title="Vazgeç"><X size={18} /></button>
+        <button type="button" className="iconbtn" onClick={() => onDone(rou?.id)} aria-label="Cancel" title="Cancel"><X size={18} /></button>
       </header>
       <div className="rcbody">
         <label className="rffield">
-          <span>Ad</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ör. Araştırma Rou" maxLength={40} autoFocus />
+          <span>Name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="E.g. Research Rou" maxLength={40} autoFocus />
         </label>
         <div className="rffield">
-          <span>Renk</span>
-          <div className="rfcolors" role="radiogroup" aria-label="Renk">
+          <span>Color</span>
+          <div className="rfcolors" role="radiogroup" aria-label="Color">
             {ROU_COLORS.map((c) => (
-              <button key={c || "black"} type="button" role="radio" aria-checked={color === c} aria-label={c || "Siyah"} className={color === c ? "is-on" : ""} onClick={() => setColor(c)}>
+              <button key={c || "black"} type="button" role="radio" aria-checked={color === c} aria-label={c || "Black"} className={color === c ? "is-on" : ""} onClick={() => setColor(c)}>
                 <RouMascot size={28} color={c} />
               </button>
             ))}
           </div>
         </div>
         <label className="rffield">
-          <span>Görev talimatı</span>
-          <textarea rows={6} value={persona} onChange={(e) => setPersona(e.target.value)} placeholder="Ör. Araştırma işlerime bakarsın: kaynakları bulur, okur ve kısa özetler çıkarırsın. Kısa ve net konuşursun." maxLength={2000} />
+          <span>Instructions</span>
+          <textarea rows={6} value={persona} onChange={(e) => setPersona(e.target.value)} placeholder="E.g. You handle my research: find sources, read them and write short summaries. You keep it short and clear." maxLength={2000} />
         </label>
       </div>
       <div className="rcinput rfbtns">
-        {rou && rou.id !== DEFAULT_ROU && <button type="button" className="btn ghost danger" onClick={remove}><Trash2 size={14} />Sil</button>}
+        {rou && rou.id !== DEFAULT_ROU && <button type="button" className="btn ghost danger" onClick={remove}><Trash2 size={14} />Delete</button>}
         <span className="rfgrow" />
-        <button type="button" className="btn ghost" onClick={() => onDone(rou?.id)}>Vazgeç</button>
-        <button className="btn primary" disabled={!name.trim()}>{rou ? "Kaydet" : "Ekle"}</button>
+        <button type="button" className="btn ghost" onClick={() => onDone(rou?.id)}>Cancel</button>
+        <button className="btn primary" disabled={!name.trim()}>{rou ? "Save" : "Add"}</button>
       </div>
     </form>
   );
@@ -553,9 +553,9 @@ function Briefing({ ctx, onOpen }: { ctx: Ctx; onOpen: () => void }) {
   return (
     <div className="rbrief">
       <section>
-        <h4>Sıradakiler{lens !== ALL && <em> · {worldOf(s, lens).name}</em>}</h4>
+        <h4>Up next{lens !== ALL && <em> · {worldOf(s, lens).name}</em>}</h4>
         {next.length === 0 ? (
-          <p className="rbempty">Önümüzdeki 7 günde planlı görev yok.</p>
+          <p className="rbempty">No tasks planned for the next 7 days.</p>
         ) : (
           <ul>
             {next.map(({ x, b }) => (
@@ -572,7 +572,7 @@ function Briefing({ ctx, onOpen }: { ctx: Ctx; onOpen: () => void }) {
       </section>
       {runs.length > 0 && (
         <section>
-          <h4>Otomasyon çıktıları<em> · onay bekliyor</em></h4>
+          <h4>Automation outputs<em> · awaiting approval</em></h4>
           <div className="rbruns">{runs.map((r) => <RunCard key={r.id} r={r} ctx={ctx} withSource />)}</div>
         </section>
       )}
@@ -592,8 +592,8 @@ const bold = (t: string) => t.split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b 
 
 // Rou'nun kendi yaptığı işler: şimdi çalışan, sırada bekleyen, yapılanlar. Geri al yalnız kod değişikliğinde (sha) var.
 const when = (at: string) => {
-  const d = new Date(at), t = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-  return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} ${t}`;
+  const d = new Date(at), t = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString("en-US", { day: "numeric", month: "short" })} ${t}`;
 };
 // Kayıtta Rou'ya giden talimatın tamamı durur; listede ilk cümlesi (numaralı adımlardan önce) yeter.
 // Sohbette süren iş: tek satır (aşama + işin kısa adı); talimatın tamamı "Ayrıntı" ile açılır.
@@ -603,7 +603,7 @@ function ChangeLine({ phase, text }: { phase: string; text: string }) {
     <div className={`rmsg rou rchange${open ? " is-open" : ""}`}>
       <RefreshCw size={13} className="spin" />
       <span className="rchange-t"><b>{phase}…</b> {open ? text : short(text)}</span>
-      <button type="button" className="rchange-more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? "Kapat" : "Ayrıntı"}</button>
+      <button type="button" className="rchange-more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? "Close" : "Details"}</button>
     </div>
   );
 }
@@ -615,45 +615,45 @@ function ChangeList({ ctx, rouId }: { ctx: Ctx; rouId: string }) {
   const ch = s.change && !s.change.done && Date.now() - Date.parse(s.change.at) < 25 * 60 * 1000 ? s.change : null;
   const queue = s.changeQueue ?? [];
   const past = (s.changes ?? []).filter((c) => c.id !== ch?.id).slice(0, 20);
-  if (!ch && !queue.length && !past.length) return <p className="rcempty">Rou henüz bir değişiklik yapmadı.</p>;
+  if (!ch && !queue.length && !past.length) return <p className="rcempty">Rou hasn't made any changes yet.</p>;
   return (
     <div className="rchg">
       {ch && (
         <section>
-          <h4>Şimdi</h4>
+          <h4>Now</h4>
           <div className="rchrow is-run">
             <Loader2 size={15} className="spin" />
-            <div><p>{short(ch.text)}</p><span>{ch.waiting ? "Kodda yarım kalmış başka bir iş var, o kaydedilince başlayacak" : ch.phase}</span></div>
+            <div><p>{short(ch.text)}</p><span>{ch.waiting ? "Another unfinished job is in the code; this starts once that is saved" : ch.phase}</span></div>
           </div>
         </section>
       )}
       {queue.length > 0 && (
         <section>
-          <h4>Sırada</h4>
+          <h4>Up next</h4>
           {queue.map((q, i) => (
             <div key={q.id} className="rchrow">
               <span className="rchn">{i + 1}</span>
-              <div><p>{short(q.text)}</p><span>Onaylandı: {when(q.at)}{q.tries ? " · kod işi bitince başlayacak" : ""}</span></div>
+              <div><p>{short(q.text)}</p><span>Approved: {when(q.at)}{q.tries ? " · starts when the code job is done" : ""}</span></div>
             </div>
           ))}
         </section>
       )}
       {past.length > 0 && (
         <section>
-          <h4>Geçmiş</h4>
+          <h4>History</h4>
           {past.map((c) => (
             <div key={c.id} className={`rchrow ${c.error ? "is-fail" : c.undone ? "is-undone" : ""}`}>
               {c.error ? <X size={15} /> : c.undone ? <RotateCcw size={15} /> : <Check size={15} />}
               <div>
                 <p>{short(c.text)}</p>
                 {sure === c.id ? (
-                  <span className="rchundo">Bu değişiklik kaldırılsın mı?
-                    <button className="btn sm ghost" onClick={() => setSure(null)}>Vazgeç</button>
-                    <button className="btn sm danger" onClick={() => (apply({ type: "undo_change", changeId: c.id }, ctx, rouId), setSure(null))}>Evet, geri al</button>
+                  <span className="rchundo">Remove this change?
+                    <button className="btn sm ghost" onClick={() => setSure(null)}>Cancel</button>
+                    <button className="btn sm danger" onClick={() => (apply({ type: "undo_change", changeId: c.id }, ctx, rouId), setSure(null))}>Yes, undo</button>
                   </span>
                 ) : (
-                  <span className="rchmeta">{when(c.at)} · {c.error ? `Olmadı: ${c.error}` : c.undone ? "Geri alındı" : "Yapıldı"}
-                    {c.sha && !c.undone && !c.error && <> · <button className="link" onClick={() => setSure(c.id)}>Geri al</button></>}
+                  <span className="rchmeta">{when(c.at)} · {c.error ? `Failed: ${c.error}` : c.undone ? "Undone" : "Done"}
+                    {c.sha && !c.undone && !c.error && <> · <button className="link" onClick={() => setSure(c.id)}>Undo</button></>}
                   </span>
                 )}
               </div>
@@ -668,7 +668,7 @@ function ChangeList({ ctx, rouId }: { ctx: Ctx; rouId: string }) {
 // Rou'nun önerdiği iş: Onayla'ya basılınca uygulanır. Veriyle uyuşmayan öneri kart olarak çıkmaz.
 function ActionCard({ a, act, ctx, rouId, onAct }: { a: RouAction; act?: "done" | "no"; ctx: Ctx; rouId: string; onAct: (x: "done" | "no") => void }) {
   const d = describe(a, ctx.state);
-  if (!d && !act) return <div className="ract is-void">Bu öneri artık geçerli değil.</div>;
+  if (!d && !act) return <div className="ract is-void">This suggestion no longer applies.</div>;
   if (!d) return null;
   // Geri al bir onay isteği değil: değişiklik zaten yapıldı. Ayrı, sakin bir satır olarak durur ve bir kez daha sorar.
   if (a.type === "undo_change") return <UndoCard ctx={ctx} a={a} rouId={rouId} act={act} onAct={onAct} />;
@@ -681,11 +681,11 @@ function ActionCard({ a, act, ctx, rouId, onAct }: { a: RouAction; act?: "done" 
         {d.detail && <span className="det">{d.detail}</span>}
       </div>
       {act ? (
-        <span className="rastate">{act === "done" ? <><Check size={14} />Yapıldı</> : "Vazgeçildi"}</span>
+        <span className="rastate">{act === "done" ? <><Check size={14} />Done</> : "Dismissed"}</span>
       ) : (
         <div className="rabtns">
-          <button className="btn sm ghost" onClick={() => onAct("no")}>Vazgeç</button>
-          <button className="btn sm primary" onClick={() => (apply(a, ctx, rouId), onAct("done"))}><Check size={14} />Onayla</button>
+          <button className="btn sm ghost" onClick={() => onAct("no")}>Cancel</button>
+          <button className="btn sm primary" onClick={() => (apply(a, ctx, rouId), onAct("done"))}><Check size={14} />Approve</button>
         </div>
       )}
     </div>
@@ -703,13 +703,13 @@ function PlanCard({ a, act, ctx, rouId, onAct, title }: { a: Extract<RouAction, 
   const dropped = all.length - valid.length;
   if (act) return (
     <div className={`ract rplan is-${act}`}>
-      <div className="rat"><span className="verb">Toplu</span><b>{title}</b></div>
-      <span className="rastate">{act === "done" ? <><Check size={14} />Yapıldı</> : "Vazgeçildi"}</span>
+      <div className="rat"><span className="verb">Batch</span><b>{title}</b></div>
+      <span className="rastate">{act === "done" ? <><Check size={14} />Done</> : "Dismissed"}</span>
     </div>
   );
   return (
     <div className="ract rplan">
-      <div className="rat"><span className="verb">Toplu · {valid.length} adım</span><b>{title}</b></div>
+      <div className="rat"><span className="verb">Batch · {valid.length} step{valid.length === 1 ? "" : "s"}</span><b>{title}</b></div>
       <ul className="rpsteps">
         {all.filter((x) => x.d).map(({ i, d }) => {
           const ok = !!rows[i].d;
@@ -721,18 +721,18 @@ function PlanCard({ a, act, ctx, rouId, onAct, title }: { a: Extract<RouAction, 
                 <span className="rptext">
                   <span className="rpverb">{d!.verb}</span>
                   <b>{d!.what}</b>
-                  {ok ? d!.detail && <span className="det">{d!.detail}</span> : <span className="det">Bağlı olduğu adım seçili değil</span>}
+                  {ok ? d!.detail && <span className="det">{d!.detail}</span> : <span className="det">The step it depends on isn't picked</span>}
                 </span>
               </button>
             </li>
           );
         })}
       </ul>
-      {dropped > 0 && <span className="rpnote">{dropped} öneri veriyle uyuşmadığı için çıkarıldı.</span>}
+      {dropped > 0 && <span className="rpnote">{dropped} suggestion{dropped === 1 ? " was" : "s were"} left out because {dropped === 1 ? "it doesn't" : "they don't"} match the data.</span>}
       <div className="rabtns">
-        <button className="btn sm ghost push" onClick={() => setPicked(picked.size ? new Set() : new Set(valid))}>{picked.size ? "Hiçbiri" : "Tümü"}</button>
-        <button className="btn sm ghost" onClick={() => onAct("no")}>Vazgeç</button>
-        <button className="btn sm primary" disabled={!n} onClick={() => (apply(a, ctx, rouId, picked), onAct("done"))}><Check size={14} />{n} adımı yap</button>
+        <button className="btn sm ghost push" onClick={() => setPicked(picked.size ? new Set() : new Set(valid))}>{picked.size ? "None" : "All"}</button>
+        <button className="btn sm ghost" onClick={() => onAct("no")}>Cancel</button>
+        <button className="btn sm primary" disabled={!n} onClick={() => (apply(a, ctx, rouId, picked), onAct("done"))}><Check size={14} />Do {n} step{n === 1 ? "" : "s"}</button>
       </div>
     </div>
   );
@@ -740,19 +740,19 @@ function PlanCard({ a, act, ctx, rouId, onAct, title }: { a: Extract<RouAction, 
 
 function UndoCard({ a, act, ctx, rouId, onAct }: { a: RouAction; act?: "done" | "no"; ctx: Ctx; rouId: string; onAct: (x: "done" | "no") => void }) {
   const [sure, setSure] = useState(false);
-  if (act === "done") return <div className="rundo"><span className="muted">Bu değişiklik geri alındı.</span></div>;
+  if (act === "done") return <div className="rundo"><span className="muted">This change was undone.</span></div>;
   return (
     <div className="rundo">
       {sure ? (
         <>
-          <span>Bu değişiklik kaldırılsın mı?</span>
-          <button className="btn sm ghost" onClick={() => setSure(false)}>Vazgeç</button>
-          <button className="btn sm danger" onClick={() => (apply(a, ctx, rouId), onAct("done"))}>Evet, geri al</button>
+          <span>Remove this change?</span>
+          <button className="btn sm ghost" onClick={() => setSure(false)}>Cancel</button>
+          <button className="btn sm danger" onClick={() => (apply(a, ctx, rouId), onAct("done"))}>Yes, undo</button>
         </>
       ) : (
         <>
-          <span className="muted"><Check size={13} />Değişiklik uygulandı.</span>
-          <button className="link" onClick={() => setSure(true)}>Geri al</button>
+          <span className="muted"><Check size={13} />Change applied.</span>
+          <button className="link" onClick={() => setSure(true)}>Undo</button>
         </>
       )}
     </div>
@@ -789,30 +789,30 @@ function MemoryView({ ctx, rou }: { ctx: Ctx; rou: RouDef }) {
     const i = all.findIndex((x) => x.id === id);
     const m = all[i];
     ctx.mutate((s) => void (s.memory = (s.memory ?? []).filter((x) => x.id !== id)));
-    toast(`${rou.name} bunu unuttu`, () => ctx.mutate((s) => void ((s.memory ??= []).some((x) => x.id === id) || s.memory.splice(Math.min(i, s.memory.length), 0, m))));
+    toast(`${rou.name} forgot this`, () => ctx.mutate((s) => void ((s.memory ??= []).some((x) => x.id === id) || s.memory.splice(Math.min(i, s.memory.length), 0, m))));
   };
   return (
     <>
       <div className="rcbody rmem">
-        <p className="rmemhint">{rou.name} bunları hatırlar ve cevaplarında kullanır. Ortak olanları tüm Rou'lar bilir; Tarayıcı işleri de form doldururken onlara bakar.</p>
+        <p className="rmemhint">{rou.name} remembers these and uses them in answers. Every Rou knows the shared ones; browser jobs also check them when filling in forms.</p>
         {list.length === 0 ? (
-          <p className="rbempty">Henüz bir şey yok. Sohbette "maaş beklentim şu, bunu hatırla" gibi söyleyebilir ya da aşağıya yazabilirsin.</p>
+          <p className="rbempty">Nothing yet. Say something like "my salary expectation is X, remember it" in the chat, or type it below.</p>
         ) : (
           <ul>
             {list.map((m) => (
               <li key={m.id}>
                 <span>{m.text}</span>
-                <em className="rmemtag">{m.rouId ? "Yalnız bu Rou" : "Ortak"}</em>
-                <button className="iconbtn" onClick={() => remove(m.id)} aria-label="Unut" title="Unut"><X size={14} /></button>
+                <em className="rmemtag">{m.rouId ? "Only this Rou" : "Shared"}</em>
+                <button className="iconbtn" onClick={() => remove(m.id)} aria-label="Forget" title="Forget"><X size={14} /></button>
               </li>
             ))}
           </ul>
         )}
       </div>
       <form className="rcinput" onSubmit={(e) => (e.preventDefault(), add())}>
-        <textarea rows={1} value={text} placeholder="Bir şey hatırlat…" onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), add())} aria-label="Hatırlanacak bilgi" />
-        <button type="button" className={`rmemscope ${own ? "is-on" : ""}`} onClick={() => setOwn(!own)} aria-pressed={own} title="Yalnız bu Rou bilsin">{own ? "Yalnız bu Rou" : "Ortak"}</button>
-        <button className="btn primary rcsend" disabled={!text.trim()} aria-label="Ekle"><Check size={16} /></button>
+        <textarea rows={1} value={text} placeholder="Something to remember…" onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), add())} aria-label="Something to remember" />
+        <button type="button" className={`rmemscope ${own ? "is-on" : ""}`} onClick={() => setOwn(!own)} aria-pressed={own} title="Only this Rou knows it">{own ? "Only this Rou" : "Shared"}</button>
+        <button className="btn primary rcsend" disabled={!text.trim()} aria-label="Add"><Check size={16} /></button>
       </form>
     </>
   );

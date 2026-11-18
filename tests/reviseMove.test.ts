@@ -58,10 +58,10 @@ describe("revize taşıması", () => {
   it("Rou kartı taşımayı gösterir, geçersiz hedefte çıkmaz", () => {
     const s = world();
     const ok = card({ type: "revise", runId: "r1", note: "dünya b linkedin", projectId: "fe", accountId: "jl" }, s);
-    expect(ok?.verb).toBe("Taşı, revize et");
+    expect(ok?.verb).toBe("Move and revise");
     expect(ok?.detail).toContain("Dünya B · Proje B · LinkedIn Dünya B");
     expect(card({ type: "revise", runId: "r1", note: "x", accountId: "yok" }, s)).toBeNull();
-    expect(card({ type: "revise", runId: "r1", note: "x" }, s)?.verb).toBe("Revize et");
+    expect(card({ type: "revise", runId: "r1", note: "x" }, s)?.verb).toBe("Revise");
     expect(s.tasks.find((x) => x.id === "ft")?.autoId).toBe("ga");
   });
 });

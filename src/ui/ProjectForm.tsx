@@ -51,46 +51,46 @@ function ProjectForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <motion.form className="modal autoform projform" style={{ ["--w" as string]: w?.color }} initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} onSubmit={(e) => (e.preventDefault(), save())}>
         <div className="afhead">
-          <h2 className="mtitle">Yeni proje</h2>
-          <button type="button" className="x" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          <h2 className="mtitle">New project</h2>
+          <button type="button" className="x" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
-        <input className="big" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Projenin adı" aria-label="Projenin adı" />
+        <input className="big" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" aria-label="Project name" />
         <dl className="props">
           <div>
-            <dt>Dünya</dt>
+            <dt>World</dt>
             <dd>
-              <Select className="ppick" style={{ ["--w" as string]: w?.color }} label="Dünya" value={worldId} onChange={setWorld}
+              <Select className="ppick" style={{ ["--w" as string]: w?.color }} label="World" value={worldId} onChange={setWorld}
                 groups={[{ options: s.worlds.map((x) => ({ value: x.id, label: x.name, color: x.color })) }]}>
                 <i />{w?.name}
               </Select>
             </dd>
           </div>
           <div>
-            <dt>Hakkında</dt>
-            <dd><textarea className="notes" rows={2} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Hedef, kapsam. Rou hazırlarken bunu da okur." /></dd>
+            <dt>About</dt>
+            <dd><textarea className="notes" rows={2} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Goal, scope. Rou reads this when preparing." /></dd>
           </div>
           <div>
-            <dt>Zaman</dt>
+            <dt>Time</dt>
             <dd className="pftime">
               <div className="seg">
                 <button type="button" className={!ongoing ? "on" : ""} onClick={() => setOngoing(false)}><Flag size={13} />Deadline</button>
-                <button type="button" className={ongoing ? "on" : ""} onClick={() => setOngoing(true)}><Repeat size={13} />Sürekli</button>
+                <button type="button" className={ongoing ? "on" : ""} onClick={() => setOngoing(true)}><Repeat size={13} />Ongoing</button>
               </div>
-              {!ongoing && <DatePick value={deadline} onChange={setDeadline} label="Deadline" placeholder="Tarih seç" />}
+              {!ongoing && <DatePick value={deadline} onChange={setDeadline} label="Deadline" placeholder="Pick a date" />}
             </dd>
           </div>
           {/* Proje sürekli durur; tekrar eden iş projenin içinde bir işe bağlanır (iş kartı › Düzenli tekrarlansın). */}
           {ongoing && (
             <div>
               <dt />
-              <dd><p className="muted whohint pfsum">Sürekli proje bitmez. Düzenli paylaşım gibi tekrar eden görevleri projeyi kurduktan sonra bir göreve bağlarsın: görevi aç, Düzenli tekrarlansın.</p></dd>
+              <dd><p className="muted whohint pfsum">An ongoing project never ends. Once it is set up, attach repeating work like regular posts to a task: open the task, Repeat regularly.</p></dd>
             </div>
           )}
         </dl>
         <div className="foot">
           <span />
-          <button type="button" className="btn" onClick={onClose}>Vazgeç</button>
-          <button className="btn primary" disabled={!name.trim()}>Projeyi kur</button>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" disabled={!name.trim()}>Create project</button>
         </div>
       </motion.form>
     </div>

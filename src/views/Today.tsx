@@ -7,7 +7,7 @@ import { ArrowUpRight, Check, CheckCheck, ChevronDown, CircleCheck, Repeat, Send
 import { accountOf, taskRef } from "../../shared/social.mjs";
 import { setDay } from "../../shared/repeat.mjs";
 import { type Ctx, ALL, inLens, inboxNew, worldOf } from "../lib";
-import { addDays, dayLong, dayName, dur, iso, relDay, spanMin, today, tsDay, tsMin, localTs } from "../date";
+import { addDays, dateShort, dayLong, dayName, dur, iso, relDay, spanMin, today, tsDay, tsMin, localTs } from "../date";
 import { spent } from "../timer";
 import { QuickAdd } from "../ui/QuickAdd";
 import { TaskRow } from "../ui/TaskRow";
@@ -19,7 +19,7 @@ import { whereText } from "../ui/Board";
 import { stagesOf } from "../../shared/stages.mjs";
 import { TitleRow } from "../ui/PageHead";
 
-const cap = (x: string) => x.replace(/^./, (c) => c.toLocaleUpperCase("tr"));
+const cap = (x: string) => x.replace(/^./, (c) => c.toLocaleUpperCase("en-US"));
 
 const card = (i: number) => ({ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.05, type: "spring" as const, stiffness: 260, damping: 28 } });
 
@@ -99,19 +99,19 @@ export function Today({ ctx }: { ctx: Ctx }) {
       <div className="hometimer"><FocusTimer ctx={ctx} /></div>
       <motion.section className="card hero" {...card(0)}>
         <div className="herotext">
-          <TitleRow ctx={ctx}>{dayName(t)}, {dayLong(t)}</TitleRow>
+          <TitleRow ctx={ctx}>{dayName(t)}, {dateShort(t)}</TitleRow>
           <DayStrip ctx={ctx} blocks={blocksToday} />
           <TodayNow ctx={ctx} blocks={blocksToday} />
           <div className="kpis">
-            <Kpi n={open.length} label="açık görev" />
-            <Kpi n={done.length} label="bitti" />
-            <Kpi n={mineMin ? dur(mineMin) : "0"} label="takvimde" />
-            <Kpi n={focus >= 60 ? spent(focus) : "0"} label="çalışıldı" />
+            <Kpi n={open.length} label="open" />
+            <Kpi n={done.length} label="done" />
+            <Kpi n={mineMin ? dur(mineMin) : "0"} label="planned" />
+            <Kpi n={focus >= 60 ? spent(focus) : "0"} label="focused" />
           </div>
         </div>
         {inbox > 0 && (
           <button className="nudge" onClick={() => ctx.go({ view: "inbox" })}>
-            <b>{inbox}</b> not defterde <span>Aç →</span>
+            <b>{inbox}</b> in the notebook <span>Open →</span>
           </button>
         )}
       </motion.section>
@@ -123,10 +123,10 @@ export function Today({ ctx }: { ctx: Ctx }) {
         <div className="todaygrid">
         <div className="tlist">
           <div className="thead">
-            <h3>Bugün</h3>
+            <h3>Today</h3>
             <span className="n">{open.length + rouList.length}</span>
-            <div className="whofilter" role="tablist" aria-label="Kim yapıyor">
-              {([["all", "Herkes"], ["me", "Sen"], ["claude", "Rou"]] as const).map(([k, l]) => (
+            <div className="whofilter" role="tablist" aria-label="Who does it">
+              {([["all", "Everyone"], ["me", "You"], ["claude", "Rou"]] as const).map(([k, l]) => (
                 <button key={k} role="tab" aria-selected={who === k} className={who === k ? "on" : ""} onClick={() => setWho(k)}>{l}{k !== "all" && <span>{count(k)}</span>}</button>
               ))}
             </div>
@@ -135,8 +135,8 @@ export function Today({ ctx }: { ctx: Ctx }) {
           {overdue.length > 0 && (
             <div className="overdue">
               <div className="subhead">
-                <span>Gecikenler · {overdue.length}</span>
-                <button className="link" onClick={() => { const ids = new Set(overdue.map((x) => x.id)); ctx.mutate((st) => st.tasks.forEach((x) => ids.has(x.id) && x.day && x.day < t && x.status !== "done" && setDay(st, x, t))); }}>Hepsini bugüne al</button>
+                <span>Late · {overdue.length}</span>
+                <button className="link" onClick={() => { const ids = new Set(overdue.map((x) => x.id)); ctx.mutate((st) => st.tasks.forEach((x) => ids.has(x.id) && x.day && x.day < t && x.status !== "done" && setDay(st, x, t))); }}>Move all to today</button>
               </div>
               <ul className="list">
                 <AnimatePresence initial={false}>
@@ -148,7 +148,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
 
           {(who === "all" || who === "me") && (<>
           <div className="tgroup">
-          <h4 className="tgrouphead"><CircleCheck size={15} />Senin işlerin<span>{open.length || ""}</span></h4>
+          <h4 className="tgrouphead"><CircleCheck size={15} />Your tasks<span>{open.length || ""}</span></h4>
           <ul
             className={`list droplist ${over === "end" ? "over-end" : ""} ${open.length ? "" : "is-empty"}`}
             onDragOver={(e) => {
@@ -173,21 +173,21 @@ export function Today({ ctx }: { ctx: Ctx }) {
                 </div>
               ))}
             </AnimatePresence>
-            {open.length === 0 && <li className="empty">Bugün senin için görev yok. Aşağıya yaz ya da Projeler'den buraya sürükle.</li>}
+            {open.length === 0 && <li className="empty">Nothing for today yet. Type one below or drag one here from Projects.</li>}
           </ul>
-          <div className="tadd"><QuickAdd ctx={ctx} preset={{ day: t }} placeholder="Bugüne görev ekle" /></div>
+          <div className="tadd"><QuickAdd ctx={ctx} preset={{ day: t }} placeholder="Add a task for today" /></div>
           </div>
           </>)}
-          {who === "claude" && autos.length === 0 && <p className="empty">Rou için bugün görev yok. Bir görevi açıp Kim satırından Rou'yu seçebilirsin.</p>}
-          {([["claude", rouList, <Sparkles size={14} />, "Onay ya da ses kaydı gerekince sıra sana gelir"]] as const).map(([k, list, icon, about]) => list.length > 0 && (
+          {who === "claude" && autos.length === 0 && <p className="empty">Nothing for Rou today. Open a task and pick Rou in the Who row.</p>}
+          {([["claude", rouList, <Sparkles size={14} />, "Your turn comes when it needs approval or a voice recording"]] as const).map(([k, list, icon, about]) => list.length > 0 && (
             <div key={k} className="tgroup tautos">
-              <h4 className="tgrouphead">{icon}Rou'nun işleri<span>{list.length}</span><em>{about}</em></h4>
+              <h4 className="tgrouphead">{icon}Rou's tasks<span>{list.length}</span><em>{about}</em></h4>
               <ul className="list">{list.map((x) => <TaskRow key={x.id} task={x} ctx={ctx} o={{ world: lens === ALL, project: true, day: x.day !== t, card: true }} />)}</ul>
             </div>
           ))}
           {ahead.map(({ d, list }) => (
             <div key={d} className="tgroup tautos">
-              <h4 className="tgrouphead"><CalendarClock size={14} />{cap(relDay(d))}<span>{list.length}</span><em>Hazır olanları şimdiden onaylayabilirsin</em></h4>
+              <h4 className="tgrouphead"><CalendarClock size={14} />{cap(relDay(d))}<span>{list.length}</span><em>You can approve the ready ones now</em></h4>
               <ul className="list">{list.map((x) => <TaskRow key={x.id} task={x} ctx={ctx} o={{ world: lens === ALL, project: true, card: true }} />)}</ul>
             </div>
           ))}
@@ -195,7 +195,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
           {completed.length > 0 && (
             <div className="tgroup tdone">
               <button className="tgrouphead tfold" onClick={() => setShowDone(!showDone)} aria-expanded={showDone}>
-                <CheckCheck size={15} />Tamamlananlar<span>{completed.length}</span>
+                <CheckCheck size={15} />Completed<span>{completed.length}</span>
                 <ChevronDown size={16} className={`tfoldi ${showDone ? "is-open" : ""}`} />
               </button>
               <AnimatePresence initial={false}>
@@ -206,9 +206,9 @@ export function Today({ ctx }: { ctx: Ctx }) {
                         <span className="tsok"><Check size={13} strokeWidth={2.8} /></span>
                         <div className="rbody">
                           <span className="rtitle">{task?.title ?? r?.title}</span>
-                          <span className="tsmeta">{r ? "Tamamlandı, paylaşıldı" : "Tamamlandı"}{acc ? ` · ${acc.name}` : task && lens === ALL ? ` · ${worldOf(s, task.worldId).name}` : ""}{at ? ` · ${at}` : ""}</span>
+                          <span className="tsmeta">{r ? "Done, shared" : "Done"}{acc ? ` · ${acc.name}` : task && lens === ALL ? ` · ${worldOf(s, task.worldId).name}` : ""}{at ? ` · ${at}` : ""}</span>
                         </div>
-                        {r?.postUrl && <a className="btn sm" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Gönderiyi aç<ArrowUpRight size={13} /></a>}
+                        {r?.postUrl && <a className="btn sm" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Open post<ArrowUpRight size={13} /></a>}
                       </li>
                     ))}
                   </motion.ul>
@@ -219,11 +219,11 @@ export function Today({ ctx }: { ctx: Ctx }) {
         </div>
         <div className="tplan">
           <div className="thead">
-            <h3>Saatler</h3>
-            {planned > 0 && <span className="n">{dur(planned)} planlı</span>}
-            <button className="link" onClick={() => ctx.go({ view: "calendar" })}>Haftaya bak →</button>
+            <h3>Hours</h3>
+            {planned > 0 && <span className="n">{dur(planned)} planned</span>}
+            <button className="link" onClick={() => ctx.go({ view: "calendar" })}>See the week →</button>
           </div>
-          <p className="tplanhint">Bir görevi saate sürükle</p>
+          <p className="tplanhint">Drag a task onto an hour</p>
           <Calendar ctx={ctx} embedded />
         </div>
         </div>
@@ -285,8 +285,8 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
     const st = stagesOf(s, autoOf(s, x)!, x, runOfTask(s.runs, x.id));
     const cur = st.steps.find((y) => y.key === st.current);
     // Hazırlanamayan da senden bekleniyor (Gönderiler'in "Onayını bekliyor"u gibi): yeniden hazırlat ya da revize et.
-    if (!st.busy && runOfTask(s.runs, x.id)?.status === "failed") return { x, what: "Hata" };
-    return !st.busy && cur?.who === "Sen" ? { x, what: cur.key === "voice" ? "Ses kaydı" : cur.key === "approve" ? "Onay" : "İşlem" } : null;
+    if (!st.busy && runOfTask(s.runs, x.id)?.status === "failed") return { x, what: "Error" };
+    return !st.busy && cur?.who === "Sen" ? { x, what: cur.key === "voice" ? "Voice" : cur.key === "approve" ? "Approval" : "Action" } : null;
   }).filter(Boolean) as { x: Task; what: string }[];
   const cur = live.find((b) => tsMin(b.start) <= nowM && (tsMin(b.end) || 1440) > nowM);
   const next = live.find((b) => tsMin(b.start) > nowM);
@@ -298,15 +298,15 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   const where = (x?: Task) => { if (!x) return ""; const w = s.worlds.find((y) => y.id === x.worldId); const p = x.projectId ? s.projects.find((y) => y.id === x.projectId) : undefined; return [w?.name, p?.name].filter(Boolean).join(" › "); };
   const hmOf = (ts: string) => ts.slice(11, 16);
   const mine: Row[] = [];
-  if (cur) mine.push({ k: "cur", time: hmOf(cur.start), title: task(cur.taskId)?.title ?? "", meta: `Şimdi · ${dur((tsMin(cur.end) || 1440) - nowM)} kaldı`, tone: "now", id: cur.taskId });
-  ended.forEach((b) => mine.push({ k: `ended-${b.id}`, time: hmOf(b.start), title: task(b.taskId)?.title ?? "", meta: "Saati geçti", tone: "over", id: b.taskId }));
+  if (cur) mine.push({ k: "cur", time: hmOf(cur.start), title: task(cur.taskId)?.title ?? "", meta: `Now · ${dur((tsMin(cur.end) || 1440) - nowM)} left`, tone: "now", id: cur.taskId });
+  ended.forEach((b) => mine.push({ k: `ended-${b.id}`, time: hmOf(b.start), title: task(b.taskId)?.title ?? "", meta: "Time is up", tone: "over", id: b.taskId }));
   if (next) mine.push({ k: "next", time: hmOf(next.start), title: task(next.taskId)?.title ?? next.title ?? "", meta: `${dur(tsMin(next.start) - nowM)} sonra`, id: next.taskId });
   live.filter((b) => tsMin(b.start) > nowM && b !== next).slice(0, 3).forEach((b) => mine.push({ k: `later-${b.id}`, time: hmOf(b.start), title: task(b.taskId)?.title ?? b.title ?? "", meta: dur(tsMin(b.end) - tsMin(b.start)), id: b.taskId }));
   // Saate konmuş iş ikinci kez "Bugün teslim" satırı olarak çıkmaz; teslim notu saatli satıra eklenir.
   due.forEach((x) => {
     const row = mine.find((r) => r.id === x.id);
-    if (row) { if (!/teslim/.test(row.meta)) row.meta = `${row.meta} · Bugün teslim`; return; }
-    mine.push({ k: `due-${x.id}`, time: "", title: x.title, meta: "Bugün teslim", tone: "due", id: x.id });
+    if (row) { if (!/Due today/.test(row.meta)) row.meta = `${row.meta} · Due today`; return; }
+    mine.push({ k: `due-${x.id}`, time: "", title: x.title, meta: "Due today", tone: "due", id: x.id });
   });
   // Gönderiler'le aynı dil (iki sayfa arasında kopukluk olmasın): başlık gönderinin konusu,
   // altında otomasyonun adı; bugün değilse günü de yazılır (yarının gönderileri bugünkü gibi duruyordu).
@@ -314,7 +314,7 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   const dayOf = (x: Task) => (x.day && x.day < t ? cap(relDay(x.day)) : undefined);
   const asks: Row[] = waiting.filter((w) => !isAhead(w.x)).sort((a, b) => `${a.x.day ?? ""}${a.x.autoSlot ?? ""}`.localeCompare(`${b.x.day ?? ""}${b.x.autoSlot ?? ""}`)).map((w) => {
     const topic = w.x.topic?.title?.trim();
-    return { k: `ask-${w.x.id}`, time: w.x.autoSlot ?? "", day: dayOf(w.x), title: topic || w.x.title, sub: [where(w.x), topic && topic !== w.x.title ? w.x.title : ""].filter(Boolean).join(" · "), auto: !!w.x.autoId, meta: w.what === "Onay" ? "Onayını bekliyor" : w.what === "Hata" ? "Hazırlanamadı" : w.what === "Ses kaydı" ? "Ses kaydın bekleniyor" : "Senden bekleniyor", tone: w.what === "Hata" ? "over" : "now", id: w.x.id };
+    return { k: `ask-${w.x.id}`, time: w.x.autoSlot ?? "", day: dayOf(w.x), title: topic || w.x.title, sub: [where(w.x), topic && topic !== w.x.title ? w.x.title : ""].filter(Boolean).join(" · "), auto: !!w.x.autoId, meta: w.what === "Approval" ? "Awaiting your approval" : w.what === "Error" ? "Couldn't prepare" : w.what === "Voice" ? "Waiting for your voice" : "Waiting for you", tone: w.what === "Error" ? "over" : "now", id: w.x.id };
   });
   const rou: Row[] = s.tasks.filter(inLens(ctx.route.lens)).filter((x) => x.day === t && x.status !== "done" && bot(x.id) && !waiting.some((w) => w.x.id === x.id))
     .sort((a, b) => (a.autoSlot ?? "").localeCompare(b.autoSlot ?? ""))
@@ -324,18 +324,18 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   const aheadDays = [...new Set(aheadAsks.map((w) => w.x.day!))].sort();
   const toRow = (w: { x: Task; what: string }): Row => {
     const topic = w.x.topic?.title?.trim();
-    return { k: `ask-${w.x.id}`, time: w.x.autoSlot ?? "", title: topic || w.x.title, sub: [where(w.x), topic && topic !== w.x.title ? w.x.title : ""].filter(Boolean).join(" · "), auto: !!w.x.autoId, meta: w.what === "Onay" ? "Onayını bekliyor" : w.what === "Hata" ? "Hazırlanamadı" : "Senden bekleniyor", tone: w.what === "Hata" ? "over" : "now", id: w.x.id };
+    return { k: `ask-${w.x.id}`, time: w.x.autoSlot ?? "", title: topic || w.x.title, sub: [where(w.x), topic && topic !== w.x.title ? w.x.title : ""].filter(Boolean).join(" · "), auto: !!w.x.autoId, meta: w.what === "Approval" ? "Awaiting your approval" : w.what === "Error" ? "Couldn't prepare" : "Waiting for you", tone: w.what === "Error" ? "over" : "now", id: w.x.id };
   };
   const groups = [
-    { k: "ask", title: "Senden bekleniyor", rows: asks, Icon: Hand },
-    { k: "mine", title: "Senin günün", rows: mine, Icon: CalendarClock },
-    { k: "rou", title: "Rou'nun işleri", rows: rou, Icon: Sparkles },
-    ...aheadDays.map((d) => ({ k: `ahead-${d}`, title: `${cap(relDay(d))} · onayını bekleyenler`, rows: aheadAsks.filter((w) => w.x.day === d).sort((a, b) => (a.x.autoSlot ?? "").localeCompare(b.x.autoSlot ?? "")).map(toRow), Icon: CalendarClock })),
+    { k: "ask", title: "Waiting for you", rows: asks, Icon: Hand },
+    { k: "mine", title: "Your day", rows: mine, Icon: CalendarClock },
+    { k: "rou", title: "Rou's tasks", rows: rou, Icon: Sparkles },
+    ...aheadDays.map((d) => ({ k: `ahead-${d}`, title: `${cap(relDay(d))} · awaiting your approval`, rows: aheadAsks.filter((w) => w.x.day === d).sort((a, b) => (a.x.autoSlot ?? "").localeCompare(b.x.autoSlot ?? "")).map(toRow), Icon: CalendarClock })),
   ].filter((g) => g.rows.length);
   return (
     <div className="tnow">
       {groups.length === 0 ? (
-        <p className="tnempty">{live.length ? "Bugünün planlı saatleri bitti." : "Bugün senin için planlı saat yok. Aşağıdaki listeden bir görevi saate sürükle."}</p>
+        <p className="tnempty">{live.length ? "Today's planned hours are over." : "No hours planned today. Drag a task from the list below onto an hour."}</p>
       ) : (
         groups.map((g) => (
           <section key={g.k} className={`tngroup is-${g.k}`}>

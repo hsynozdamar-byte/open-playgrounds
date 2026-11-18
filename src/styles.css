@@ -312,7 +312,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .blk.is-split .bt > :not(.btx) { display: none; }
 .blk.is-split:not(.short) .btx { display: -webkit-box; white-space: normal; overflow-wrap: anywhere; }
 .blk.is-split.short { justify-content: flex-start; }
-.blk.is-copy::after { content: "+ kopya"; position: absolute; bottom: 6px; right: 4px; font-size: var(--fs-1); font-weight: 700; padding: 1px 5px; border-radius: 5px; background: var(--ink); color: var(--panel); }
+.blk.is-copy::after { content: "+ copy"; position: absolute; bottom: 6px; right: 4px; font-size: var(--fs-1); font-weight: 700; padding: 1px 5px; border-radius: 5px; background: var(--ink); color: var(--panel); }
 .blk.running { box-shadow: 0 0 0 2px var(--w), 0 0 0 5px color-mix(in srgb, var(--w) 20%, transparent); }
 .blk.done { opacity: 0.5; }
 .blk.done .bt { text-decoration: line-through; }
@@ -2452,8 +2452,8 @@ button.torb:hover { background: var(--hover); }
 .bars.d7 .bar i { max-width: 48px; }
 .bar span { font-size: var(--fs-1); color: var(--ink-3); padding-bottom: 6px; }
 .procols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.prorow { display: grid; grid-template-columns: 22px minmax(0, 1fr) 80px 64px 110px; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 8px; border-radius: 10px; text-align: left; }
-.prorow.noBar { grid-template-columns: 22px minmax(0, 1fr) 64px 110px; }
+.prorow { display: grid; grid-template-columns: 22px minmax(0, 1fr) 80px 92px 110px; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 8px; border-radius: 10px; text-align: left; }
+.prorow.noBar { grid-template-columns: 22px minmax(0, 1fr) 92px 110px; }
 .prorow:hover { background: var(--hover); }
 .prorow .prn { font-size: var(--fs-4); font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prbar { height: 6px; border-radius: 99px; background: var(--hover); overflow: hidden; }
@@ -2487,7 +2487,7 @@ button.torb:hover { background: var(--hover); }
   .prostats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
   .prostat:nth-child(odd) { border-left: 0; padding-left: 8px; }
   .procols { grid-template-columns: minmax(0, 1fr); }
-  .prorow { grid-template-columns: 22px minmax(0, 1fr) 60px 90px; }
+  .prorow { grid-template-columns: 22px minmax(0, 1fr) 80px 90px; }
   .prorow .prbar { display: none; }
   .owngrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-// Sayfanın kaydırma çubuğu: yer kaplamaz (sayfa her zaman tam genişlikte), kaydırınca ya da sağ kenara gelince belirir,
-// bir saniye sonra solar; tutup sürüklenebilir. Sayfa kaymıyorsa görünmez.
+// The page's scrollbar: takes no space (the page is always full width), appears on scroll or when the pointer reaches the
+// right edge, fades after a second; can be grabbed and dragged. Hidden when the page does not scroll.
 export function PageThumb() {
   const [g, setG] = useState({ top: 0, h: 0, show: false });
   const [on, setOn] = useState(false);

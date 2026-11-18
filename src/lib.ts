@@ -28,38 +28,39 @@ export function setStatus(t: Task, status: Task["status"]) {
   else delete t.doneAt;
 }
 
-const norm = (x: string) => x.toLocaleLowerCase("tr").replace(/\s+/g, "");
-// Tam ad ya da kısaltma; ilk üç harfe bakılırsa "pazartesi" pazar, "cumartesi" cuma olur.
-const DAYS: Record<string, number> = { pazartesi: 1, pzt: 1, salı: 2, sali: 2, sal: 2, çarşamba: 3, carsamba: 3, çar: 3, car: 3, perşembe: 4, persembe: 4, per: 4, cuma: 5, cum: 5, cumartesi: 6, cmt: 6, pazar: 0, paz: 0 };
-const WEEKDAY = /^(pzt|pazartesi|sal|salı|sali|çar|çarşamba|car|carsamba|per|perşembe|persembe|cum|cuma|cmt|cumartesi|paz|pazar)$/;
+const norm = (x: string) => x.toLocaleLowerCase("en-US").replace(/\s+/g, "");
+// Full name or abbreviation. Turkish day words still parse, so older notes and agents that write them keep working.
+const DAYS: Record<string, number> = {
+  monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2, wednesday: 3, wed: 3, thursday: 4, thu: 4, thur: 4, thurs: 4, friday: 5, fri: 5, saturday: 6, sat: 6, sunday: 0, sun: 0,
+  pazartesi: 1, pzt: 1, salı: 2, sali: 2, sal: 2, çarşamba: 3, carsamba: 3, çar: 3, car: 3, perşembe: 4, persembe: 4, per: 4, cuma: 5, cum: 5, cumartesi: 6, cmt: 6, pazar: 0, paz: 0,
+};
+const TODAY = ["today", "tod", "bugün", "bugun"], TOMORROW = ["tomorrow", "tmr", "yarın", "yarin"], SOMEDAY = ["someday", "tarihsiz"];
 const isDayWord = (tok: string) => {
   const w = norm(tok);
-  return ["bugün", "bugun", "yarın", "yarin", "tarihsiz"].includes(w) || WEEKDAY.test(w) || /^\d{1,2}[./]\d{1,2}$/.test(w);
+  return [...TODAY, ...TOMORROW, ...SOMEDAY].includes(w) || Object.hasOwn(DAYS, w) || /^\d{1,2}[./]\d{1,2}$/.test(w) || /^\d{4}-\d{2}-\d{2}$/.test(w);
 };
-function parseDay(word: string): string | null | undefined {
+// A day word: today, tomorrow, someday (no day), a weekday (the next one), DD.MM or DD/MM, or YYYY-MM-DD.
+export function parseDay(word: string): string | null | undefined {
   const w = norm(word);
   const t = today();
-  if (["bugün", "bugun"].includes(w)) return t;
-  if (["yarın", "yarin"].includes(w)) return addDays(t, 1);
-  if (w === "tarihsiz") return null;
-  const k = WEEKDAY.test(w) ? DAYS[w] : undefined;
-  if (k !== undefined) {
-    const d = new Date();
-    return addDays(t, (k - d.getDay() + 7) % 7 || 7);
-  }
+  if (TODAY.includes(w)) return t;
+  if (TOMORROW.includes(w)) return addDays(t, 1);
+  if (SOMEDAY.includes(w)) return null;
+  if (Object.hasOwn(DAYS, w)) return addDays(t, (DAYS[w] - new Date().getDay() + 7) % 7 || 7);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(w)) return w;
   const m = w.match(/^(\d{1,2})[./](\d{1,2})$/);
   if (m) {
     const y = new Date().getFullYear();
     const cand = `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
     const day = cand < t ? `${y + 1}${cand.slice(4)}` : cand;
-    // 31.02 ya da 3.15 gibi olmayan bir gün tarih sayılmaz: kelime başlıkta kalır (yoksa iş hiçbir günde görünmezdi).
+    // A day that does not exist (31.02, 3.15) is not a date: the word stays in the title.
     const d = new Date(+day.slice(0, 4), +m[2] - 1, +m[1]);
     return d.getMonth() === +m[2] - 1 && d.getDate() === +m[1] ? day : undefined;
   }
   return undefined;
 }
 
-// Tek satır: "Mağaza görselleri @is #proje yarın 14:00 1sa !cum"
+// One line: "Store screenshots @work #launch tomorrow 14:00 1h !fri"
 type Parsed = { title: string; worldId: string; projectId: string | null; newProject?: string; day?: string | null; time?: number; estimate?: number; deadline?: string | null };
 export function parseQuick(s: State, raw: string, fallbackWorld: string): Parsed {
   const out: Parsed = { title: "", worldId: fallbackWorld, projectId: null };
@@ -80,8 +81,8 @@ export function parseQuick(s: State, raw: string, fallbackWorld: string): Parsed
     const tm = tok.match(/^(\d{1,2})([:.])(\d{2})$/);
     const asDate = tm && tm[2] === "." && tm[1].length === 1 && +tm[3] >= 1 && +tm[3] <= 12;
     if (tm && !asDate && +tm[1] < 24 && +tm[3] < 60) { out.time = +tm[1] * 60 + +tm[3]; continue; }
-    const du = tok.match(/^(\d+(?:[.,]\d)?)(dk|sa|s)$/i);
-    if (du) { out.estimate = Math.round(parseFloat(du[1].replace(",", ".")) * (du[2].toLowerCase() === "dk" ? 1 : 60)); continue; }
+    const du = tok.match(/^(\d+(?:[.,]\d)?)(m|min|h|dk|sa|s)$/i);
+    if (du) { out.estimate = Math.round(parseFloat(du[1].replace(",", ".")) * (["m", "min", "dk"].includes(du[2].toLowerCase()) ? 1 : 60)); continue; }
     if (isDayWord(tok)) {
       const d = parseDay(tok);
       if (d !== undefined) { out.day = d; continue; }
@@ -119,9 +120,9 @@ export function addParsed(s: State, p: Parsed, preset: Partial<Task> = {}) {
   return t;
 }
 
-export const SOURCE_LABEL: Record<string, string> = { gmail: "Gmail", slack: "Slack", clickup: "ClickUp", calendar: "Takvim", other: "Kaynak", note: "Not", mail: "Mail", claude: "Claude" };
-export const STATUS_LABEL: Record<Task["status"], string> = { todo: "Yapılacak", doing: "Yapılıyor", waiting: "Beklemede", done: "Bitti" };
-export const PSTATUS_LABEL: Record<Project["status"], string> = { active: "Aktif", paused: "Beklemede", done: "Bitti" };
+export const SOURCE_LABEL: Record<string, string> = { gmail: "Gmail", slack: "Slack", clickup: "ClickUp", calendar: "Calendar", other: "Source", note: "Note", mail: "Mail", claude: "Claude" };
+export const STATUS_LABEL: Record<Task["status"], string> = { todo: "To do", doing: "In progress", waiting: "Waiting", done: "Done" };
+export const PSTATUS_LABEL: Record<Project["status"], string> = { active: "Active", paused: "Paused", done: "Done" };
 
 // Bir işe takvimde ilk boş yeri bulur (09:00'dan itibaren, 15 dk adım).
 export function freeSlot(s: State, day: string, len: number) {

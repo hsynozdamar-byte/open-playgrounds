@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 
-// Uygulama geneli kısa bildirim: "İş tamamlandı · Geri al" gibi.
+// App-wide short notice: like "Task done · Undo".
 type T = { id: number; text: string; undo?: () => void; label?: string };
-export function toast(text: string, undo?: () => void, label = "Geri al") {
+export function toast(text: string, undo?: () => void, label = "Undo") {
   dispatchEvent(new CustomEvent<T>("pg-toast", { detail: { id: Date.now(), text, undo, label } }));
 }
 

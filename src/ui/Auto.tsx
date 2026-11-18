@@ -11,7 +11,7 @@ import { PUBLISHABLE, openAccountForm, worldOfAccount } from "./Social";
 import { accountOf, missingImage, platformName, taskRef } from "../../shared/social.mjs";
 import { bansOf, revisionsOf } from "../../shared/revise.mjs";
 import { uploadFile } from "./RouAttach";
-import { ImageStep, VideoStep, VoiceStep } from "./Board";
+import { ImageStep, VideoStep, VoiceStep, whoName } from "./Board";
 import { DraftPost, PostPreview, download, mediaFiles } from "./Preview";
 import { openAutoForm } from "./AutoForm";
 import type { Automation, Run, State, Task } from "../types";
@@ -35,9 +35,9 @@ import { AddTile } from "./QuickAdd";
 
 export const autoOf = (s: State, t: Task) => (t.autoId ? s.automations.find((a) => a.id === t.autoId) : undefined);
 const nextText = (a: Automation) => {
-  if (a.status !== "active") return "Durduruldu";
+  if (a.status !== "active") return "Paused";
   const n = nextRun(a);
-  return n ? `Sıradaki: ${relDay(n.day)}${n.slot ? ` ${n.slot}` : ""}` : "Plan yok";
+  return n ? `Next: ${relDay(n.day)}${n.slot ? ` ${n.slot}` : ""}` : "No plan";
 };
 
 // İş kartında: bu iş bir otomasyondan geldiyse hangisi olduğu.
@@ -46,10 +46,10 @@ export function AutoInfoRow({ task, ctx, onGo }: { task: Task; ctx: Ctx; onGo: (
   if (!a) return null;
   return (
     <div>
-      <dt><Repeat size={15} />Otomasyon</dt>
+      <dt><Repeat size={15} />Automation</dt>
       <dd className="autoinfo">
         <button onClick={() => (onGo(), a && openAutoView(a.id))}>
-          <Repeat size={13} /><b>{a.title}</b><span>{scheduleText(a)}{task.autoSlot ? ` · bu görev ${task.autoSlot}` : ""}</span><ArrowUpRight size={14} />
+          <Repeat size={13} /><b>{a.title}</b><span>{scheduleText(a)}{task.autoSlot ? ` · this task ${task.autoSlot}` : ""}</span><ArrowUpRight size={14} />
         </button>
       </dd>
     </div>
@@ -63,19 +63,19 @@ export const isStale = (r: Run) => r.status === "working" && Date.now() - new Da
 
 async function cancelPrepare(taskId: string) {
   const r = await fetch("/api/prepare/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId }) }).then((r) => r.json()).catch(() => ({ ok: false }));
-  toast(r.ok ? "Hazırlama durduruldu" : "Durdurulamadı: sunucuya ulaşılamadı");
+  toast(r.ok ? "Preparing stopped" : "Couldn't stop: couldn't reach the server");
 }
 export async function prepare(taskId: string, tries = 3, feedback?: string, files?: { file: string; name: string; kind: "image" | "video" }[]): Promise<boolean | void> {
-  const r = await fetch("/api/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId, feedback, files }) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+  const r = await fetch("/api/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId, feedback, files }) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
   // Yeni açılan iş dosyaya henüz yazılmadıysa kısa bir süre sonra yeniden dener.
   if (!r.ok && r.error === "Görev yok" && tries > 1) return void setTimeout(() => prepare(taskId, tries - 1), 700);
-  if (!r.ok) toast(r.error ?? "Hazırlanamadı");
-  else if (r.queued) toast(r.message ?? "Sıraya alındı: şu anki hazırlık bitince başlayacak");
-  else toast("Rou hazırlamaya başladı; ilerleme Süreç'te görünür");
+  if (!r.ok) toast(r.error ?? "Couldn't prepare");
+  else if (r.queued) toast(r.message ?? "Queued: starts when the current one is done");
+  else toast("Rou started preparing; progress shows under Progress");
   return r.ok;
 }
 
-export const BOT: Record<string, string> = { claude: "Rou", me: "Sen" };
+export const BOT: Record<string, string> = { claude: "Rou", me: "You" };
 // İşi kim yapıyor: otomasyon işinde otomasyonun hazırlayanı, tek işte atanan; yoksa sen.
 export type Who = "me" | "claude";
 // Rou'nun açtığı tek seferlik gönderi (task.post, by claude) Rou'nundur: Odak'ta Rou panelinde, paylaşım durumuyla görünür.
@@ -100,8 +100,8 @@ export function AutoRow({ ctx, a, showProject, tag = true }: { ctx: Ctx; a: Auto
         <span className="arico">{plats.length ? <BrandIcon platform={plats[0]} size={16} /> : <Repeat size={16} />}</span>
         <span className="arbody">
           <span className="artitle"><SeriesDot color={a.color} /><b>{a.title}</b></span>
-          <span className="armeta">{[p?.name, `${scheduleText(a)}${n > 1 ? ` · günde ${n} ${out === "post" || out === "video" ? "gönderi" : "kez"}` : ""}`, a.who === "me" ? "Sen yaparsın" : `${BOT[a.who]} hazırlar, sen onaylarsın`].filter(Boolean).join(" · ")}</span>
-          <span className={`arst ${waiting ? "is-you" : ""}`}>{a.status === "paused" ? "Durdu" : waiting ? `${waiting} onayını bekliyor` : nextText(a)}</span>{tag && <span className="arfoot"><span className="artag"><Repeat size={11} />Otomasyon</span></span>}
+          <span className="armeta">{[p?.name, `${scheduleText(a)}${n > 1 ? ` · ${n} ${out === "post" || out === "video" ? "posts" : "times"} a day` : ""}`, a.who === "me" ? "You do it" : `${BOT[a.who]} prepares, you approve`].filter(Boolean).join(" · ")}</span>
+          <span className={`arst ${waiting ? "is-you" : ""}`}>{a.status === "paused" ? "Paused" : waiting ? `${waiting} awaiting your approval` : nextText(a)}</span>{tag && <span className="arfoot"><span className="artag"><Repeat size={11} />Automation</span></span>}
         </span>
         <ChevronRight size={16} className="archev" />
       </button>
@@ -117,7 +117,7 @@ export function ProjectAutos({ ctx, worldId, projectId, bare, adds }: { ctx: Ctx
   if (bare && adds?.length === 0 && !list.length) return null;
   const rows = (
     <ul className="arows strip">
-      {adds?.length !== 0 && <AddTile items={adds ?? [{ label: "Otomasyon kur", onClick: () => openAutoForm({ worldId, projectId: projectId ?? null }) }]} />}
+      {adds?.length !== 0 && <AddTile items={adds ?? [{ label: "Set up automation", onClick: () => openAutoForm({ worldId, projectId: projectId ?? null }) }]} />}
       {list.map((a) => <AutoRow key={a.id} ctx={ctx} a={a} showProject={projectId === undefined} tag={!!bare && adds?.length !== 0} />)}
     </ul>
   );
@@ -126,7 +126,7 @@ export function ProjectAutos({ ctx, worldId, projectId, bare, adds }: { ctx: Ctx
     <section className="card pautos">
       <div className="cardhead">
         <Repeat size={15} className="hicon" />
-        <h3>Otomasyonlar</h3>
+        <h3>Automations</h3>
         <span className="n">{list.length || ""}</span>
       </div>
       {rows}
@@ -141,9 +141,9 @@ export function ProjectAutos({ ctx, worldId, projectId, bare, adds }: { ctx: Ctx
 
 // Rou'nun doğrudan Chrome işi (POST /api/do-task): run açılır; Chrome'u Rou kendisi seçer ve başlar. Bağlı Chrome yoksa sunucu söyler.
 async function goDirect(taskId: string) {
-  const res = await fetch("/api/do-task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
-  if (!res.ok) return toast(res.error ?? "Başlatılamadı");
-  toast("Rou tarayıcıda başladı");
+  const res = await fetch("/api/do-task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
+  if (!res.ok) return toast(res.error ?? "Couldn't start");
+  toast("Rou started in the browser");
 }
 
 // Çekmecedeki Kaydet ne başlatır: iş Rou'nunsa ve günü geldiyse (ya da tarihsizse) saatini beklemeden.
@@ -161,7 +161,7 @@ export function kickOffWhat(s: State, task: Task): "chrome" | "prepare" | null {
 export function kickOff(ctx: Ctx, task: Task): "keep" | "started" | false {
   const what = kickOffWhat(ctx.state, task);
   if (what === "chrome") { void goDirect(task.id); return "keep"; }
-  if (what === "prepare") { void prepare(task.id); toast("Kaydedildi. Rou başladı."); return "started"; }
+  if (what === "prepare") { void prepare(task.id); toast("Saved. Rou started."); return "started"; }
   return false;
 }
 
@@ -183,11 +183,11 @@ export function doNow(ctx: Ctx, task: Task) {
     if (b) Object.assign(b, { start: at(d), end });
     else st.blocks.push({ id: uid(), taskId: x.id, worldId: x.worldId, title: "", start: at(d), end, kind: "plan" });
   });
-  if (who === "me") { if (ctx.state.timer?.taskId !== task.id) startTask(ctx.mutate, task.id); toast("Başladı: odak sayacı çalışıyor"); }
+  if (who === "me") { if (ctx.state.timer?.taskId !== task.id) startTask(ctx.mutate, task.id); toast("Started: focus timer is running"); }
   else if (who === "claude") {
     const last = ctx.state.runs.filter((r) => r.taskId === task.id).sort((a, b) => b.at.localeCompare(a.at))[0];
     if ((!last || last.status === "approved" || last.status === "failed") && needsChrome(task, last)) void goDirect(task.id);
-    else { void prepare(task.id); toast("Rou şimdi hazırlıyor"); }
+    else { void prepare(task.id); toast("Rou is preparing it now"); }
   }
 }
 
@@ -196,7 +196,7 @@ export function runNow(ctx: Ctx, a: Automation) {
   const t = today();
   const used = (task?: Task) => !!task && (task.status === "done" || s.runs.some((r) => r.taskId === task.id && r.status !== "failed" && !isStale(r)));
   const slot = slotsOf(a).find((x) => !used(occurrenceOf(s, a, t, x)));
-  if (slot === undefined) return toast("Bugünün görevleri zaten hazırlandı");
+  if (slot === undefined) return toast("Today's tasks are already prepared");
   let task = occurrenceOf(s, a, t, slot);
   if (!task) {
     // Yeni işi önce geçici bir durumda kur: aynı id ile hem kaydedilir hem hazırlatılır.
@@ -211,7 +211,7 @@ export function runNow(ctx: Ctx, a: Automation) {
   }
   const id = task.id;
   if (a.who === "claude") setTimeout(() => prepare(id), 500);
-  else toast("Bugünün görevi açıldı", () => ctx.open(id), "Aç");
+  else toast("Today's task opened", () => ctx.open(id), "Open");
 }
 
 // Gelecek bir günün gönderisini beklemeden üretir: o günün görevi şimdi açılır (günü ve saati aynı kalır)
@@ -242,13 +242,13 @@ export function runAt(ctx: Ctx, a: Automation, day: string, slot: string) {
     });
   }
   const id = task.id;
-  if (a.who === "claude") { setTimeout(() => queuePrepare([id]), 500); toast("Rou'nun sırasına eklendi; sırayla hazırlar"); }
-  else toast("Görev açıldı", () => ctx.open(id), "Aç");
+  if (a.who === "claude") { setTimeout(() => queuePrepare([id]), 500); toast("Added to Rou's queue; Rou prepares in order"); }
+  else toast("Task opened", () => ctx.open(id), "Open");
 }
 
 // Rou'nun sırası: işler aynı anda değil, birbiri ardına hazırlanır (sunucu prepareMany).
 export function queuePrepare(ids: string[]) {
-  return fetch("/api/prepare-many", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => toast("Sunucuya ulaşılamadı"));
+  return fetch("/api/prepare-many", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => toast("Couldn't reach the server"));
 }
 // Sırada mı: işaret 2 saatten eskiyse (sunucu yeniden başladıysa) sayılmaz.
 export const isQueued = (t?: Task) => !!t?.queuedAt && Date.now() - new Date(t.queuedAt).getTime() < 2 * 3600 * 1000;
@@ -276,33 +276,33 @@ export function OutputSection({ task, ctx }: { task: Task; ctx: Ctx }) {
   };
   return (
     <section className="dsec">
-      <div className="dsechead"><span className="flabel">{a && a.who !== "me" ? (last ? `${BOT[last.by ?? a.who] ?? BOT[a.who]} hazırladı` : `${BOT[a.who]} hazırlayacak`) : `${BOT[bot ?? "claude"] ?? bot} yapar`}</span></div>
+      <div className="dsechead"><span className="flabel">{a && a.who !== "me" ? (last ? `${BOT[last.by ?? a.who] ?? BOT[a.who]} prepared` : `${BOT[a.who]} will prepare`) : (BOT[bot ?? "claude"] ?? bot) === "You" ? "You do it" : `${BOT[bot ?? "claude"] ?? bot} does it`}</span></div>
       {last && <RunCard r={last} ctx={ctx} />}
       {/* Deneme geçmişi: önceki çıktılar, revize notun, Rou'nun puanı ya da hata nedeni. */}
       {runs.length > 1 && (
         <details className="dhist">
-          <summary>Önceki denemeler · {runs.length - 1}</summary>
+          <summary>Earlier attempts · {runs.length - 1}</summary>
           <ol>
             {runs.slice(1).map((x) => (
               <li key={x.id}>
-                <span className="dhwhen">{new Date(x.at).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                <span className={`dhstat s-${x.status}`}>{({ failed: "Hazırlanamadı", ready: "Onay bekliyordu", approved: "Onaylandı", posted: "Paylaşıldı", working: "Hazırlanıyordu" } as Record<string, string>)[x.status] ?? x.status}{x.review?.score != null ? ` · ${x.review.score}/10` : ""}</span>
-                {x.reviseNote ? <p><b>Revize notun:</b> {x.reviseNote}</p> : x.status === "failed" && (x.renderError || x.body) ? <p>{(x.renderError || x.body)!.slice(0, 220)}</p> : x.title ? <p>{x.title}</p> : null}
+                <span className="dhwhen">{new Date(x.at).toLocaleString("en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}</span>
+                <span className={`dhstat s-${x.status}`}>{({ failed: "Couldn't prepare", ready: "Was awaiting approval", approved: "Approved", posted: "Shared", working: "Was preparing" } as Record<string, string>)[x.status] ?? x.status}{x.review?.score != null ? ` · ${x.review.score}/10` : ""}</span>
+                {x.reviseNote ? <p><b>Your revision note:</b> {x.reviseNote}</p> : x.status === "failed" && (x.renderError || x.body) ? <p>{(x.renderError || x.body)!.slice(0, 220)}</p> : x.title ? <p>{x.title}</p> : null}
               </li>
             ))}
           </ol>
         </details>
       )}
       {/* Tek iş, henüz sonuç yok: ne olacağını anlatır; başlatmak çekmecenin alt düğmesinden. */}
-      {!last && !a && <p className="rplanned">{needsChrome(task) ? "Rou görevi Playgrounds tarayıcısında yapar: planlar, gereken metin ve görselleri üretir, sayfada uygular. Geri dönüşü olmayan son adımdan önce sana sorar." : "Rou hazırlar; sonuç bu karta gelir ve onayını bekler."}</p>}
+      {!last && !a && <p className="rplanned">{needsChrome(task) ? "Rou does the task in the Playgrounds browser: plans it, makes the text and images it needs, and applies them on the page. It asks you before any final step that can't be undone." : "Rou prepares it; the result comes to this card and waits for your approval."}</p>}
       {/* Süreç: işin hangi adımda olduğu; çıktı kartından ayrı başlıkla, ne işe yaradığı belli olsun. */}
       {a && a.who !== "me" && <>
-        <div className="dsechead dlifehead"><span className="flabel">Süreç</span></div>
+        <div className="dsechead dlifehead"><span className="flabel">Progress</span></div>
         <Lifecycle ctx={ctx} task={task} a={a} r={last} />
       </>}
       {a && task.status !== "done" && !busy && (!last || last.status === "failed") && (waiting
-          ? <button className="btn sm dsecbtn" disabled aria-busy><RefreshCw size={14} className="spin" />Rou başlıyor…</button>
-          : <button className="btn sm dsecbtn" onClick={start}><Sparkles size={14} />{last ? "Yeniden hazırla" : "Beklemeden şimdi hazırla"}</button>)}
+          ? <button className="btn sm dsecbtn" disabled aria-busy><RefreshCw size={14} className="spin" />Rou is starting…</button>
+          : <button className="btn sm dsecbtn" onClick={start}><Sparkles size={14} />{last ? "Prepare again" : "Prepare now"}</button>)}
     </section>
   );
 }
@@ -315,64 +315,65 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
   const shareable = !!r?.post || out === "post" || out === "video";
   const acc = accountOf(s, taskRef(s, task));
   const accName = acc ? `${platformName(acc)} ${acc.handle || acc.name}`.trim() : "";
-  const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("tr", { hour: "2-digit", minute: "2-digit" }) : "");
+  const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "");
   type Row = { state: "done" | "now" | "todo" | "fail"; title: string; text?: React.ReactNode; at?: string; body?: React.ReactNode };
   const rows: Row[] = [];
   const stg = stagesOf(s, a, task, r);
-  const sharer = stg.steps.find((x) => x.key === "publish")?.who ?? "Rou";
+  const sharerRaw = stg.steps.find((x) => x.key === "publish")?.who ?? "Rou";
+  const sharer = whoName(sharerRaw);
   const isVideo = out === "video";
-  const what = isVideo ? "video metnini" : out === "post" ? "gönderi metnini" : out === "report" ? "raporu" : "metni";
+  const what = isVideo ? "the video script" : out === "post" ? "the post text" : out === "report" ? "the report" : "the text";
   for (const x of stg.steps) {
     const busy = x.state === "now" && stg.busy;
-    if (x.key === "write") rows.push(x.state === "done" ? { state: "done", title: `${bot} ${what} hazırladı`, at: hm(r?.at) }
-      : x.state === "fail" ? { state: "fail", title: "Hazırlanamadı", text: r?.renderError ? r.renderError.slice(0, 400) : r?.body ? r.body.slice(0, 200) : "Yeniden hazırlatabilirsin." }
-      : busy ? { state: "now", title: `${bot} ${what} hazırlıyor`, text: [r?.phase ? `${r.phase}…` : "", r?.queued ?? ""].filter(Boolean).join(" · ") || undefined }
-      : { state: "now", title: `Rou ${what} hazırlayacak`, text: "Görevin saatinden 1 saat önce kendiliğinden başlar." });
-    if (x.key === "voice") rows.push(x.state === "done" ? { state: "done", title: "Sesini kaydettin" }
-      : x.state === "now" ? { state: "now", title: "Metni kendi sesinle oku", text: "Kayıttan sonra videoyu Rou kurar.", body: r ? <VoiceStep run={r} /> : undefined }
-      : { state: "todo", title: "Seslendirme senden", text: "Metin hazır olunca burada okuyup kaydedersin." });
-    if (x.key === "video") rows.push(x.state === "done" ? { state: "done", title: "Video hazır", text: "Aşağıdaki kartta izleyebilir, indirebilirsin." }
-      : x.state === "fail" ? { state: "fail", title: "Video üretilemedi", text: r?.renderError, body: r ? <VideoStep run={r} failed /> : undefined }
-      : busy ? { state: "now", title: "Rou videoyu üretiyor", text: r?.phase ? `${r.phase}…` : undefined }
-      : { state: x.state === "now" ? "now" : "todo", title: isVideo ? "Rou videoyu kurar" : "Rou videoyu üretir", text: isVideo ? "Sesini senaryodaki sahnelerle birleştirip dikey Reel'i üretir. Bu adımda senden bir şey gerekmez." : "Metnin ana fikrinden kısa, dikey bir video. Video bitmeden onay ve paylaşım açılmaz." });
-    if (x.key === "image") rows.push(x.state === "done" ? (r?.images?.length ? { state: "done", title: "Görsel hazır", text: "Gönderinin altında görünüyor." } : r?.video ? { state: "done", title: "Video hazır", text: "Gönderinin altında görünüyor; görsel yerine video gidiyor." } : { state: "done", title: "Görsel eklenmedi", text: "Bu gönderi yalnız metin." })
-      : x.state === "fail" ? { state: "fail", title: "Görsel üretilemedi", text: r?.renderError, body: r ? <ImageStep run={r} failed /> : undefined }
-      : busy ? { state: "now", title: "Rou görseli üretiyor", text: r?.phase ? `${r.phase}…` : undefined }
-      : x.state === "now" && r ? { state: "now", title: "Görsel eksik", text: "Metin hazır; görsel olmadan onaylanamaz ve paylaşılmaz.", body: <ImageStep run={r} /> }
-      : { state: "todo", title: "Rou görseli üretir", text: "Metnin ana fikrinden, projenin görünümüyle. Görsel bitmeden onay ve paylaşım açılmaz." });
-    if (x.key === "approve") rows.push(x.state === "done" ? { state: "done", title: "Onayladın", at: hm(r?.approvedAt) }
-      : x.state === "now" ? { state: "now", title: "Onayını bekliyor", text: `${isVideo ? "Videoyu izle; onayla ya da revize iste." : "Metni oku; onayla, düzenle ya da revize iste."}` }
-      : { state: "todo", title: "Onay senden", text: isVideo ? "Video hazır olunca izleyip onaylarsın." : undefined });
+    if (x.key === "write") rows.push(x.state === "done" ? { state: "done", title: `${bot} prepared ${what}`, at: hm(r?.at) }
+      : x.state === "fail" ? { state: "fail", title: "Couldn't prepare", text: r?.renderError ? r.renderError.slice(0, 400) : r?.body ? r.body.slice(0, 200) : "You can prepare it again." }
+      : busy ? { state: "now", title: `${bot} is preparing ${what}`, text: [r?.phase ? `${r.phase}…` : "", r?.queued ?? ""].filter(Boolean).join(" · ") || undefined }
+      : { state: "now", title: `Rou will prepare ${what}`, text: "Starts on its own 1 hour before the task's time." });
+    if (x.key === "voice") rows.push(x.state === "done" ? { state: "done", title: "You recorded your voice" }
+      : x.state === "now" ? { state: "now", title: "Read the script in your own voice", text: "After the recording Rou builds the video.", body: r ? <VoiceStep run={r} /> : undefined }
+      : { state: "todo", title: "The voice-over is yours", text: "Once the script is ready, you read and record it here." });
+    if (x.key === "video") rows.push(x.state === "done" ? { state: "done", title: "Video ready", text: "Watch or download it on the card below." }
+      : x.state === "fail" ? { state: "fail", title: "Couldn't make the video", text: r?.renderError, body: r ? <VideoStep run={r} failed /> : undefined }
+      : busy ? { state: "now", title: "Rou is making the video", text: r?.phase ? `${r.phase}…` : undefined }
+      : { state: x.state === "now" ? "now" : "todo", title: isVideo ? "Rou builds the video" : "Rou makes the video", text: isVideo ? "It joins your voice with the script's scenes into a vertical Reel. Nothing is needed from you in this step." : "A short vertical video from the text's main idea. Approval and sharing open once the video is done." });
+    if (x.key === "image") rows.push(x.state === "done" ? (r?.images?.length ? { state: "done", title: "Image ready", text: "It shows under the post." } : r?.video ? { state: "done", title: "Video ready", text: "It shows under the post; a video goes instead of an image." } : { state: "done", title: "No image added", text: "This post is text only." })
+      : x.state === "fail" ? { state: "fail", title: "Couldn't make the image", text: r?.renderError, body: r ? <ImageStep run={r} failed /> : undefined }
+      : busy ? { state: "now", title: "Rou is making the image", text: r?.phase ? `${r.phase}…` : undefined }
+      : x.state === "now" && r ? { state: "now", title: "Image missing", text: "The text is ready; without an image it can't be approved or shared.", body: <ImageStep run={r} /> }
+      : { state: "todo", title: "Rou makes the image", text: "From the text's main idea, in the project's look. Approval and sharing open once the image is done." });
+    if (x.key === "approve") rows.push(x.state === "done" ? { state: "done", title: "You approved it", at: hm(r?.approvedAt) }
+      : x.state === "now" ? { state: "now", title: "Awaiting your approval", text: `${isVideo ? "Watch the video; approve it or request changes." : "Read the text; approve, edit or request changes."}` }
+      : { state: "todo", title: "Approval is yours", text: isVideo ? "Once the video is ready, you watch and approve it." : undefined });
     if (x.key === "publish") {
       // Rou Playgrounds'un tarayıcısında, hesabın dünyasının oturumunda paylaşır. Saatinde kendiliğinden (server/share.mjs).
-      const byRou = sharer === "Rou";
-      const byMe = sharer === "Sen";
+      const byRou = sharerRaw === "Rou";
+      const byMe = sharerRaw === "Sen";
       const plats = platformsOf(s, a);
       const ready = byMe || !!acc;
       const where = accName || plats.map((p) => PLATFORM_NAME[p] ?? p).join(", ");
       const slot = task.autoSlot || blocksOf(s, task.id).find((b) => b.start.slice(0, 10) === task.day)?.start.slice(11, 16);
-      const when = slot ? `saat ${slot}'de` : "onaydan hemen sonra";
+      const when = slot ? `at ${slot}` : "right after approval";
       const linkAcc = acc
-        ? <button className="link" onClick={() => { const wd = worldOfAccount(s.worlds, acc.id); if (wd) openAccountForm({ worldId: wd.id, id: acc.id }); }}>Hesabı aç</button>
-        : <button className="link" onClick={() => openAccountForm({ worldId: task.worldId ?? "", projectId: task.projectId ?? undefined })}>Hesap bağla</button>;
+        ? <button className="link" onClick={() => { const wd = worldOfAccount(s.worlds, acc.id); if (wd) openAccountForm({ worldId: wd.id, id: acc.id }); }}>Open account</button>
+        : <button className="link" onClick={() => openAccountForm({ worldId: task.worldId ?? "", projectId: task.projectId ?? undefined })}>Link an account</button>;
       const how = byMe
-        ? <>Onaydan sonra metni kopyalayıp {where ? `${where} hesabında ` : ""}kendin paylaşırsın, sonra "Paylaştım"a basarsın.</>
+        ? <>After approval you copy the text, share it yourself{where ? ` on ${where}` : ""}, then press "I shared it".</>
         : ready
-        ? <>Rou, {where} hesabını Playgrounds tarayıcısında açıp {when} paylaşır ve gönderi linkini buraya ekler.</>
+        ? <>Rou opens {where} in the Playgrounds browser, shares it {when} and adds the post link here.</>
         : byRou
-          ? <>Rou'nun paylaşabilmesi için bir hesap gerekiyor. {linkAcc}. Kendin paylaştıysan "Elle paylaştım"a bas.</>
-          : <>Nerede paylaşılacağı belli değil. Otomasyonda platform seç ya da {linkAcc}. Kendin paylaştıysan "Elle paylaştım"a bas.</>;
-      const now = !byMe && r && r.status === "approved" && ready && !r.publish?.phase ? <button className="btn sm" onClick={() => shareNow(r.id)}><Send size={14} />{r.publish?.error ? "Yeniden dene" : "Şimdi paylaş"}</button> : undefined;
-      const kit = r?.publish?.handoff ? <div className="runact">{acc && <RetryShare runId={r.id} />}<button className="btn sm" onClick={() => fetch("/api/open-share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: r.id }) })}><Folder size={14} />Klasörü aç</button></div> : undefined;
-      rows.push(x.state === "done" ? { state: "done", title: "Paylaşıldı", at: hm(r?.postedAt), text: r?.postUrl ? <a className="link" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Gönderiyi aç ↗</a> : "Link eklenmedi." }
-        : r?.publish?.handoff ? { state: "fail", title: "Paylaşım sana kaldı", text: `${r.publish.reason}. Metin ve dosyalar paylaşım klasöründe; paylaşınca "Paylaştım"a bas.`, at: hm(r.publish.at), body: kit }
-        : r?.publish?.error ? { state: "fail", title: "Paylaşılamadı", text: r.publish.error, body: now }
-        : r?.publish?.phase ? { state: "now", title: r.publish.phase.startsWith(sharer) ? r.publish.phase : `${sharer} paylaşıyor`, text: r.publish.live ? "Bitince link buraya gelir." : `${r.publish.phase}. Bitince link buraya gelir.`, at: hm(r.publish.at), body: r.publish.by === "claude" ? <LiveBox live={r.publish.live} busy runId={r.id} /> : undefined }
-        : x.state === "now" ? { state: "now", title: byMe ? "Paylaşım senden" : ready ? `${sharer} paylaşacak` : "Paylaşım bekliyor", text: how, body: now }
-        : { state: "todo", title: byMe ? "Sen paylaşırsın" : `${sharer} paylaşır`, text: how });
+          ? <>Rou needs an account to share. {linkAcc}. If you shared it yourself, press "Shared by hand".</>
+          : <>It's not set where to share. Pick a platform in the automation or {linkAcc}. If you shared it yourself, press "Shared by hand".</>;
+      const now = !byMe && r && r.status === "approved" && ready && !r.publish?.phase ? <button className="btn sm" onClick={() => shareNow(r.id)}><Send size={14} />{r.publish?.error ? "Try again" : "Share now"}</button> : undefined;
+      const kit = r?.publish?.handoff ? <div className="runact">{acc && <RetryShare runId={r.id} />}<button className="btn sm" onClick={() => fetch("/api/open-share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: r.id }) })}><Folder size={14} />Open folder</button></div> : undefined;
+      rows.push(x.state === "done" ? { state: "done", title: "Shared", at: hm(r?.postedAt), text: r?.postUrl ? <a className="link" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Open post ↗</a> : "No link added." }
+        : r?.publish?.handoff ? { state: "fail", title: "Sharing is left to you", text: `${r.publish.reason}. The text and files are in the share folder; press "I shared it" once you've shared it.`, at: hm(r.publish.at), body: kit }
+        : r?.publish?.error ? { state: "fail", title: "Couldn't share", text: r.publish.error, body: now }
+        : r?.publish?.phase ? { state: "now", title: r.publish.phase.startsWith(sharerRaw) ? r.publish.phase : `${sharer} ${byMe ? "are" : "is"} sharing`, text: r.publish.live ? "The link comes here when it's done." : `${r.publish.phase}. The link comes here when it's done.`, at: hm(r.publish.at), body: r.publish.by === "claude" ? <LiveBox live={r.publish.live} busy runId={r.id} /> : undefined }
+        : x.state === "now" ? { state: "now", title: byMe ? "Sharing is yours" : ready ? `${sharer} will share it` : "Sharing waits", text: how, body: now }
+        : { state: "todo", title: byMe ? "You share it" : `${sharer} shares it`, text: how });
     }
   }
-  rows.push(task.status === "done" ? { state: "done", title: r?.status === "posted" ? "Paylaşıldı, görev tamamlandı" : "Görev tamamlandı", at: hm(r?.postedAt ?? task.doneAt) } : { state: "todo", title: shareable ? "Paylaşılınca görev biter" : a.approve === false ? "Çıktı gelince görev biter" : "Onaylayınca görev biter" });
+  rows.push(task.status === "done" ? { state: "done", title: r?.status === "posted" ? "Shared, task done" : "Task done", at: hm(r?.postedAt ?? task.doneAt) } : { state: "todo", title: shareable ? "The task ends once it's shared" : a.approve === false ? "The task ends when the output arrives" : "The task ends when you approve" });
   return (
     <ol className="life">
       {rows.map((x, i) => (
@@ -387,13 +388,13 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
 
 // Onaylanan gönderiyi beklemeden paylaştırır (paylaşan Rou; server/share.mjs).
 async function shareNow(runId: string, approve = false) {
-  const r = await fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId, approve }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
-  toast(r.ok ? "Paylaşım başladı" : `Paylaşılamadı: ${r.error}`);
+  const r = await fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId, approve }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
+  toast(r.ok ? "Sharing started" : `Couldn't share: ${r.error}`);
 }
 
 async function publish(runId: string) {
-  const r = await fetch("/api/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
-  toast(r.ok ? "Rou paylaşmaya başladı. Ne yaptığı burada görünür." : `Başlatılamadı: ${r.error ?? "bilinmeyen hata"}`);
+  const r = await fetch("/api/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
+  toast(r.ok ? "Rou started sharing. What it does shows here." : `Couldn't start: ${r.error ?? "unknown error"}`);
   return !!r.ok;
 }
 
@@ -401,44 +402,44 @@ async function publish(runId: string) {
 // Basınca hemen dönen çark; başlayınca satır "Rou yeniden deniyor" olur ve canlı adımlar gelir.
 function RetryShare({ runId }: { runId: string }) {
   const [busy, setBusy] = useState(false);
-  return <button className="btn sm primary" disabled={busy} onClick={async () => { setBusy(true); if (!(await publish(runId))) setBusy(false); }}>{busy ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}{busy ? "Başlatılıyor…" : "Rou yeniden denesin"}</button>;
+  return <button className="btn sm primary" disabled={busy} onClick={async () => { setBusy(true); if (!(await publish(runId))) setBusy(false); }}>{busy ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}{busy ? "Starting…" : "Let Rou try again"}</button>;
 }
 
 const STATE_ICON: Partial<Record<Run["status"], typeof Check>> = { ready: Eye, approved: Check, posted: Check, acted: Check, failed: AlertTriangle };
 // Kartın etiketi: işin şu anki aşaması ve sıradaki adımı kimin attığı ("Onaylandı · Rou paylaşacak 10:00").
 export function runTag(s: State, task: Task, r?: Run | null): string {
-  if (!r) return task.status === "done" ? "Tamamlandı" : "Hazırlanmadı";
+  if (!r) return task.status === "done" ? "Done" : "Not prepared";
   const a = autoOf(s, task);
   // Tek iş (otomasyonsuz, ör. Gmail temizliği): Rou tarayıcıda yapar, soru sorabilir.
   if (!a) {
-    if (r.status === "working") return "Rou hazırlıyor";
+    if (r.status === "working") return "Rou is preparing";
     if (r.status !== "approved") return RUN_LABEL[r.status] ?? r.status;
-    if (task.status === "done") return "Tamamlandı";
-    if (r.act?.question) return "Cevabını bekliyor";
-    if (r.act?.phase) return "Rou yapıyor";
-    if (r.act?.error) return "Rou yapamadı";
-    return "Onaylandı";
+    if (task.status === "done") return "Done";
+    if (r.act?.question) return "Waiting for your answer";
+    if (r.act?.phase) return "Rou is on it";
+    if (r.act?.error) return "Rou couldn't do it";
+    return "Approved";
   }
   const pub = stagesOf(s, a, task, r).steps.some((x: { key: string }) => x.key === "publish");
   const me = sharerOf(a, task) === "me";
   const slot = task.autoSlot || task.post?.at || "";
   switch (r.status) {
-    case "working": return "Rou hazırlıyor";
-    case "failed": return "Hazırlanamadı";
-    case "ready": return "Onay bekliyor";
-    case "posted": return "Paylaşıldı";
-    case "acted": return "Tamamlandı";
+    case "working": return "Rou is preparing";
+    case "failed": return "Couldn't prepare";
+    case "ready": return "Awaiting approval";
+    case "posted": return "Shared";
+    case "acted": return "Done";
     case "approved":
-      if (!pub || task.status === "done") return "Tamamlandı";
-      if (r.publish?.error) return "Paylaşılamadı";
-      if (r.publish?.handoff) return "Onaylandı · paylaşım sende";
-      if (r.publish?.phase) return "Rou paylaşıyor";
-      return me ? "Onaylandı · paylaşım sende" : `Onaylandı · Rou paylaşacak${slot && task.day && task.day >= today() ? ` ${task.day === today() ? "" : relDay(task.day) + " "}${slot}` : ""}`;
+      if (!pub || task.status === "done") return "Done";
+      if (r.publish?.error) return "Couldn't share";
+      if (r.publish?.handoff) return "Approved · you share it";
+      if (r.publish?.phase) return "Rou is sharing";
+      return me ? "Approved · you share it" : `Approved · Rou will share${slot && task.day && task.day >= today() ? ` ${task.day === today() ? "" : relDay(task.day) + " "}${slot}` : ""}`;
   }
   return RUN_LABEL[r.status] ?? r.status;
 }
 
-export const RUN_LABEL: Record<Run["status"], string> = { working: "Hazırlanıyor", failed: "Hazırlanamadı", ready: "Onay bekliyor", approved: "Onaylandı", posted: "Paylaşıldı", acted: "Yapıldı" };
+export const RUN_LABEL: Record<Run["status"], string> = { working: "Preparing", failed: "Couldn't prepare", ready: "Awaiting approval", approved: "Approved", posted: "Shared", acted: "Done" };
 
 // Revize notların: bu işe yazdığın her not (eskiden yeniye) ve Rou'nun bu çıktıda yapamadıkları.
 function Revisions({ task, r }: { task: Task; r: Run }) {
@@ -448,22 +449,22 @@ function Revisions({ task, r }: { task: Task; r: Run }) {
   const bans = bansOf(task);
   return (
     <div className="rrevs">
-      {r.topicMiss ? <div className="rrevgap"><b>Konu kaynağa tam uymadı</b><ul><li>{r.topicMiss}</li></ul></div> : null}
-      {r.reviseGaps?.length ? <div className="rrevgap"><b>Rou bunları yapamadı</b><ul>{r.reviseGaps.map((g, i) => <li key={i}>{g.ask}{g.why ? <span> · {g.why}</span> : null}</li>)}</ul></div> : null}
+      {r.topicMiss ? <div className="rrevgap"><b>The topic didn't fully match its source</b><ul><li>{r.topicMiss}</li></ul></div> : null}
+      {r.reviseGaps?.length ? <div className="rrevgap"><b>Rou couldn't do these</b><ul>{r.reviseGaps.map((g, i) => <li key={i}>{g.ask}{g.why ? <span> · {g.why}</span> : null}</li>)}</ul></div> : null}
       {last?.clear && (
         <div className="rrevclear">
-          <b>Rou son notunu böyle anladı</b>
+          <b>How Rou read your last note</b>
           <p>{last.clear.ask}</p>
-          {bans.length > 0 && <p className="rrevban">Hiçbir yerde geçmeyecek: {bans.join(", ")}</p>}
-          {last.clear.rule && last.saved?.length ? <p className="rrevask">Kalıcı kural yaptı ({last.saved.length} otomasyon): {last.clear.rule.text}</p> : null}
-          {r.found?.facts?.length ? <p className="rrevask">İşin kendisinden öğrendikleri: {r.found.facts.join(" ")}</p> : null}
-          {r.found && (r.found.note || !r.found.facts?.length) ? <p className="rrevask">Görselleri buradan aldı: {r.found.from}{r.found.note ? `. ${r.found.note}` : ""}</p> : null}
+          {bans.length > 0 && <p className="rrevban">Won't appear anywhere: {bans.join(", ")}</p>}
+          {last.clear.rule && last.saved?.length ? <p className="rrevask">Made it a standing rule ({last.saved.length} {last.saved.length === 1 ? "automation" : "automations"}): {last.clear.rule.text}</p> : null}
+          {r.found?.facts?.length ? <p className="rrevask">What it learned from the work itself: {r.found.facts.join(" ")}</p> : null}
+          {r.found && (r.found.note || !r.found.facts?.length) ? <p className="rrevask">Took the visuals from: {r.found.from}{r.found.note ? `. ${r.found.note}` : ""}</p> : null}
         </div>
       )}
       {list.length > 0 && (
         <details className="rrevlog">
-          <summary>Revize notların <span>{list.length}</span></summary>
-          <ol>{list.map((x, i) => <li key={x.at + i} className={r.answers === x.at ? "is-this" : ""}><time>{x.at ? new Date(x.at).toLocaleString("tr", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</time><p>{x.note}</p>{x.clear && <p className="rrevask">Rou'nun anladığı: {x.clear.ask}</p>}</li>)}</ol>
+          <summary>Your revision notes <span>{list.length}</span></summary>
+          <ol>{list.map((x, i) => <li key={x.at + i} className={r.answers === x.at ? "is-this" : ""}><time>{x.at ? new Date(x.at).toLocaleString("en-US", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : ""}</time><p>{x.note}</p>{x.clear && <p className="rrevask">How Rou read it: {x.clear.ask}</p>}</li>)}</ol>
         </details>
       )}
     </div>
@@ -493,7 +494,7 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
   const task = r.taskId ? s.tasks.find((x) => x.id === r.taskId) : undefined;
   const acc = r.post ? accountOf(s, taskRef(s, task)) : undefined;
   const remove = () => {
-    binIt(ctx, "run", r.title, { runs: [r] }, (st) => void (st.runs = st.runs.filter((x) => x.id !== r.id)), "Çıktı silindi");
+    binIt(ctx, "run", r.title, { runs: [r] }, (st) => void (st.runs = st.runs.filter((x) => x.id !== r.id)), "Output deleted");
   };
   const w = worldOf(s, task?.worldId ?? null);
   const status = isStale(r) ? "failed" : r.status;
@@ -525,8 +526,8 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
     setRun({ status: "approved", approvedAt: new Date().toISOString() }, !shareable && !keepOpen);
     // Chrome'da yapılacak tek iş onaylanınca Rou beklemeden başlar.
     const t = r.taskId ? s.tasks.find((x) => x.id === r.taskId) : undefined;
-    if (keepOpen && t && needsChrome(t, r)) { requestDo(r.id); return toast("Onaylandı. Rou tarayıcıda başlıyor.", unapprove); }
-    toast(keepOpen ? "Onaylandı. Görev açık kalıyor." : "Onaylandı. 5 dakika içinde geri alabilirsin.", unapprove);
+    if (keepOpen && t && needsChrome(t, r)) { requestDo(r.id); return toast("Approved. Rou is starting in the browser.", unapprove); }
+    toast(keepOpen ? "Approved. The task stays open." : "Approved. You can undo it within 5 minutes.", unapprove);
   };
   // Başlamış ve sürmekte olan paylaşım geri alınamaz; paylaşılamadıysa onay geri alınabilir.
   const canUnapprove = status === "approved" && !r.publish?.phase && (!r.shareSentAt || !!r.publish?.error);
@@ -535,7 +536,7 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
     const was = r.taskId ? s.tasks.find((x) => x.id === r.taskId)?.status : undefined;
     setRun({ status: "posted", postedAt: new Date().toISOString(), publish: undefined, ...(url ? { postUrl: url } : {}) }, true);
     // Geri al her şeyi eski hâline getirir: iş yeniden açılır, paylaşım kaydı ve adres de döner.
-    toast("Paylaşıldı olarak işaretlendi", () => ctx.mutate((st) => {
+    toast("Marked as shared", () => ctx.mutate((st) => {
       const x = st.runs.find((y) => y.id === r.id);
       if (x) { x.status = before; delete x.postedAt; if (url) delete x.postUrl; if (pub) x.publish = pub; }
       const t = st.tasks.find((y) => y.id === r.taskId);
@@ -543,7 +544,7 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
     }));
   };
   const publishing = !!r.publish?.phase && Date.now() - new Date(r.publish.at).getTime() < 12 * 60 * 1000;
-  const busyPhase = status === "working" ? `${r.phase ? `${r.phase}…` : "Hazırlanıyor…"}${r.queued ? ` · ${r.queued}` : ""}` : publishing ? `${r.publish!.phase}…` : r.phase ? `${r.phase}…` : null;
+  const busyPhase = status === "working" ? `${r.phase ? `${r.phase}…` : "Preparing…"}${r.queued ? ` · ${r.queued}` : ""}` : publishing ? `${r.publish!.phase}…` : r.phase ? `${r.phase}…` : null;
   const label = busyPhase ?? (task ? runTag(ctx.state, task, r) : RUN_LABEL[status]);
   const files = mediaFiles(r);
   const when = task?.day ? `${relDay(task.day)}${task.autoSlot ? ` ${task.autoSlot}` : task.post?.at ? ` ${task.post.at}` : ""}` : "";
@@ -558,22 +559,22 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
   const byMe = (!!auto && sharerOf(auto, task) === "me") || !!r.publish?.handoff;
   // Kim, ne zaman paylaşır: onay çubuğunda yazar. "Şimdi paylaş" takvimdeki yeri değiştirmez.
   const sharerKey = task ? sharerOf(auto, task) : "claude";
-  const sharerName = sharerKey === "claude" ? "Rou" : sharerKey === "me" ? "Sen" : "Rou";
+  const sharerName = sharerKey === "claude" ? "Rou" : sharerKey === "me" ? "You" : "Rou";
   const slot0 = task ? task.autoSlot || blocksOf(s, task.id).find((b) => b.start.slice(0, 10) === task.day)?.start.slice(11, 16) : undefined;
   // Saati geçtiyse paylaşım saat beklemez: "hemen".
   const slot = slot0 && task?.day && `${task.day}T${slot0}` > new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16) ? slot0 : undefined;
   const canShareNow = shareable && !!r.post && !byMe && !publishing && !missingImage(r) && (sharerKey === "claude" ? !!acc : !!acc || (!!auto && platformsOf(s, auto).length > 0));
-  const whenNote = !shareable || byMe || !canShareNow ? "" : status === "ready" ? `Onaylarsan ${slot ? `${slot}'de` : "hemen"} ${sharerName} paylaşır` : status === "approved" ? `${slot ? `${slot}'de` : "Birazdan"} ${sharerName} paylaşacak` : "";
+  const whenNote = !shareable || byMe || !canShareNow ? "" : status === "ready" ? `If you approve, ${sharerName} shares it ${slot ? `at ${slot}` : "right away"}` : status === "approved" ? `${sharerName} will share it ${slot ? `at ${slot}` : "shortly"}` : "";
   const nVersions = versionsOf(s, r).length;
   return (
     <motion.article layout transition={{ layout: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }} className={`run r-${status}`} style={{ ["--w" as string]: w.color }}>
       <div className="runmeta">
         {withSource && <button className="wd" onClick={() => task && ctx.open(task.id)} title={task?.title ?? r.title}><i /><span className="wdt">{task?.title ?? r.title}</span></button>}
         {when && <span className="ron"><CalendarDays size={12} />{when}</span>}
-        <span>{ago(r.postedAt ?? r.at)}{r.by ? ` · ${r.by === "claude" ? "Rou" : r.by}` : ""}{r.edited ? " · düzenlendi" : ""}</span>
+        <span>{ago(r.postedAt ?? r.at)}{r.by ? ` · ${r.by === "claude" ? "Rou" : r.by}` : ""}{r.edited ? " · edited" : ""}</span>
         <span className={`rstate ${busyPhase ? "working" : status}`}>{busyPhase ? <RefreshCw size={12} className="spin" /> : (() => { const I = STATE_ICON[status]; return I ? <I size={12} strokeWidth={2.5} /> : null; })()}{label}</span>
-        {status === "working" && task && <button className="btn sm ghost rstop" onClick={() => cancelPrepare(task.id)}><X size={13} />Durdur</button>}
-        {onCollapse && <button className="iconbtn rcollapse" onClick={onCollapse} aria-label="Kapat" title="Kapat"><ChevronUp size={16} /></button>}
+        {status === "working" && task && <button className="btn sm ghost rstop" onClick={() => cancelPrepare(task.id)}><X size={13} />Stop</button>}
+        {onCollapse && <button className="iconbtn rcollapse" onClick={onCollapse} aria-label="Close" title="Close"><ChevronUp size={16} /></button>}
       </div>
       {editing && r.post ? <PostEditor r={r} ctx={ctx} color={w.color} onDone={() => setEditing(false)} />
         : editing ? <DraftEditor r={r} ctx={ctx} onDone={() => setEditing(false)} />
@@ -583,104 +584,104 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
           {/* Çıktı markdown yazılır (başlık, liste, kalın); kapalıyken ilk satırlar, altı yumuşakça kaybolur. */}
           {(() => { const long = r.body.length > 220 || r.body.split("\n").length > 4; return <>
             <div className={`rmd ${long && !open ? "is-clamped" : ""}`} onClick={() => long && setOpen(!open)}><NoteBody text={r.body} /></div>
-            {long && <button className="pvmore rmore" onClick={() => setOpen(!open)}>{open ? "Daralt" : "Tümünü gör"}</button>}
+            {long && <button className="pvmore rmore" onClick={() => setOpen(!open)}>{open ? "Show less" : "Show all"}</button>}
           </>; })()}
         </>}
       {status === "working" && r.live && <LiveBox live={r.live} busy runId={r.id} />}
       {task && !auto && task.who === "claude" && (status === "approved" || status === "acted") && <DoPanel r={r} task={task} ctx={ctx} />}
       {!r.post && !postOut && !editing && <div className="rgal"><Gallery items={mediaOf(r).filter((m) => !m.remote)} /></div>}
       {r.items?.length && status !== "working" ? <RunItems r={r} auto={task ? autoOf(s, task) : undefined} /> : null}
-      {r.publish?.error && !publishing && status !== "posted" && <p className="pvissues rperr">Paylaşılamadı: {r.publish.error}</p>}
+      {r.publish?.error && !publishing && status !== "posted" && <p className="pvissues rperr">Couldn't share: {r.publish.error}</p>}
       {task && status !== "posted" && <Revisions task={task} r={r} />}
       {/* Paylaşılan gönderi: durum, nerede ve ne zaman, tek düğmeyle gönderiye git. Genişte önizlemenin sağında durur. */}
       {status === "posted" && (
         <div className="rpostedbox">
           <span className="rpok"><Check size={16} strokeWidth={2.6} /></span>
           <div className="rptext">
-            <b>Paylaşıldı</b>
-            <span>{[acc?.name ?? "", r.postedAt ? new Date(r.postedAt).toLocaleString("tr", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : ""].filter(Boolean).join(" · ")}</span>
+            <b>Shared</b>
+            <span>{[acc?.name ?? "", r.postedAt ? new Date(r.postedAt).toLocaleString("en-US", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : ""].filter(Boolean).join(" · ")}</span>
           </div>
-          {r.postUrl ? <a className="btn sm primary" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Gönderiyi aç<ArrowUpRight size={14} /></a> : <span className="muted">Link eklenmedi</span>}
+          {r.postUrl ? <a className="btn sm primary" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Open post<ArrowUpRight size={14} /></a> : <span className="muted">No link added</span>}
         </div>
       )}
       {editing ? null : ask === "revise" && task ? (
-        <form className="revise" onSubmit={(e) => { e.preventDefault(); if ((!note.trim() && !revFiles.length) || uploading) return; setAsk(null); void prepare(task.id, 3, note, revFiles); setNote(""); setRevFiles([]); toast("Revize notunla yeniden hazırlanıyor"); }}
+        <form className="revise" onSubmit={(e) => { e.preventDefault(); if ((!note.trim() && !revFiles.length) || uploading) return; setAsk(null); void prepare(task.id, 3, note, revFiles); setNote(""); setRevFiles([]); toast("Preparing again with your revision note"); }}
           onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void addRevFiles(e.dataTransfer.files); }}>
-          <textarea autoFocus rows={3} value={note} onChange={(e) => setNote(e.target.value)} onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void addRevFiles(e.clipboardData.files); } }} placeholder="Neyi değiştirelim? Ör. kanca daha kısa olsun, ikinci sahneyi çıkar, sonunda oyun linki olsun. Görsel ya da video ekleyebilirsin." />
+          <textarea autoFocus rows={3} value={note} onChange={(e) => setNote(e.target.value)} onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void addRevFiles(e.clipboardData.files); } }} placeholder="What should change? E.g. a shorter hook, drop the second scene, end with the game link. You can attach images or video." />
           {revFiles.length > 0 && (
             <ul className="revfiles">
               {revFiles.map((f) => (
                 <li key={f.file}>
                   {f.kind === "video" ? <video src={`/media/${f.file}`} muted /> : <img src={`/media/${f.file}`} alt="" />}
-                  <button type="button" aria-label={`${f.name} ekini kaldır`} onClick={() => setRevFiles((x) => x.filter((y) => y.file !== f.file))}><X size={12} /></button>
+                  <button type="button" aria-label={`Remove attachment ${f.name}`} onClick={() => setRevFiles((x) => x.filter((y) => y.file !== f.file))}><X size={12} /></button>
                 </li>
               ))}
             </ul>
           )}
           <div className="bmbtns">
-            <label className="btn sm ghost revattach"><Paperclip size={14} />{uploading ? "Yükleniyor…" : "Görsel / video ekle"}<input type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { void addRevFiles(e.currentTarget.files); e.currentTarget.value = ""; }} /></label>
-            <button type="button" className="btn sm ghost" onClick={() => (setAsk(null), setRevFiles([]))}>Vazgeç</button>
-            <button className="btn sm primary" disabled={(!note.trim() && !revFiles.length) || uploading}>Revizeyle yeniden hazırla</button>
+            <label className="btn sm ghost revattach"><Paperclip size={14} />{uploading ? "Uploading…" : "Add image / video"}<input type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { void addRevFiles(e.currentTarget.files); e.currentTarget.value = ""; }} /></label>
+            <button type="button" className="btn sm ghost" onClick={() => (setAsk(null), setRevFiles([]))}>Cancel</button>
+            <button className="btn sm primary" disabled={(!note.trim() && !revFiles.length) || uploading}>Prepare again with changes</button>
           </div>
         </form>
       ) : ask === "posted" ? (
         <form className="revise" onSubmit={(e) => { e.preventDefault(); setAsk(null); markPosted(link.trim() || undefined); setLink(""); }}>
-          <input autoFocus className="input" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="Gönderinin linki (isteğe bağlı), ör. https://instagram.com/p/…" />
+          <input autoFocus className="input" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="Post link (optional), e.g. https://instagram.com/p/…" />
           <div className="bmbtns">
-            <button type="button" className="btn sm ghost" onClick={() => setAsk(null)}>Vazgeç</button>
-            <button className="btn sm primary">Paylaşıldı olarak işaretle</button>
+            <button type="button" className="btn sm ghost" onClick={() => setAsk(null)}>Cancel</button>
+            <button className="btn sm primary">Mark as shared</button>
           </div>
         </form>
       ) : ask === "del" ? (
-        <div className="delconfirm" role="alertdialog" aria-label="Çıktıyı sil">
-          <b>Bu çıktı silinsin mi?</b>
-          <p>{task && task.status !== "done" ? "Görev yerinde kalır, yeniden hazırlatabilirsin." : "Görev yerinde kalır."}</p>
+        <div className="delconfirm" role="alertdialog" aria-label="Delete output">
+          <b>Delete this output?</b>
+          <p>{task && task.status !== "done" ? "The task stays; you can prepare it again." : "The task stays."}</p>
           <div className="bmbtns">
-            <button className="btn sm ghost" onClick={() => setAsk(null)}>Vazgeç</button>
-            <button className="btn sm dangerfill" onClick={remove}>Evet, sil</button>
+            <button className="btn sm ghost" onClick={() => setAsk(null)}>Cancel</button>
+            <button className="btn sm dangerfill" onClick={remove}>Yes, delete</button>
           </div>
         </div>
       ) : ask === "versions" ? (
         <Versions r={r} ctx={ctx} onDone={() => setAsk(null)} />
       ) : ask === "share" ? (
-        <div className="delconfirm postconfirm" role="alertdialog" aria-label="Şimdi paylaş">
-          <b>{status === "ready" ? "Onaylanıp hemen paylaşılsın mı?" : "Şimdi paylaşılsın mı?"}</b>
-          <p>{sharerName} {accName || "hesapta"} şimdi paylaşır{slot ? `; takvimdeki ${slot} yeri değişmez` : ""}. Paylaşılan gönderi geri alınamaz.</p>
+        <div className="delconfirm postconfirm" role="alertdialog" aria-label="Share now">
+          <b>{status === "ready" ? "Approve and share right away?" : "Share now?"}</b>
+          <p>{sharerName} {sharerName === "You" ? "share" : "shares"} it {accName ? `on ${accName} ` : ""}now{slot ? `; its ${slot} spot on the calendar stays` : ""}. A shared post can't be undone.</p>
           <div className="bmbtns">
-            <button className="btn sm ghost" onClick={() => setAsk(null)}>Vazgeç</button>
-            <button className="btn sm primary" onClick={() => (setAsk(null), shareNow(r.id, status === "ready"))}><Send size={14} />Evet, şimdi paylaş</button>
+            <button className="btn sm ghost" onClick={() => setAsk(null)}>Cancel</button>
+            <button className="btn sm primary" onClick={() => (setAsk(null), shareNow(r.id, status === "ready"))}><Send size={14} />Yes, share now</button>
           </div>
         </div>
       ) : ask === "post" && acc ? (
-        <div className="delconfirm postconfirm" role="alertdialog" aria-label="Paylaş">
-          <b>{accName} hesabında paylaşılsın mı?</b>
-          <p>Rou Playgrounds tarayıcısında hesabın açık olduğunu kontrol eder, metni{files.length ? " ve dosyaları" : ""} girer ve paylaşır. Hesap uymazsa hiçbir şey paylaşmaz.</p>
+        <div className="delconfirm postconfirm" role="alertdialog" aria-label="Share">
+          <b>Share on {accName}?</b>
+          <p>Rou checks that the account is signed in in the Playgrounds browser, enters the text{files.length ? " and files" : ""} and shares it. If the account doesn't match, it shares nothing.</p>
           <div className="bmbtns">
-            <button className="btn sm ghost" onClick={() => setAsk(null)}>Vazgeç</button>
-            <button className="btn sm primary" onClick={() => (setAsk(null), publish(r.id))}><Send size={14} />Evet, paylaş</button>
+            <button className="btn sm ghost" onClick={() => setAsk(null)}>Cancel</button>
+            <button className="btn sm primary" onClick={() => (setAsk(null), publish(r.id))}><Send size={14} />Yes, share</button>
           </div>
         </div>
       ) : (status === "ready" || status === "approved" || status === "failed" || status === "posted" || status === "acted") && !publishing && !r.phase && !(r.act?.phase && Date.now() - new Date(r.act.at).getTime() < 60 * 60 * 1000) && (
         <div className={`runact is-${status}`}>
           {/* Ana işlem önde; ne zaman ve kimin paylaşacağı yanında; geri kalan her şey ⋯ menüsünde. */}
           {/* Rou'nun kendi kontrolünden geçmeyen çıktı (puan 8'in altı) öne revizeyle gelir; onay ikincil ve açıkça "yine de". */}
-          {status === "ready" && !r.items?.length && !incomplete && <button className={`btn sm ${lowScore ? "" : "primary"}`} onClick={approve}><Check size={14} />{lowScore ? "Yine de onayla" : shareable || keepOpen ? "Onayla" : "Onayla, görev bitti"}</button>}
-          {status === "ready" && !r.items?.length && !incomplete && canShareNow && <button className="btn sm" onClick={() => setAsk("share")}><Send size={13} />Onayla ve şimdi paylaş</button>}
-          {status === "approved" && canShareNow && <button className="btn sm primary" onClick={() => setAsk("share")}><Send size={14} />{r.publish?.error ? "Yeniden dene" : "Şimdi paylaş"}</button>}
-          {status === "approved" && shareable && <button className={`btn sm ${byMe ? "primary" : "ghost"}`} onClick={() => setAsk("posted")}>{byMe ? "Paylaştım" : "Elle paylaştım"}</button>}
-          {task && whoOf(s, task) === "claude" && (status === "ready" || status === "approved") && <button className={`btn sm ${lowScore && status === "ready" ? "primary" : "ghost"}`} onClick={() => setAsk("revise")}>Revize iste</button>}
-          {(r.post || postOut) && (status === "ready" || status === "approved") && <button className="btn sm ghost" onClick={() => setEditing(true)}><Pencil size={13} />Düzenle</button>}
+          {status === "ready" && !r.items?.length && !incomplete && <button className={`btn sm ${lowScore ? "" : "primary"}`} onClick={approve}><Check size={14} />{lowScore ? "Approve anyway" : shareable || keepOpen ? "Approve" : "Approve, task done"}</button>}
+          {status === "ready" && !r.items?.length && !incomplete && canShareNow && <button className="btn sm" onClick={() => setAsk("share")}><Send size={13} />Approve and share now</button>}
+          {status === "approved" && canShareNow && <button className="btn sm primary" onClick={() => setAsk("share")}><Send size={14} />{r.publish?.error ? "Try again" : "Share now"}</button>}
+          {status === "approved" && shareable && <button className={`btn sm ${byMe ? "primary" : "ghost"}`} onClick={() => setAsk("posted")}>{byMe ? "I shared it" : "Shared by hand"}</button>}
+          {task && whoOf(s, task) === "claude" && (status === "ready" || status === "approved") && <button className={`btn sm ${lowScore && status === "ready" ? "primary" : "ghost"}`} onClick={() => setAsk("revise")}>Request changes</button>}
+          {(r.post || postOut) && (status === "ready" || status === "approved") && <button className="btn sm ghost" onClick={() => setEditing(true)}><Pencil size={13} />Edit</button>}
           {whenNote && <span className="rwhen">{whenNote}</span>}
           <details className="rmenu" onClick={(e) => e.stopPropagation()}>
-            <summary className="iconbtn" aria-label="Diğer işlemler" title="Diğer işlemler"><MoreHorizontal size={16} /></summary>
+            <summary className="iconbtn" aria-label="More actions" title="More actions"><MoreHorizontal size={16} /></summary>
             <div className="rmenupop" onClick={(e) => ((e.target as Element).closest("button") && (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open"))}>
-              {nVersions > 0 && <button onClick={() => setAsk("versions")}><History size={14} />Sürümler<em>{nVersions}</em></button>}
-              {canUnapprove && <button onClick={unapprove}><RotateCcw size={14} />Onayı geri al</button>}
-              {task && status !== "approved" && status !== "posted" && status !== "acted" && <button onClick={() => prepare(task.id)}><RefreshCw size={14} />Yeniden hazırlat</button>}
-              <button onClick={() => askRouAbout({ runId: r.id })}><MessageCircle size={14} />Rou'ya sor</button>
-              {status !== "failed" && r.body && <button onClick={() => navigator.clipboard?.writeText(r.body).then(() => toast("Kopyalandı"))}><Copy size={14} />{r.post ? "Metni kopyala" : "Kopyala"}</button>}
-              {status !== "failed" && files.length > 0 && <button onClick={() => download(files, (task?.title ?? r.title).replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase())}><Download size={14} />{r.video ? "Videoyu indir" : files.length > 1 ? "Görselleri indir" : "Görseli indir"}</button>}
-              {status !== "posted" && status !== "acted" && <button className="is-danger" onClick={() => setAsk("del")}><Trash2 size={14} />Sil</button>}
+              {nVersions > 0 && <button onClick={() => setAsk("versions")}><History size={14} />Versions<em>{nVersions}</em></button>}
+              {canUnapprove && <button onClick={unapprove}><RotateCcw size={14} />Undo approval</button>}
+              {task && status !== "approved" && status !== "posted" && status !== "acted" && <button onClick={() => prepare(task.id)}><RefreshCw size={14} />Prepare again</button>}
+              <button onClick={() => askRouAbout({ runId: r.id })}><MessageCircle size={14} />Ask Rou</button>
+              {status !== "failed" && r.body && <button onClick={() => navigator.clipboard?.writeText(r.body).then(() => toast("Copied"))}><Copy size={14} />{r.post ? "Copy text" : "Copy"}</button>}
+              {status !== "failed" && files.length > 0 && <button onClick={() => download(files, (task?.title ?? r.title).replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase())}><Download size={14} />{r.video ? "Download video" : files.length > 1 ? "Download images" : "Download image"}</button>}
+              {status !== "posted" && status !== "acted" && <button className="is-danger" onClick={() => setAsk("del")}><Trash2 size={14} />Delete</button>}
             </div>
           </details>
         </div>

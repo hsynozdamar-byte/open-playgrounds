@@ -34,21 +34,24 @@ export const yourTurn = (ctx: Ctx, rows: BoardRow[]) => rows.filter(({ task, a, 
   return !st.busy && st.steps.find((x) => x.key === st.current)?.who === "Sen";
 }).length;
 
+// stagesOf (shared) names the person "Sen"; shown as "You".
+export const whoName = (w: string) => (w === "Sen" ? "You" : w);
 // Kartın tek cümlelik durumu: hangi aşamada ve sıradaki adım kimde ("Onaylandı · Rou paylaşacak").
 export const whereText = (st: ReturnType<typeof stagesOf>, run?: Run) => {
   const shares = st.steps.some((x) => x.key === "publish");
-  if (st.finished) return run?.status === "posted" ? "Paylaşıldı · tamamlandı" : "Tamamlandı";
-  const cur = st.steps.find((x) => x.key === st.current)!;
-  if (cur.state === "fail") return cur.key === "video" ? "Video üretilemedi" : cur.key === "image" ? "Görsel üretilemedi" : cur.key === "publish" ? "Paylaşılamadı" : "Hazırlanamadı";
-  if (st.busy) return cur.key === "video" ? "Rou videoyu üretiyor" : cur.key === "image" ? "Rou görseli üretiyor" : cur.key === "publish" ? `${cur.who} paylaşıyor` : `${cur.who} hazırlıyor`;
-  if (cur.key === "publish" && run?.publish?.phase) return `${cur.who} paylaşıyor`;
+  if (st.finished) return run?.status === "posted" ? "Shared · done" : "Done";
+  const cur0 = st.steps.find((x) => x.key === st.current)!;
+  const cur = { ...cur0, who: whoName(cur0.who) };
+  if (cur.state === "fail") return cur.key === "video" ? "Couldn't make the video" : cur.key === "image" ? "Couldn't make the image" : cur.key === "publish" ? "Couldn't share" : "Couldn't prepare";
+  if (st.busy) return cur.key === "video" ? "Rou is making the video" : cur.key === "image" ? "Rou is making the image" : cur.key === "publish" ? `${cur.who} ${cur.who === "You" ? "are" : "is"} sharing` : `${cur.who} ${cur.who === "You" ? "are" : "is"} preparing`;
+  if (cur.key === "publish" && run?.publish?.phase) return `${cur.who} ${cur.who === "You" ? "are" : "is"} sharing`;
   return {
-    write: cur.who === "Sen" ? "Senden bekleniyor" : `${cur.who} hazırlayacak`,
-    voice: "Hazır · ses kaydın bekleniyor",
-    video: "Rou videoyu üretecek",
-    image: "Görsel eksik",
-    approve: shares ? "Hazır · onayını bekliyor" : "Rou tamamladı · inceleme bekliyor",
-    publish: cur.who === "Sen" ? "Onaylandı · paylaşım sende" : `Onaylandı · ${cur.who} paylaşacak`,
+    write: cur.who === "You" ? "Waiting for you" : `${cur.who} will prepare it`,
+    voice: "Ready · waiting for your voice",
+    video: "Rou will make the video",
+    image: "Image missing",
+    approve: shares ? "Ready · awaiting your approval" : "Rou is done · awaiting review",
+    publish: cur.who === "You" ? "Approved · you share it" : `Approved · ${cur.who} will share`,
   }[cur.key];
 };
 
@@ -71,14 +74,14 @@ export function VoiceStep({ run }: { run: Run }) {
     setState("up");
     const up = await uploadFile(blob, name);
     if ("error" in up) { setState("idle"); return toast(up.error); }
-    const r = await fetch("/api/run-voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id, file: up.file }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+    const r = await fetch("/api/run-voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id, file: up.file }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setState("idle");
-    if (!r.ok) toast(r.error ?? "Ses eklenemedi");
+    if (!r.ok) toast(r.error ?? "Couldn't add the voice");
   };
   const start = async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return toast("Bu pencerede ses kaydı yok");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return toast("Recording isn't available in this window");
     let stream: MediaStream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return toast("Mikrofon izni verilmedi"); }
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return toast("Microphone access was denied"); }
     const r = new MediaRecorder(stream);
     const chunks: Blob[] = [];
     r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
@@ -86,7 +89,7 @@ export function VoiceStep({ run }: { run: Run }) {
       stream.getTracks().forEach((t) => t.stop());
       if (dropped.current) return;
       const type = r.mimeType || "audio/webm";
-      void send(new Blob(chunks, { type }), `ses.${type.includes("mp4") ? "m4a" : "webm"}`);
+      void send(new Blob(chunks, { type }), `voice.${type.includes("mp4") ? "m4a" : "webm"}`);
     };
     rec.current = r;
     r.start();
@@ -98,13 +101,13 @@ export function VoiceStep({ run }: { run: Run }) {
       <div className="bscript">{script(run.body)}</div>
       <div className="bvact">
         {state === "rec" ? (
-          <button className="btn sm brec" onClick={() => rec.current?.stop()}><Square size={12} />Bitir · {mmss}</button>
+          <button className="btn sm brec" onClick={() => rec.current?.stop()}><Square size={12} />Finish · {mmss}</button>
         ) : (
-          <button className="btn sm primary" disabled={state === "up"} onClick={() => void start()}><Mic size={14} />{state === "up" ? "Yükleniyor…" : "Sesini kaydet"}</button>
+          <button className="btn sm primary" disabled={state === "up"} onClick={() => void start()}><Mic size={14} />{state === "up" ? "Uploading…" : "Record your voice"}</button>
         )}
-        <button className="btn sm ghost" disabled={state !== "idle"} onClick={() => file.current?.click()}><Upload size={13} />Dosya seç</button>
+        <button className="btn sm ghost" disabled={state !== "idle"} onClick={() => file.current?.click()}><Upload size={13} />Pick a file</button>
         <input ref={file} type="file" accept="audio/*,video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void send(f, f.name); e.target.value = ""; }} />
-        <span className="muted bvhint">Metni kendi tarzında oku; video sesine göre kurulur.</span>
+        <span className="muted bvhint">Read the script your own way; the video is built around your voice.</span>
       </div>
     </div>
   );
@@ -115,14 +118,14 @@ const script = (t: string) => t.split(/(\*\*[^*]+\*\*)/g).map((x, i) => (x.start
 
 // LinkedIn görseli: metin hazır, görsel yoksa Rou yalnız görseli üretir (metin aynı kalır).
 export function ImageStep({ run, failed }: { run: Run; failed?: boolean }) {
-  const make = () => fetch("/api/run-image", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id }) }).then((x) => x.json()).then((r) => !r.ok && toast(r.error ?? "Başlatılamadı")).catch(() => toast("Sunucuya ulaşılamadı"));
+  const make = () => fetch("/api/run-image", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id }) }).then((x) => x.json()).then((r) => !r.ok && toast(r.error ?? "Couldn't start")).catch(() => toast("Couldn't reach the server"));
   if (run.phase) return <p className="bnote muted"><span>{run.phase}…</span></p>;
-  if (failed) return <div className="bnote"><p>Görsel üretilemedi: {run.renderError}</p><button className="btn sm" onClick={make}>Yeniden dene</button></div>;
-  return <div className="bnote"><p>Görsel eksik.</p><button className="btn sm" onClick={make}>Görseli üret</button></div>;
+  if (failed) return <div className="bnote"><p>Couldn't make the image: {run.renderError}</p><button className="btn sm" onClick={make}>Try again</button></div>;
+  return <div className="bnote"><p>Image missing.</p><button className="btn sm" onClick={make}>Make the image</button></div>;
 }
 
 export function VideoStep({ run, failed }: { run: Run; failed: boolean }) {
-  const retry = () => fetch("/api/run-voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id, file: run.voice }) }).then((x) => x.json()).then((r) => !r.ok && toast(r.error ?? "Başlatılamadı")).catch(() => toast("Sunucuya ulaşılamadı"));
-  if (failed) return <div className="bnote"><p>Video üretilemedi: {run.renderError}</p><button className="btn sm" onClick={retry}>Yeniden dene</button></div>;
-  return <p className="bnote muted"><span>{run.phase ? `${run.phase}…` : "Video sırada…"}</span></p>;
+  const retry = () => fetch("/api/run-voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id, file: run.voice }) }).then((x) => x.json()).then((r) => !r.ok && toast(r.error ?? "Couldn't start")).catch(() => toast("Couldn't reach the server"));
+  if (failed) return <div className="bnote"><p>Couldn't make the video: {run.renderError}</p><button className="btn sm" onClick={retry}>Try again</button></div>;
+  return <p className="bnote muted"><span>{run.phase ? `${run.phase}…` : "Video queued…"}</span></p>;
 }

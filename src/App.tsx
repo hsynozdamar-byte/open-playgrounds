@@ -71,7 +71,7 @@ export default function App() {
     if (posted.current) for (const r of state.runs) {
       if (r.status !== "posted" || posted.current.has(r.id) || !r.postedAt || Date.now() - new Date(r.postedAt).getTime() > 30 * 60 * 1000) continue;
       const url = r.postUrl;
-      toast(`Paylaşıldı: ${r.title}`, url ? () => void window.open(url, "_blank") : undefined, "Gönderiyi aç");
+      toast(`Shared: ${r.title}`, url ? () => void window.open(url, "_blank") : undefined, "Open post");
     }
     posted.current = now;
   }, [state?.runs]);
@@ -111,7 +111,7 @@ export default function App() {
       const isRedo = (key === "z" && e.shiftKey) || key === "y";
       if (key !== "z" && key !== "y") return;
       e.preventDefault();
-      if (isRedo ? redo() : undo()) toast(isRedo ? "Yinelendi" : "Geri alındı");
+      if (isRedo ? redo() : undo()) toast(isRedo ? "Redone" : "Undone");
     };
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
@@ -208,16 +208,16 @@ function Welcome({ ctx }: { ctx: Ctx }) {
   return (
     <section className="card welcome">
       <Logo size={44} />
-      <h1>Playgrounds'a hoş geldin</h1>
-      <p>Bütün görevlerin tek yerde: her alanın kendi dünyası, hepsi tek takvimde.</p>
+      <h1>Welcome to Playgrounds</h1>
+      <p>All your tasks in one place: each part of your life gets its own world, and they all share one calendar.</p>
       <ol className="wsteps">
-        <li><b>Dünya</b><span>Kişisel, iş, hobi gibi her alan için bir dünya aç.</span></li>
-        <li><b>Proje ve görev</b><span>Dünyanın içine projelerini, projelere görevlerini koy.</span></li>
-        <li><b>Takvim ve odak</b><span>Görevi saate sürükle, başlayınca sayacı aç.</span></li>
+        <li><b>World</b><span>Open a world for each area: personal, work, side projects.</span></li>
+        <li><b>Projects and tasks</b><span>Put projects inside a world and tasks inside a project.</span></li>
+        <li><b>Calendar and focus</b><span>Drag a task onto an hour and start the timer when you begin.</span></li>
       </ol>
       <div className="wbtns">
-        <button className="btn primary" onClick={openNewWorld}>İlk dünyanı oluştur</button>
-        <button className="btn" onClick={sample}>Örnekle başla</button>
+        <button className="btn primary" onClick={openNewWorld}>Create your first world</button>
+        <button className="btn" onClick={sample}>Start with an example</button>
       </div>
     </section>
   );

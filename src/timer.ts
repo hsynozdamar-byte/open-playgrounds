@@ -82,7 +82,7 @@ export function finish(mutate: Mutate, state: State) {
   const id = state.timer?.taskId;
   const prev = state.tasks.find((x) => x.id === id)?.status;
   stop(mutate, true);
-  toast("Görev bitti olarak işaretlendi", () => mutate((s) => { const t = s.tasks.find((x) => x.id === id); if (t && prev) setStatus(t, prev); }));
+  toast("Task marked as done", () => mutate((s) => { const t = s.tasks.find((x) => x.id === id); if (t && prev) setStatus(t, prev); }));
 }
 
 // Duraklat: o ana kadarki çalışma kaydedilir, sayaç kaldığı yerde durur. Devam et: aynı sayaç sürer.
@@ -133,9 +133,9 @@ export const clock = (sec: number) => {
 export const spent = (sec = 0) => {
   const m = Math.round(sec / 60);
   if (!sec) return "";
-  if (m < 1) return "<1 dk";
-  if (m < 60) return `${m} dk`;
-  return m % 60 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${m / 60} sa`;
+  if (m < 1) return "<1 min";
+  if (m < 60) return `${m} min`;
+  return m % 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m / 60} h`;
 };
 
 export function chime() {

@@ -12,7 +12,7 @@ const ctxOf = (s: State) => ({ state: s, mutate: (fn: (x: State) => void) => fn(
 
 it("note actions validate ids against the data", () => {
   const s = fixture();
-  expect(describe({ type: "note_task", noteId: "n1", projectId: "p1" }, s)).toMatchObject({ verb: "Göreve çevir" });
+  expect(describe({ type: "note_task", noteId: "n1", projectId: "p1" }, s)).toMatchObject({ verb: "Make a task" });
   expect(describe({ type: "note_task", noteId: "yok", projectId: "p1" }, s)).toBeNull();
   expect(describe({ type: "note_task", noteId: "n1" }, s)).toBeNull(); // dünyası yok, proje de verilmedi
   expect(describe({ type: "note_attach", noteId: "n1", taskId: "uydurma" }, s)).toBeNull();
@@ -75,7 +75,7 @@ it("edit_project writes a tone decision into the project's brand and keeps the r
   const s = fixture();
   s.projects[0].brand = { audience: "oyuncular", pillars: ["güncelleme"], use: "", avoid: "emoji" };
   const a = { type: "edit_project" as const, projectId: s.projects[0].id, brand: { use: "kuru ironik, kısa paragraflar" } };
-  expect(describe(a, s)).toMatchObject({ verb: "Projeyi güncelle", detail: "ton / kullan: kuru ironik, kısa paragraflar" });
+  expect(describe(a, s)).toMatchObject({ verb: "Update project", detail: "tone / use: kuru ironik, kısa paragraflar" });
   apply(a, ctxOf(s));
   expect(s.projects[0].brand).toEqual({ audience: "oyuncular", pillars: ["güncelleme"], use: "kuru ironik, kısa paragraflar", avoid: "emoji" });
   expect(describe(a, s)).toBeNull(); // artık değişen bir şey yok

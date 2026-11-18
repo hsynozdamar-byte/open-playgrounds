@@ -8,7 +8,7 @@ const ICON = {
 };
 const svg = (k, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
 const PLAT = { x: ["X", "#111"], instagram: ["IG", "#d6336c"], linkedin: ["in", "#0a66c2"], threads: ["@", "#111"], tiktok: ["TT", "#111"], youtube: ["YT", "#e62117"], gmail: ["M", "#d93025"], gcal: ["31", "#1a73e8"], slack: ["S", "#4a154b"], clickup: ["C", "#7b68ee"] };
-const PLAT_NAME = { x: "X", instagram: "Instagram", linkedin: "LinkedIn", threads: "Threads", tiktok: "TikTok", youtube: "YouTube", gmail: "Gmail", gcal: "Google Takvim", slack: "Slack", clickup: "ClickUp" };
+const PLAT_NAME = { x: "X", instagram: "Instagram", linkedin: "LinkedIn", threads: "Threads", tiktok: "TikTok", youtube: "YouTube", gmail: "Gmail", gcal: "Google Calendar", slack: "Slack", clickup: "ClickUp" };
 // Hesabın görünen adı: @kullanıcı adı varsa o, yoksa adı (sayfa adresi değil).
 const accName = (a) => (a.handle?.startsWith("@") ? a.handle : a.name || a.handle);
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
@@ -34,14 +34,14 @@ function renderSide() {
     const ts = tabsOf(w.id);
     const work = ts.find((t) => t.who);
     const on = w.accounts.filter((a) => a.on).length;
-    const sub = work ? `${work.who}` : ts.length ? `${ts.length} sekme${on ? `, ${on} oturum açık` : ""}` : on ? `${on} oturum açık` : "Kapalı";
+    const sub = work ? `${work.who}` : ts.length ? `${ts.length} tab${ts.length === 1 ? "" : "s"}${on ? `, ${on} signed in` : ""}` : on ? `${on} signed in` : "Closed";
     const shown = S.shown.includes(w.id);
     return `<button class="wrow ${shown ? "is-shown" : ""} ${S.focus === w.id && S.shown.length > 1 ? "is-focus" : ""}" style="${colorVars(w)}" data-w="${esc(w.id)}" title="${esc(w.name)} (⌘${i + 1})">
       <span class="orb" data-orb="${esc(w.id)}" data-k="side">${work ? '<i class="pulse"></i>' : ""}</span>
       <span class="wtext"><b>${esc(w.name)}</b><span class="${work ? "is-work" : ""}">${esc(sub)}</span></span>
-      <span class="wadd ${shown && S.shown.length > 1 ? "on" : ""}" data-add="${esc(w.id)}" title="${shown ? "Yan yanadan çıkar" : "Yanına ekle"}">${svg("split", 15)}</span>
+      <span class="wadd ${shown && S.shown.length > 1 ? "on" : ""}" data-add="${esc(w.id)}" title="${shown ? "Remove from side by side" : "Add side by side"}">${svg("split", 15)}</span>
     </button>`;
-  }).join("") || `<p class="hint">Dünyalar Playgrounds'tan gelir. Playgrounds açık mı?</p>`;
+  }).join("") || `<p class="hint">Worlds come from Playgrounds. Is Playgrounds open?</p>`;
   orbs?.fill(nav);
 }
 
@@ -69,10 +69,10 @@ function pane(w) {
   el.dataset.w = w.id;
   el.innerHTML = `
     <header class="phead"><span class="pname"><span class="orb sm" data-orb="${esc(w.id)}" data-k="pane"></span><span class="nm"></span></span><div class="tabs"></div>
-      <button class="iconbtn" data-a="newTab" title="Yeni sekme (⌘T)">${svg("plus")}</button><span class="whoslot"></span><button class="iconbtn closep" data-a="unshow" title="Bölmeyi kapat">${svg("x", 15)}</button></header>
+      <button class="iconbtn" data-a="newTab" title="New tab (⌘T)">${svg("plus")}</button><span class="whoslot"></span><button class="iconbtn closep" data-a="unshow" title="Close pane">${svg("x", 15)}</button></header>
     <div class="pbar">
-      <button class="iconbtn" data-a="back" title="Geri">${svg("back")}</button><button class="iconbtn" data-a="fwd" title="İleri">${svg("fwd")}</button><button class="iconbtn" data-a="reload" title="Yenile">${svg("reload", 15)}</button>
-      <input class="addr" spellcheck="false" placeholder="Adres yaz ya da ara">
+      <button class="iconbtn" data-a="back" title="Back">${svg("back")}</button><button class="iconbtn" data-a="fwd" title="Forward">${svg("fwd")}</button><button class="iconbtn" data-a="reload" title="Reload">${svg("reload", 15)}</button>
+      <input class="addr" spellcheck="false" placeholder="Search or type an address">
       <span class="sessslot"></span>
     </div>
     <div class="pbody"><div class="empty"></div></div>`;
@@ -115,7 +115,7 @@ function fillPane(el, w) {
   const cur = activeOf(w.id);
   $(".tabs", el).innerHTML = ts.map((t) => `<button class="tab ${t.active ? "on" : ""}" data-t="${t.id}" title="${esc(t.title || t.url)}">
       ${t.who ? '<i class="who"></i>' : t.favicon ? `<img src="${esc(t.favicon)}" alt="">` : '<span class="fav"></span>'}
-      <span class="tt">${esc(t.title || host(t.url) || "Yeni sekme")}</span><span class="x" data-x="${t.id}" title="Kapat">${svg("x", 12)}</span></button>`).join("");
+      <span class="tt">${esc(t.title || host(t.url) || "New tab")}</span><span class="x" data-x="${t.id}" title="Close">${svg("x", 12)}</span></button>`).join("");
   $(".whoslot", el).innerHTML = cur?.who ? `<span class="who-chip"><i></i>${esc(cur.who)}</span>` : "";
   const [back, fwd, reload] = el.querySelectorAll(".pbar .iconbtn");
   back.disabled = !cur?.canBack; fwd.disabled = !cur?.canFwd; reload.disabled = !cur;
@@ -123,7 +123,7 @@ function fillPane(el, w) {
   const addr = $(".addr", el);
   if (document.activeElement !== addr) addr.value = cur?.url && !cur.url.startsWith("about:") ? cur.url : "";
   const acc = cur && accountAt(w, cur.url);
-  $(".sessslot", el).innerHTML = acc ? `<span class="sess ${acc.on ? "ok" : acc.on === false ? "off" : ""}"><i></i>${esc(accName(acc))}${acc.on ? ", oturum açık" : acc.on === false ? ", giriş yapılmadı" : ""}</span>` : "";
+  $(".sessslot", el).innerHTML = acc ? `<span class="sess ${acc.on ? "ok" : acc.on === false ? "off" : ""}"><i></i>${esc(accName(acc))}${acc.on ? ", signed in" : acc.on === false ? ", not signed in" : ""}</span>` : "";
   $(".empty", el).hidden = !!cur;
   if (!cur) { $(".empty", el).innerHTML = emptyOf(w); orbs?.fill($(".empty", el)); }
 }
@@ -133,11 +133,11 @@ function emptyOf(w) {
     const [mono, bg] = PLAT[a.platform] ?? ["•", "#888"];
     const site = S.sites[a.platform];
     return `<div class="acc"><span class="plat" style="background:${bg}">${esc(mono)}</span>
-      <span class="t"><b>${esc(accName(a))}</b><span class="${a.on ? "ok" : a.on === false ? "off" : ""}">${esc(PLAT_NAME[a.platform] ?? a.platform)}, ${a.on ? "oturum açık" : a.on === false ? "giriş yapılmamış" : "oturum bilinmiyor"}</span></span>
-      <button class="btn ${a.on ? "" : "pri"}" data-open="${esc(a.on ? site.home : site.login)}">${a.on ? "Aç" : "Giriş yap"}</button></div>`;
+      <span class="t"><b>${esc(accName(a))}</b><span class="${a.on ? "ok" : a.on === false ? "off" : ""}">${esc(PLAT_NAME[a.platform] ?? a.platform)}, ${a.on ? "signed in" : a.on === false ? "not signed in" : "sign-in unknown"}</span></span>
+      <button class="btn ${a.on ? "" : "pri"}" data-open="${esc(a.on ? site.home : site.login)}">${a.on ? "Open" : "Sign in"}</button></div>`;
   }).join("");
   return `<div class="in"><h2><span class="orb" data-orb="${esc(w.id)}" data-k="empty"></span>${esc(w.name)}</h2>
-    ${rows ? `<p>Bu dünyanın hesapları bu profilde açık kalır. Rou burada çalışır.</p><div class="accs">${rows}</div>` : `<p>Bu dünyada tarayıcı hesabı yok. Adres çubuğuna yazarak başla.</p>`}</div>`;
+    ${rows ? `<p>This world's accounts stay signed in in this profile. Rou works here.</p><div class="accs">${rows}</div>` : `<p>This world has no browser accounts. Start by typing in the address bar.</p>`}</div>`;
 }
 
 function renderStage() {
@@ -150,7 +150,7 @@ function renderStage() {
     if (stage.children[i] !== el) stage.insertBefore(el, stage.children[i] ?? null);
     fillPane(el, w);
   });
-  if (!list.length) stage.innerHTML = `<p class="none">Soldan bir dünya seç.</p>`;
+  if (!list.length) stage.innerHTML = `<p class="none">Pick a world on the left.</p>`;
   else stage.querySelector(".none")?.remove();
   const f = worldOf(S.focus) ?? list[0];
   if (f) { document.body.style.setProperty("--w", f.color || "#5b3df0"); document.body.style.setProperty("--w2", f.color2 || f.color || "#5b3df0"); }
@@ -172,7 +172,7 @@ new ResizeObserver(queueRects).observe($("#stage"));
 // Kenar çubuğu daraltılabilir: yalnız küreler kalır (tercih bu bilgisayarda saklanır).
 function setMini(on) {
   document.body.classList.toggle("is-mini", on);
-  const b = $("#sidetog"); const t = on ? "Kenar çubuğunu genişlet (⌘\\)" : "Kenar çubuğunu daralt (⌘\\)";
+  const b = $("#sidetog"); const t = on ? "Expand sidebar (⌘\\)" : "Collapse sidebar (⌘\\)";
   b.title = t; b.setAttribute("aria-label", t.replace(/ \(.*\)$/, ""));
   try { localStorage.setItem("pb-mini", on ? "1" : ""); } catch {}
   queueRects();

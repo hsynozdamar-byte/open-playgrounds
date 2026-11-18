@@ -66,7 +66,7 @@ export function useStore() {
           r = await fetch("/api/state", { method: "PUT", headers: { "content-type": "application/json" }, body });
           j = await r.json();
         } catch {
-          if (!warned.current) toast("Kaydedilemedi, sunucu bekleniyor. Değişiklikler kaybolmaz.");
+          if (!warned.current) toast("Could not save, waiting for the server. Changes are kept.");
           warned.current = true;
           again = { sent, body };
           await new Promise((res) => setTimeout(res, wait));
@@ -78,7 +78,7 @@ export function useStore() {
         if (r.ok) {
           rev.current = j.rev;
           pending.current = pending.current.slice(sent);
-          if (warned.current) toast("Kaydedildi");
+          if (warned.current) toast("Saved");
           warned.current = false;
           wait = 1000;
           continue;
@@ -92,7 +92,7 @@ export function useStore() {
           setState(merged);
           continue;
         }
-        toast("Kaydedilemedi: sunucu değişikliği kabul etmedi");
+        toast("Could not save: the server rejected the change");
         pending.current = [];
         await load();
       }

@@ -10,9 +10,9 @@ import type { Ctx } from "../lib";
 // key: işaretlerin anahtarı (ilk klasörde klasöre göre yol, diğerlerinde "klasör::yol"); rel: klasör içindeki yol.
 type Item = { key: string; rel: string; dir: string; kind: "video" | "image"; size: number; at: string };
 type Kind = "all" | "video" | "image";
-const KINDS: [Kind, string][] = [["all", "Hepsi"], ["video", "Video"], ["image", "Fotoğraf"]];
+const KINDS: [Kind, string][] = [["all", "All"], ["video", "Video"], ["image", "Photo"]];
 type Filter = "all" | "new" | "good" | "bad";
-const FILTERS: [Filter, string][] = [["new", "Bakılmadı"], ["good", "İyi"], ["bad", "Kötü"], ["all", "Hepsi"]];
+const FILTERS: [Filter, string][] = [["new", "Unseen"], ["good", "Good"], ["bad", "Bad"], ["all", "All"]];
 const PAGE = 24;
 const src = (p: string, rel: string, kind: "file" | "thumb") => `/lib/${kind}?p=${encodeURIComponent(p)}&rel=${encodeURIComponent(rel)}`;
 const base = (rel: string) => rel.split("/").pop() ?? rel;
@@ -53,8 +53,8 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
     fetch(`/api/library?p=${encodeURIComponent(project.id)}`).then((r) => r.json()).then((r) => {
       if (!live) return;
       if (r.ok) { setItems(r.items); setMissing(r.missing ?? []); }
-      else { setItems(null); setErr(r.error ?? "Klasör okunamadı"); }
-    }).catch(() => live && setErr("Sunucuya ulaşılamadı"));
+      else { setItems(null); setErr(r.error ?? "Could not read the folder"); }
+    }).catch(() => live && setErr("Could not reach the server"));
     return () => { live = false; };
   }, [project.id, dirs.join("|")]);
 
@@ -103,9 +103,9 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
     <section className="card media">
       <div className="cardhead">
         <Image size={15} className="hicon" />
-        <h3>Medya</h3>
+        <h3>Media</h3>
         <span className="n">{items?.length || ""}</span>
-        {items && items.length > 0 && <span className="mediasum">{(() => { const u = items.filter((x) => used.has(x.key)); const posted = u.filter((x) => used.get(x.key)!.st === "posted").length; return u.length ? `${u.length} dosya gönderide kullanıldı${posted ? `, ${posted} tanesi paylaşıldı` : ""}` : "Hiçbiri henüz bir gönderide kullanılmadı"; })()}</span>}
+        {items && items.length > 0 && <span className="mediasum">{(() => { const u = items.filter((x) => used.has(x.key)); const posted = u.filter((x) => used.get(x.key)!.st === "posted").length; return u.length ? `${u.length} ${u.length === 1 ? "file" : "files"} used in posts${posted ? `, ${posted} shared` : ""}` : "None used in a post yet"; })()}</span>}
         {items && items.length > 0 && (
           <div className="seg sm mfilter mkind">
             {KINDS.map(([k, label]) => (
@@ -126,24 +126,24 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
           <li key={d} className={missing.includes(d) ? "is-missing" : ""}>
             <FolderOpen size={14} className="hicon" />
             <span title={d}>{dirName(d)}</span>
-            {missing.includes(d) && <em>bulunamadı</em>}
-            <button className="iconbtn" onClick={() => removeDir(d)} aria-label="Klasörü çıkar" title="Klasörü çıkar (dosyalar diskte kalır)"><X size={14} /></button>
+            {missing.includes(d) && <em>not found</em>}
+            <button className="iconbtn" onClick={() => removeDir(d)} aria-label="Remove folder" title="Remove folder (files stay on disk)"><X size={14} /></button>
           </li>
         ))}
       </ul>
       {adding ? (
         <form className="mdir" onSubmit={(e) => { e.preventDefault(); const v = String(new FormData(e.currentTarget).get("dir") ?? ""); if (v.trim()) { addDir(v); setAdding(false); } }}>
           <FolderOpen size={15} className="hicon" />
-          <input name="dir" placeholder="Klasör yolu, ör. ~/Videolar/Proje" autoFocus={dirs.length > 0} />
-          <button className="btn sm" type="submit">Bağla</button>
-          {dirs.length > 0 && <button className="btn sm ghost" type="button" onClick={() => setAdding(false)}>Vazgeç</button>}
+          <input name="dir" placeholder="Folder path, e.g. ~/Movies/Project" autoFocus={dirs.length > 0} />
+          <button className="btn sm" type="submit">Connect</button>
+          {dirs.length > 0 && <button className="btn sm ghost" type="button" onClick={() => setAdding(false)}>Cancel</button>}
         </form>
       ) : (
-        <button className="link maddir" onClick={() => setAdding(true)}><Plus size={14} />Klasör ekle</button>
+        <button className="link maddir" onClick={() => setAdding(true)}><Plus size={14} />Add folder</button>
       )}
-      {!dirs.length && <p className="empty">Video ve fotoğraf klasörünü bağla; İyi işaretlediklerin gönderilerde kullanılır.</p>}
+      {!dirs.length && <p className="empty">Connect a video and photo folder; the files you mark Good are used in posts.</p>}
       {err && <p className="empty">{err}</p>}
-      {items && items.length === 0 && <p className="empty">Bu klasörlerde video ya da fotoğraf yok.</p>}
+      {items && items.length === 0 && <p className="empty">No videos or photos in these folders.</p>}
       {shown.length > 0 && (
         <ul className="mgrid">
           {shown.slice(0, n).map((it) => (
@@ -152,8 +152,8 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
                 <span className="mthumb">
                   <img src={src(project.id, it.key, "thumb")} alt="" loading="lazy" />
                   {it.kind === "video" && <span className="mplay" />}
-                  {marks[it.key] && <span className={`mbadge ${marks[it.key]}`}>{marks[it.key] === "good" ? "İyi" : "Kötü"}</span>}
-                  {used.get(it.key) && <span className={`mediause is-${used.get(it.key)!.st}`}>{used.get(it.key)!.st === "posted" ? "Paylaşıldı" : used.get(it.key)!.st === "ready" ? "Gönderide" : "Taslakta"}</span>}
+                  {marks[it.key] && <span className={`mbadge ${marks[it.key]}`}>{marks[it.key] === "good" ? "Good" : "Bad"}</span>}
+                  {used.get(it.key) && <span className={`mediause is-${used.get(it.key)!.st}`}>{used.get(it.key)!.st === "posted" ? "Shared" : used.get(it.key)!.st === "ready" ? "In a post" : "In a draft"}</span>}
                 </span>
                 <span className="mname">{base(it.rel)}</span>
                 <span className="mfold">{[dirs.length > 1 ? base(it.dir) : "", folder(it.rel)].filter(Boolean).join(" / ") || " "}</span>
@@ -162,8 +162,8 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
           ))}
         </ul>
       )}
-      {shown.length > n && <button className="btn sm mmore" onClick={() => setN(n + PAGE * 2)}>{shown.length - n} tane daha</button>}
-      {items && f !== "all" && shown.length === 0 && items.length > 0 && <p className="empty">{f === "good" ? "Henüz İyi işaretli yok." : f === "bad" ? "Kötü işaretli yok." : "Hepsine baktın."}</p>}
+      {shown.length > n && <button className="btn sm mmore" onClick={() => setN(n + PAGE * 2)}>{shown.length - n} more</button>}
+      {items && f !== "all" && shown.length === 0 && items.length > 0 && <p className="empty">{f === "good" ? "Nothing marked Good yet." : f === "bad" ? "Nothing marked Bad." : "You've seen them all."}</p>}
       {createPortal(<AnimatePresence>
         {open && <Viewer key="v" pid={project.id} list={shown} k={open} marks={marks} onMark={mark} onGo={setOpen} onClose={() => setOpen(null)} />}
       </AnimatePresence>, document.body)}
@@ -208,14 +208,14 @@ function Viewer({ pid, list, k, marks, onMark, onGo, onClose }: { pid: string; l
             <span>{[base(it.dir), folder(it.rel)].filter(Boolean).join(" / ")} · {i + 1} / {list.length}</span>
           </div>
           <div className="mvnav">
-            <button className="iconbtn" onClick={() => go(-1)} aria-label="Önceki"><ChevronLeft size={18} /></button>
-            <button className="iconbtn" onClick={() => go(1)} aria-label="Sonraki"><ChevronRight size={18} /></button>
+            <button className="iconbtn" onClick={() => go(-1)} aria-label="Previous"><ChevronLeft size={18} /></button>
+            <button className="iconbtn" onClick={() => go(1)} aria-label="Next"><ChevronRight size={18} /></button>
           </div>
           <div className="mvpick">
-            <button className={`btn ${m === "bad" ? "is-bad" : ""}`} onClick={() => pick("bad")}>Kötü</button>
-            <button className={`btn ${m === "good" ? "is-good" : ""}`} onClick={() => pick("good")}>İyi</button>
+            <button className={`btn ${m === "bad" ? "is-bad" : ""}`} onClick={() => pick("bad")}>Bad</button>
+            <button className={`btn ${m === "good" ? "is-good" : ""}`} onClick={() => pick("good")}>Good</button>
           </div>
-          <button className="iconbtn mvclose" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
+          <button className="iconbtn mvclose" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
       </motion.div>
     </motion.div>

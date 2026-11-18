@@ -9,10 +9,10 @@ const EMPTY: Brand = { audience: "", pillars: [], use: "", avoid: "" };
 
 type TextKey = "audience" | "use" | "avoid";
 const ROWS: { key: TextKey | "pillars"; Icon: typeof Users; label: string; hint: string; ph: string }[] = [
-  { key: "audience", Icon: Users, label: "Kitle", hint: "Kime yazıyoruz", ph: "Ör. 25-40 yaş tasarımcılar" },
-  { key: "use", Icon: MessageSquareQuote, label: "Ton", hint: "Nasıl konuşuyoruz", ph: "Ör. Kuru ve ironik, kısa paragraflar, ben dili" },
-  { key: "pillars", Icon: Shapes, label: "Konular", hint: "Her gönderi birine oturur", ph: "Ör. Geliştirme günlüğü" },
-  { key: "avoid", Icon: Ban, label: "Kaçın", hint: "Asla geçmeyecek", ph: "Ör. Emoji, \"devrim niteliğinde\", ünlem" },
+  { key: "audience", Icon: Users, label: "Audience", hint: "Who we write for", ph: "E.g. Designers aged 25-40" },
+  { key: "use", Icon: MessageSquareQuote, label: "Tone", hint: "How we talk", ph: "E.g. Dry and ironic, short paragraphs, first person" },
+  { key: "pillars", Icon: Shapes, label: "Topics", hint: "Every post fits one", ph: "E.g. Dev log" },
+  { key: "avoid", Icon: Ban, label: "Avoid", hint: "Never appears", ph: "E.g. Emoji, \"revolutionary\", exclamation marks" },
 ];
 
 export function BrandCard({ ctx, project }: { ctx: Ctx; project: Project }) {
@@ -20,8 +20,8 @@ export function BrandCard({ ctx, project }: { ctx: Ctx; project: Project }) {
   const set = (p: Partial<Brand>) => ctx.mutate((st) => { const x = st.projects.find((y) => y.id === project.id); if (x) x.brand = { ...EMPTY, ...x.brand, ...p }; });
   return (
     <section className="card brand">
-      <div className="cardhead"><Palette size={15} className="hicon" /><h3>Marka sesi</h3></div>
-      <p className="muted brandnote">Rou gönderileri buna göre yazar. Sohbette "bu projenin tonu şöyle olsun" dersen buraya kendisi yazar.</p>
+      <div className="cardhead"><Palette size={15} className="hicon" /><h3>Brand voice</h3></div>
+      <p className="muted brandnote">Rou writes posts by this. Tell it in chat "this project's tone should be like this" and it writes it here itself.</p>
       <dl className="brandrows">
         {ROWS.map(({ key, Icon, label, hint, ph }) => (
           <div key={key} className="brow">
@@ -51,7 +51,7 @@ function InlineText({ value, ph, label, onSave }: { value: string; ph: string; l
       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); done(true); } if (e.key === "Escape") { e.stopPropagation(); done(false); } }} />
   );
   return (
-    <button type="button" className={`bval ${value ? "" : "is-empty"}`} onClick={() => setEdit(true)} aria-label={`${label} düzenle`}>
+    <button type="button" className={`bval ${value ? "" : "is-empty"}`} onClick={() => setEdit(true)} aria-label={`Edit ${label.toLowerCase()}`}>
       {value || <><Plus size={13} />{ph}</>}
     </button>
   );
@@ -63,13 +63,13 @@ function Pillars({ list, ph, onChange }: { list: string[]; ph: string; onChange:
   const add = () => { const x = v.trim().replace(/,$/, ""); if (x && !list.includes(x)) onChange([...list, x]); setV(""); };
   return (
     <div className="bpills">
-      {list.map((p) => <span key={p} className="bpill">{p}<button type="button" onClick={() => onChange(list.filter((x) => x !== p))} aria-label={`${p} çıkar`}><X size={12} /></button></span>)}
+      {list.map((p) => <span key={p} className="bpill">{p}<button type="button" onClick={() => onChange(list.filter((x) => x !== p))} aria-label={`Remove ${p}`}><X size={12} /></button></span>)}
       {adding
-        ? <input autoFocus className="bpilladd" value={v} placeholder={list.length ? "Konu adı" : ph} aria-label="Konu ekle"
+        ? <input autoFocus className="bpilladd" value={v} placeholder={list.length ? "Topic name" : ph} aria-label="Add topic"
             onChange={(e) => (e.target.value.endsWith(",") ? (setV(e.target.value), setTimeout(add)) : setV(e.target.value))}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } if (e.key === "Escape") { e.stopPropagation(); setV(""); setAdding(false); } }}
             onBlur={() => { add(); setAdding(false); }} />
-        : <button type="button" className={`bval bpillbtn ${list.length ? "" : "is-empty"}`} onClick={() => setAdding(true)}><Plus size={13} />{list.length ? "Konu ekle" : ph}</button>}
+        : <button type="button" className={`bval bpillbtn ${list.length ? "" : "is-empty"}`} onClick={() => setAdding(true)}><Plus size={13} />{list.length ? "Add topic" : ph}</button>}
     </div>
   );
 }

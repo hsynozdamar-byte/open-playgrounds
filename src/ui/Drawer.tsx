@@ -11,6 +11,7 @@ import { spent, stop } from "../timer";
 import { stable, uid } from "../store";
 import { Check, Play } from "./TaskRow";
 import { AutoInfoRow, BOT, OutputSection, autoOf, kickOff, kickOffWhat } from "./Auto";
+import { whoName } from "./Board";
 import { PostBasis } from "./PostBasis";
 import { stagesOf } from "../../shared/stages.mjs";
 import { openAutoForm } from "./AutoForm";
@@ -78,7 +79,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
     const go = kickOff(real, x);
     if (go === "keep") { setStarting(true); return void freshNew.delete(task0.id); }
     onClose();
-    if (!go) toast(isNew ? "Görev eklendi" : changed ? "Kaydedildi" : "Değişiklik yok");
+    if (!go) toast(isNew ? "Task added" : changed ? "Saved" : "No changes");
   };
   const discard = () => {
     real.mutate((st) => {
@@ -103,7 +104,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
     return () => (removeEventListener("pg-do-ready", done), clearTimeout(id));
   }, [starting]);
   useEffect(() => { if (working) setStarting(false); }, [working]);
-  const busyLabel = working ? "Rou çalışıyor" : starting ? "Rou başlıyor" : "";
+  const busyLabel = working ? "Rou is working" : starting ? "Rou is starting" : "";
   // Yazılan alan blur olmadan taslağa düşmez; yazılan değer alanın ilk hâlinden farklıysa kaydet düğmesi çıkar, aynı hâle dönünce kaybolur.
   // Alandan çıkınca değer taslağa geçer ve farkı dirty söyler.
   const edited = useRef(new Set<Element>());
@@ -114,7 +115,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
     setTyped(edited.current.size > 0);
   };
   const changed = dirty || typed;
-  const saveLabel = isNew ? `Ekle${what ? ", Rou başlasın" : ""}` : changed ? "Değişiklikleri kaydet" : what ? "Rou başlasın" : "Kaydet";
+  const saveLabel = isNew ? `Add${what ? ", start Rou" : ""}` : changed ? "Save changes" : what ? "Start Rou" : "Save";
   const set = (fn: (t: Task) => void) => ctx.mutate((st) => { const x = st.tasks.find((y) => y.id === task.id); if (x) fn(x); });
   const auto0 = autoOf(s, task);
   const topical = !!auto0 && auto0.who !== "me" && !auto0.browser;
@@ -122,7 +123,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
     const next = { title: task.topic?.title ?? "", brief: task.topic?.brief ?? "", ...patch };
     if (next.title === (task.topic?.title ?? "") && next.brief === (task.topic?.brief ?? "")) return;
     set((x) => { if (next.title) x.topic = next; else delete x.topic; });
-    if (s.runs.some((r) => r.taskId === task.id && (r.status === "ready" || r.status === "approved"))) toast("Konu değişti. Metin eski konuyla hazır; yenisi için Yeniden hazırlat.");
+    if (s.runs.some((r) => r.taskId === task.id && (r.status === "ready" || r.status === "approved"))) toast("Topic changed. The text was written for the old topic; use Prepare again for the new one.");
   };
   const w = worldOf(s, task.worldId);
   const p = projectOf(s, task.projectId);
@@ -166,8 +167,8 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
       >
         <header className="dhead">
           <ProjectPick task={task} ctx={ctx} />
-          <button className="iconbtn" title="Projeye git" aria-label="Projeye git" onClick={() => (commit(), ctx.go({ view: "projects", lens: w.id, project: p?.id ?? `none:${w.id}` }), onClose())}><ArrowUpRight size={16} /></button>
-          <button className="x" onClick={tryClose} aria-label="Kapat"><X size={18} /></button>
+          <button className="iconbtn" title="Go to project" aria-label="Go to project" onClick={() => (commit(), ctx.go({ view: "projects", lens: w.id, project: p?.id ?? `none:${w.id}` }), onClose())}><ArrowUpRight size={16} /></button>
+          <button className="x" onClick={tryClose} aria-label="Close"><X size={18} /></button>
         </header>
 
         <div className="dtitle">
@@ -193,15 +194,15 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
         {/* Ne yapılacağı: başlığın hemen altında; Rou işi bu metinden anlar (task.notes). */}
         {/* Rou'nun yazdığı otomasyon işi: talimat otomasyonda, bu günün işi "Konu"dur. Rou her sabah önümüzdeki 7 günün boş konularını yazar. */}
         {!shared && topical && <section className="dsec">
-          <div className="dsechead"><span className="flabel">Konu</span><span className="muted">Boş kalırsa Rou yazar</span></div>
+          <div className="dsechead"><span className="flabel">Topic</span><span className="muted">Rou writes it if left empty</span></div>
           <div className="brief topicbox">
-          <textarea key={`tt-${task.id}`} className="ttl" rows={1} defaultValue={task.topic?.title ?? ""} aria-label="Konu" placeholder="Bu gönderinin konusu" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), e.currentTarget.blur())} onBlur={(e) => saveTopic({ title: e.target.value.replace(/\s+/g, " ").trim() })} />
-          <textarea key={`tb-${task.id}`} rows={2} defaultValue={task.topic?.brief ?? ""} aria-label="Ne anlatacak" placeholder="Ne anlatacak" onBlur={(e) => saveTopic({ brief: e.target.value.trim() })} />
+          <textarea key={`tt-${task.id}`} className="ttl" rows={1} defaultValue={task.topic?.title ?? ""} aria-label="Topic" placeholder="What this post is about" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), e.currentTarget.blur())} onBlur={(e) => saveTopic({ title: e.target.value.replace(/\s+/g, " ").trim() })} />
+          <textarea key={`tb-${task.id}`} rows={2} defaultValue={task.topic?.brief ?? ""} aria-label="What it tells" placeholder="What it tells" onBlur={(e) => saveTopic({ brief: e.target.value.trim() })} />
           </div>
         </section>}
         {!shared && !topical && <div className="brief">
-          <textarea key={`n-${task.id}`} rows={3} defaultValue={task.notes} aria-label="Ne yapılacak" placeholder={BRIEF_HINT[(autoOf(s, task) ? "me" : task.who) ?? "me"]} onBlur={(e) => e.target.value !== task.notes && set((x) => (x.notes = e.target.value))} />
-          {task.source?.url && <a className="srclink" href={task.source.url} target="_blank" rel="noreferrer">Kaynağı aç ({task.source.type})</a>}
+          <textarea key={`n-${task.id}`} rows={3} defaultValue={task.notes} aria-label="What to do" placeholder={BRIEF_HINT[(autoOf(s, task) ? "me" : task.who) ?? "me"]} onBlur={(e) => e.target.value !== task.notes && set((x) => (x.notes = e.target.value))} />
+          {task.source?.url && <a className="srclink" href={task.source.url} target="_blank" rel="noreferrer">Open source ({task.source.type})</a>}
         </div>}
 
         {/* Rou yapıyorsa ne olacağı (ya da çıktısı) açıklamanın hemen altında: işin ne olacağı ilk bakışta anlaşılsın. */}
@@ -209,45 +210,45 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
         <OutputSection task={task} ctx={real} />
 
         {/* Ayarlar: kim yapacak · ne zaman · durum ve tekrar; tek yumuşak panel, gruplar boşlukla ayrılır. */}
-        {shared ? (task.autoId && s.automations.some((a) => a.id === task.autoId) && <dl className="props dprops"><div className="dgroup"><AutoInfoRow task={task} ctx={real} onGo={() => (commit(), onClose())} /></div></dl>) : <section className="dsec"><div className="dsechead"><span className="flabel">Ayarlar</span></div><dl className="props dprops">
+        {shared ? (task.autoId && s.automations.some((a) => a.id === task.autoId) && <dl className="props dprops"><div className="dgroup"><AutoInfoRow task={task} ctx={real} onGo={() => (commit(), onClose())} /></div></dl>) : <section className="dsec"><div className="dsechead"><span className="flabel">Settings</span></div><dl className="props dprops">
           <div className="dgroup">
           <WhoRow task={task} ctx={ctx} play={!isNew && <span className="whoplay" onClickCapture={commit}><Play task={task} ctx={real} label /></span>} />
           </div>
           <div className="dgroup">
           <div>
-            <dt><CalendarDays size={15} />Gün</dt>
+            <dt><CalendarDays size={15} />Day</dt>
             <dd className="chips">
-              {[{ l: "Bugün", v: t }, { l: "Yarın", v: addDays(t, 1) }, { l: "Tarihsiz", v: null }].map((o) => (
+              {[{ l: "Today", v: t }, { l: "Tomorrow", v: addDays(t, 1) }, { l: "Someday", v: null }].map((o) => (
                 <button key={o.l} className={task.day === o.v ? "on" : ""} onClick={() => ctx.mutate((st) => { const x = st.tasks.find((y) => y.id === task.id); if (x) setDay(st, x, o.v); })}>{o.l}</button>
               ))}
-              <DatePick value={task.day && task.day !== t && task.day !== addDays(t, 1) ? task.day : ""} onChange={(v) => v && ctx.mutate((st) => { const x = st.tasks.find((y) => y.id === task.id); if (x) setDay(st, x, v); })} label="Gün" placeholder="Başka gün" clearable={false} />
+              <DatePick value={task.day && task.day !== t && task.day !== addDays(t, 1) ? task.day : ""} onChange={(v) => v && ctx.mutate((st) => { const x = st.tasks.find((y) => y.id === task.id); if (x) setDay(st, x, v); })} label="Day" placeholder="Pick a day" clearable={false} />
             </dd>
           </div>
           <div>
-            <dt><Clock size={15} />Saat</dt>
+            <dt><Clock size={15} />Time</dt>
             <dd className="slots">
               {blocks.map((b) => (
                 editSlot?.id === b.id ? (
                   <span key={b.id} className="slot is-edit" onKeyDown={(e) => { if (e.key === "Enter") saveSlot(); if (e.key === "Escape") { e.stopPropagation(); setEditSlot(null); } }}>
-                    <TimeField autoFocus value={editSlot.a} onChange={(v) => setEditSlot((x) => x && { ...x, a: v })} label="Başlangıç" />
+                    <TimeField autoFocus value={editSlot.a} onChange={(v) => setEditSlot((x) => x && { ...x, a: v })} label="Start" />
                     –
-                    <TimeField value={editSlot.b} onChange={(v) => setEditSlot((x) => x && { ...x, b: v })} label="Bitiş" />
-                    <button onClick={saveSlot} disabled={!editSlot.a || !editSlot.b || editSlot.b <= editSlot.a} aria-label="Saati kaydet" title="Kaydet"><Check2 size={14} /></button>
-                    <button onClick={() => setEditSlot(null)} aria-label="Vazgeç" title="Vazgeç"><X size={13} /></button>
+                    <TimeField value={editSlot.b} onChange={(v) => setEditSlot((x) => x && { ...x, b: v })} label="End" />
+                    <button onClick={saveSlot} disabled={!editSlot.a || !editSlot.b || editSlot.b <= editSlot.a} aria-label="Save time" title="Save"><Check2 size={14} /></button>
+                    <button onClick={() => setEditSlot(null)} aria-label="Cancel" title="Cancel"><X size={13} /></button>
                   </span>
                 ) : (
                 <span key={b.id} className={`slot ${askSlot === b.id ? "is-ask" : ""}`} title={dur(spanMin(b.start, b.end))}>
                   {b.start.slice(0, 10) !== task.day && <em>{relDay(b.start.slice(0, 10))}</em>}
-                  <button className="slottime" onClick={() => (setAskSlot(null), setEditSlot({ id: b.id, a: hm(b.start), b: hm(b.end) }))} aria-label={`Saati düzenle: ${hm(b.start)}–${hm(b.end)}`} title="Saati düzenle">{hm(b.start)}–{hm(b.end)}</button>
-                  {askSlot !== b.id && <button onClick={() => setAskSlot(b.id)} aria-label="Saati takvimden kaldır" title="Saati takvimden kaldır"><X size={13} /></button>}
+                  <button className="slottime" onClick={() => (setAskSlot(null), setEditSlot({ id: b.id, a: hm(b.start), b: hm(b.end) }))} aria-label={`Edit time: ${hm(b.start)}–${hm(b.end)}`} title="Edit time">{hm(b.start)}–{hm(b.end)}</button>
+                  {askSlot !== b.id && <button onClick={() => setAskSlot(b.id)} aria-label="Remove from calendar" title="Remove from calendar"><X size={13} /></button>}
                 </span>
                 )
               ))}
               {askSlot && blocks.some((b) => b.id === askSlot) && (
                 <div className="slotask">
-                  <span>Bu saat takvimden kaldırılsın mı? Görev kalır.</span>
-                  <button className="btn sm ghost" onClick={() => setAskSlot(null)}>Vazgeç</button>
-                  <button className="btn sm dangerfill" onClick={() => (ctx.mutate((st) => void (st.blocks = st.blocks.filter((x) => x.id !== askSlot))), setAskSlot(null))}>Kaldır</button>
+                  <span>Remove this time from the calendar? The task stays.</span>
+                  <button className="btn sm ghost" onClick={() => setAskSlot(null)}>Cancel</button>
+                  <button className="btn sm dangerfill" onClick={() => (ctx.mutate((st) => void (st.blocks = st.blocks.filter((x) => x.id !== askSlot))), setAskSlot(null))}>Remove</button>
                 </div>
               )}
               <button
@@ -260,21 +261,21 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
                   if (x && !x.day) x.day = day;
                 })}
               >
-                + Saat ekle
+                + Add time
               </button>
             </dd>
           </div>
           <div>
             <dt><Flag size={15} />Deadline</dt>
             <dd className="chips">
-              <DatePick value={task.deadline ?? ""} onChange={(v) => set((x) => (x.deadline = v || null))} label="Deadline" placeholder="Deadline yok" />
+              <DatePick value={task.deadline ?? ""} onChange={(v) => set((x) => (x.deadline = v || null))} label="Deadline" placeholder="No deadline" />
             </dd>
           </div>
           </div>
           <div className="dgroup">
           {!isNew && (
           <div>
-            <dt><CircleDot size={15} />Durum</dt>
+            <dt><CircleDot size={15} />Status</dt>
             <dd className="chips stchips">
               {(["todo", "doing", "waiting", "done"] as const).map((st) => (
                 <button key={st} className={`${task.status === st ? "on" : ""} st-${st}`} onClick={() => {
@@ -290,41 +291,41 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
             <AutoInfoRow task={task} ctx={real} onGo={() => (commit(), onClose())} />
           ) : (
             <div>
-              <dt><Repeat size={15} />Tekrar</dt>
-              <dd><button className="slotadd" onClick={() => (commit(), openAutoForm({ fromTask: task.id }), onClose())}>+ Düzenli tekrarlansın</button></dd>
+              <dt><Repeat size={15} />Repeat</dt>
+              <dd><button className="slotadd" onClick={() => (commit(), openAutoForm({ fromTask: task.id }), onClose())}>+ Repeat regularly</button></dd>
             </div>
           )}
           </div>
         </dl></section>}
 
 
-        {!(shared && !task.checklist.length) && <Section title="Alt görevler" meta={task.checklist.length ? `${task.checklist.filter((c) => c.done).length}/${task.checklist.length}` : ""}>
+        {!(shared && !task.checklist.length) && <Section title="Subtasks" meta={task.checklist.length ? `${task.checklist.filter((c) => c.done).length}/${task.checklist.length}` : ""}>
           <ul className="checks">
             {task.checklist.map((c) => (
               <li key={c.id} className={c.done ? "done" : ""}>
                 <button className="box" onClick={() => set((x) => { const y = x.checklist.find((z) => z.id === c.id); if (y) y.done = !y.done; })}>{c.done && <Check2 size={11} strokeWidth={3} />}</button>
                 <input defaultValue={c.text} onBlur={(e) => set((x) => { const y = x.checklist.find((z) => z.id === c.id); if (y) y.text = e.target.value; })} />
-                <button className="rm" onClick={() => set((x) => void (x.checklist = x.checklist.filter((z) => z.id !== c.id)))} aria-label="Sil"><X size={14} /></button>
+                <button className="rm" onClick={() => set((x) => void (x.checklist = x.checklist.filter((z) => z.id !== c.id)))} aria-label="Delete subtask"><X size={14} /></button>
               </li>
             ))}
           </ul>
           <form className="checkadd" onSubmit={(e) => { e.preventDefault(); if (!check.trim()) return; set((x) => void x.checklist.push({ id: uid(), text: check.trim(), done: false })); setCheck(""); }}>
             <Plus size={15} aria-hidden />
-            <input value={check} onChange={(e) => setCheck(e.target.value)} placeholder="Alt görev ekle" aria-label="Alt görev ekle" />
+            <input value={check} onChange={(e) => setCheck(e.target.value)} placeholder="Add a subtask" aria-label="Add a subtask" />
           </form>
         </Section>}
 
-        {!isNew && <Section title={`Odak kayıtları${sessions.length ? ` (${sessions.length})` : ""}`} meta={sec ? spent(sec) : ""} fold>
+        {!isNew && <Section title={`Focus sessions${sessions.length ? ` (${sessions.length})` : ""}`} meta={sec ? spent(sec) : ""} fold>
           <ul className="lines">
             {sessions.map((x) => {
               const a = new Date(x.start), b = new Date(x.end);
               const f = (d: Date) => d.toTimeString().slice(0, 5);
               return (
                 <li key={x.id}>
-                  <span>{dayLong(iso(a)) === dayLong(today()) ? "bugün" : ago(x.start)}</span>
+                  <span>{dayLong(iso(a)) === dayLong(today()) ? "today" : ago(x.start)}</span>
                   <b>{f(a)}–{f(b)}</b>
-                  <em>{x.mode === "pomo" ? "pomodoro" : x.mode === "manual" ? "elle" : spent((b.getTime() - a.getTime()) / 1000)}</em>
-                  <button className="rm" onClick={() => ctx.mutate((st) => void (st.sessions = st.sessions.filter((y) => y.id !== x.id)))} aria-label="Sil"><X size={14} /></button>
+                  <em>{x.mode === "pomo" ? "pomodoro" : x.mode === "manual" ? "by hand" : spent((b.getTime() - a.getTime()) / 1000)}</em>
+                  <button className="rm" onClick={() => ctx.mutate((st) => void (st.sessions = st.sessions.filter((y) => y.id !== x.id)))} aria-label="Delete session"><X size={14} /></button>
                 </li>
               );
             })}
@@ -340,29 +341,29 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
                 setManual(null);
               }}
             >
-              <DatePick value={manual.day} onChange={(v) => v && setManual({ ...manual, day: v })} label="Gün" clearable={false} />
-              <TimeField value={manual.a} onChange={(v) => setManual((x) => x && { ...x, a: v })} label="Başlangıç" />
+              <DatePick value={manual.day} onChange={(v) => v && setManual({ ...manual, day: v })} label="Day" clearable={false} />
+              <TimeField value={manual.a} onChange={(v) => setManual((x) => x && { ...x, a: v })} label="Start" />
               <span>–</span>
-              <TimeField value={manual.b} onChange={(v) => setManual((x) => x && { ...x, b: v })} label="Bitiş" />
-              <button className="btn sm primary">Ekle</button>
+              <TimeField value={manual.b} onChange={(v) => setManual((x) => x && { ...x, b: v })} label="End" />
+              <button className="btn sm primary">Add</button>
             </form>
           ) : (
-            <button className="linkbtn" onClick={() => setManual({ day: t, a: "09:00", b: "10:00" })}>+ Süreyi elle ekle</button>
+            <button className="linkbtn" onClick={() => setManual({ day: t, a: "09:00", b: "10:00" })}>+ Add time by hand</button>
           )}
         </Section>}
 
 
         {ask && (
-          <div className="delconfirm" role="alertdialog" aria-label="Görevi sil" ref={(el) => el?.scrollIntoView({ block: "center", behavior: "smooth" })}>
-            <b>“{task.title}” tamamen silinsin mi?</b>
+          <div className="delconfirm" role="alertdialog" aria-label="Delete task" ref={(el) => el?.scrollIntoView({ block: "center", behavior: "smooth" })}>
+            <b>Delete “{task.title}” completely?</b>
             <ul>
-              <li>Görev listeden{blocks.length ? ` ve takvimden (${blocks.length} saat)` : ""} kalkar</li>
-              {sessions.length > 0 && <li>{sessions.length} odak kaydı silinir</li>}
-              {s.runs.some((x) => x.taskId === task.id) && <li>{s.runs.filter((x) => x.taskId === task.id).length} çıktı silinir</li>}
+              <li>The task leaves the list{blocks.length ? ` and the calendar (${blocks.length} ${blocks.length === 1 ? "time" : "times"})` : ""}</li>
+              {sessions.length > 0 && <li>{sessions.length} focus {sessions.length === 1 ? "session is" : "sessions are"} deleted</li>}
+              {s.runs.some((x) => x.taskId === task.id) && <li>{s.runs.filter((x) => x.taskId === task.id).length} {s.runs.filter((x) => x.taskId === task.id).length === 1 ? "output is" : "outputs are"} deleted</li>}
             </ul>
-            <p>Sadece takvimden kaldırmak istiyorsan yukarıdaki saatin yanındaki ✕'e bas.</p>
+            <p>To only take it off the calendar, press the ✕ next to its time above.</p>
             <div className="bmbtns">
-              <button className="btn sm ghost" onClick={() => setAsk(false)}>Vazgeç</button>
+              <button className="btn sm ghost" onClick={() => setAsk(false)}>Cancel</button>
               <button className="btn sm dangerfill" onClick={() => {
               // İşle birlikte saatleri, odak kayıtları ve çıktıları gider; bildirimden geri alınabilir.
               const recs = { tasks: [task], blocks: s.blocks.filter((x) => x.taskId === task.id), sessions: s.sessions.filter((x) => x.taskId === task.id), runs: s.runs.filter((x) => x.taskId === task.id) };
@@ -373,20 +374,20 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
                 st.sessions = st.sessions.filter((x) => x.taskId !== task.id);
                 st.runs = st.runs.filter((x) => x.taskId !== task.id);
                 if (st.timer?.taskId === task.id) st.timer = null;
-              }, `“${task.title}” silindi`);
+              }, `“${task.title}” deleted`);
               onClose();
-            }}>Evet, sil</button>
+            }}>Yes, delete</button>
             </div>
           </div>
         )}
         {!isNew && (
           <footer className="dfoot">
-            <span className="muted">{task.by === "claude" ? "Rou ekledi" : "Sen ekledin"} · {ago(task.createdAt)}</span>
+            <span className="muted">{task.by === "claude" ? "Added by Rou" : "Added by you"} · {ago(task.createdAt)}</span>
             <button className="dsdel dsask" onClick={() => askRouAbout({ taskId: task.id, runId: runOfTask(s.runs, task.id)?.id })}>
-              <MessageCircle size={14} />Rou'ya sor
+              <MessageCircle size={14} />Ask Rou
             </button>
             <button className="dsdel" onClick={() => setAsk(true)}>
-              <Trash2 size={14} />Görevi sil
+              <Trash2 size={14} />Delete task
             </button>
             {/* Değişiklik yoksa kaydet düğmesi yok; yalnız Rou'yu başlatmak gibi gerçek bir iş varsa düğme kalır. */}
             {busyLabel && !changed ? (
@@ -400,7 +401,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
         )}
         {isNew && (
           <footer className="dfoot">
-            <button className="btn sm ghost dnewno" onClick={() => { ops.current = []; discard(); }}>Vazgeç</button>
+            <button className="btn sm ghost dnewno" onClick={() => { ops.current = []; discard(); }}>Cancel</button>
             <button className="btn sm primary dsave" onClick={save}><Check2 size={14} />{saveLabel}</button>
           </footer>
         )}
@@ -408,11 +409,11 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
       {leave && (
         <div className="leavescrim" onMouseDown={() => setLeave(false)}>
           <div className="leavebox" role="alertdialog" aria-modal="true" aria-labelledby="leave-t" onMouseDown={(e) => e.stopPropagation()}>
-            <b id="leave-t">Kaydedilmemiş değişiklikler var</b>
-            <p>{isNew ? "Kapatırsan görev eklenmez." : "Kapatırsan bu değişiklikler kaybolur."}</p>
+            <b id="leave-t">You have unsaved changes</b>
+            <p>{isNew ? "If you close now, the task is not added." : "If you close now, these changes are lost."}</p>
             <div>
-              <button className="btn sm ghost" onClick={() => { ops.current = []; setLeave(false); if (isNew) discard(); else onClose(); }}>Yine de kapat</button>
-              <button className="btn sm primary" autoFocus onClick={save}>{isNew ? "Ekle" : "Değişiklikleri kaydet"}</button>
+              <button className="btn sm ghost" onClick={() => { ops.current = []; setLeave(false); if (isNew) discard(); else onClose(); }}>Close anyway</button>
+              <button className="btn sm primary" autoFocus onClick={save}>{isNew ? "Add" : "Save changes"}</button>
             </div>
           </div>
         </div>
@@ -430,9 +431,9 @@ function SharedBar({ task, run, ctx, onClose }: { task: Task; run: Run; ctx: Ctx
   const when = at ? `${relDay(iso(at))} ${hm(localTs(at))}` : "";
   const first = (run.body ?? "").split("\n").find((x: string) => x.trim())?.slice(0, 220) ?? "";
   const similar = () => {
-    const brief = `Paylaşılan şu gönderiye benzer yeni bir gönderi: "${first}". Aynı ton ve biçim; aynı konuyu ve aynı açılışı tekrar etme.`;
+    const brief = `A new post similar to this shared one: "${first}". Same tone and format; do not repeat the same topic or the same opening.`;
     const fmt = run.post?.format ?? ref?.format;
-    const t = newTask(task.worldId, `${task.title} · yeni gönderi`, {
+    const t = newTask(task.worldId, `${task.title} · new post`, {
       projectId: task.projectId, who: "claude", day: today(), notes: brief,
       ...(acc && fmt ? { post: { accountId: acc.id, format: fmt, brief } } : {}),
     });
@@ -442,11 +443,11 @@ function SharedBar({ task, run, ctx, onClose }: { task: Task; run: Run; ctx: Ctx
   };
   return (
     <div className="dshared">
-      <p className="dshst"><Check2 size={14} strokeWidth={2.6} />Paylaşıldı{acc ? <> · <b>{acc.name || acc.handle}</b></> : null}{when ? ` · ${when}` : ""}</p>
+      <p className="dshst"><Check2 size={14} strokeWidth={2.6} />Shared{acc ? <> · <b>{acc.name || acc.handle}</b></> : null}{when ? ` · ${when}` : ""}</p>
       <div className="dshacts">
-        {run.postUrl && <a className="btn sm primary" href={run.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(run, e)}>Gönderiyi aç<ArrowUpRight size={13} /></a>}
-        <button className="btn sm" onClick={similar}><Copy size={13} />Benzerini oluştur</button>
-        <button className="btn sm ghost" onClick={() => askRouAbout({ taskId: task.id, runId: run.id })}><MessageCircle size={13} />Rou'ya sor</button>
+        {run.postUrl && <a className="btn sm primary" href={run.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(run, e)}>Open post<ArrowUpRight size={13} /></a>}
+        <button className="btn sm" onClick={similar}><Copy size={13} />Make a similar one</button>
+        <button className="btn sm ghost" onClick={() => askRouAbout({ taskId: task.id, runId: run.id })}><MessageCircle size={13} />Ask Rou</button>
       </div>
     </div>
   );
@@ -476,9 +477,9 @@ function ProjectPick({ task, ctx }: { task: Task; ctx: Ctx }) {
   const p = projectOf(s, task.projectId);
   // Paylaşılmış gönderinin ya da bir otomasyonun işinin yeri değişmez: yalnız gösterilir (otomasyonun projesi otomasyonda ayarlanır).
   const locked = !!task.autoId || s.runs.some((r) => r.taskId === task.id && r.status === "posted");
-  if (locked) return <span className="ppick is-locked" style={{ ["--w" as string]: w.color }} title={task.autoId ? "Otomasyonun işi; projesi otomasyonda" : "Paylaşıldı"}><i />{w.name}<span className="sep">›</span><b>{p ? p.name : "Projesiz"}</b></span>;
+  if (locked) return <span className="ppick is-locked" style={{ ["--w" as string]: w.color }} title={task.autoId ? "An automation's task; its project is set on the automation" : "Shared"}><i />{w.name}<span className="sep">›</span><b>{p ? p.name : "No project"}</b></span>;
   return (
-    <Select className="ppick" style={{ ["--w" as string]: w.color }} title="Projeyi değiştir" label="Proje"
+    <Select className="ppick" style={{ ["--w" as string]: w.color }} title="Change project" label="Project"
       value={task.projectId ?? `none:${task.worldId}`}
       groups={projectGroups(s, task.projectId)}
       onChange={(v) => {
@@ -490,32 +491,32 @@ function ProjectPick({ task, ctx }: { task: Task; ctx: Ctx }) {
           st.blocks.forEach((b) => b.taskId === x.id && (b.worldId = x.worldId));
         });
       }}>
-      <i />{w.name}<span className="sep">›</span><b>{p ? p.name : "Projesiz"}</b>
+      <i />{w.name}<span className="sep">›</span><b>{p ? p.name : "No project"}</b>
     </Select>
   );
 }
 
 // Atanan iş ne zaman başlar (server/schedule.mjs ile aynı kural: günü gelince 07:00'de, takvimde saati varsa 1 saat önce).
 function startText(s: Ctx["state"], task: Task) {
-  if (kickOffWhat(s, task)) return "Kaydedince hemen başlar.";
+  if (kickOffWhat(s, task)) return "Starts as soon as you save.";
   if (s.runs.some((r) => r.taskId === task.id)) return "";
-  if (!task.day) return `Gün seçince o gün kendiliğinden başlar.`;
+  if (!task.day) return `Pick a day and it starts on its own that day.`;
   const t = today();
-  if (task.day > t) return `${relDay(task.day)} kendiliğinden başlar.`;
-  if (task.day < t) return "Birazdan başlar.";
+  if (task.day > t) return `Starts on its own ${relDay(task.day)}.`;
+  if (task.day < t) return "Starts shortly.";
   const blk = blocksOf(s, task.id).filter((b) => b.start.slice(0, 10) === t).map((b) => b.start.slice(11, 16)).sort()[0];
   const [h, m] = (blk ?? "08:00").split(":").map(Number);
   const at = blk ? `${String(Math.max(0, h - 1)).padStart(2, "0")}:${String(m).padStart(2, "0")}` : "07:00";
   const n = new Date();
-  return at <= `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}` ? "Birazdan başlar." : `Bugün ${at}'de kendiliğinden başlar.`;
+  return at <= `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}` ? "Starts shortly." : `Starts on its own today at ${at}.`;
 }
 
 // Kim yapacak. Otomasyon işinde adımlar otomasyondan gelir (değiştirilmez); tek işte Sen ya da Rou seçilir.
-const STEP_NAME: Record<string, string> = { write: "Hazırlık", voice: "Ses kaydı", video: "Video", approve: "Onay", publish: "Paylaşım" };
-const WHO_HINT: Record<string, string> = { me: "Sen yaparsın.", claude: "Rou yazar, görsel ve video üretir, araştırır; tarayıcıda sayfa ve form görevlerini de yapar." };
+const STEP_NAME: Record<string, string> = { write: "Prepare", voice: "Voice", video: "Video", approve: "Approval", publish: "Share" };
+const WHO_HINT: Record<string, string> = { me: "You do it.", claude: "Rou writes, makes images and videos, researches, and does page and form tasks in the browser." };
 const BRIEF_HINT: Record<string, string> = {
-  me: "Ayrıntı, link, not",
-  claude: "Rou'ya ne yapacağını anlat: amaç, kullanacağı bilgi ve istediğin sonuç. Tarayıcıda yapılacaksa bunu da yaz.",
+  me: "Details, links, notes",
+  claude: "Tell Rou what to do: the goal, the info to use and the result you want. Say so if it happens in the browser.",
 };
 function WhoRow({ task, ctx, play }: { task: Task; ctx: Ctx; play?: React.ReactNode }) {
   const s = ctx.state;
@@ -524,14 +525,14 @@ function WhoRow({ task, ctx, play }: { task: Task; ctx: Ctx; play?: React.ReactN
     const st = stagesOf(s, a, task, runOfTask(s.runs, task.id));
     return (
       <div>
-        <dt><UserRound size={15} />Kim</dt>
+        <dt><UserRound size={15} />Who</dt>
         <dd className="whosteps">
           {st.steps.map((x) => x.key === "publish" && !st.finished ? (
             // Paylaşan bu gönderi için değiştirilebilir (otomasyonun varsayılanını ezer).
             <span key={x.key} className={`whostep is-pick ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key]}
               {(["claude", "me"] as const).map((k) => <button key={k} className={x.who === BOT[k] ? "on" : ""} aria-pressed={x.who === BOT[k]} onClick={() => ctx.mutate((stt) => { const y = stt.tasks.find((z) => z.id === task.id); if (y) { if (k === (a.sharer ?? "claude")) delete y.sharer; else y.sharer = k; } })}>{BOT[k]}</button>)}
             </span>
-          ) : <span key={x.key} className={`whostep ${x.who === "Sen" ? "is-you" : ""} ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key] ?? x.key}<b>{x.who}</b></span>)}
+          ) : <span key={x.key} className={`whostep ${x.who === "Sen" ? "is-you" : ""} ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key] ?? x.key}<b>{whoName(x.who)}</b></span>)}
         </dd>
       </div>
     );
@@ -540,9 +541,9 @@ function WhoRow({ task, ctx, play }: { task: Task; ctx: Ctx; play?: React.ReactN
   const who = task.who ?? "me";
   return (
     <div>
-      <dt><UserRound size={15} />Kim</dt>
+      <dt><UserRound size={15} />Who</dt>
       <dd className="whodd">
-        <div className="seg whoseg" role="radiogroup" aria-label="Kim yapacak">
+        <div className="seg whoseg" role="radiogroup" aria-label="Who does it">
           {(["me", "claude"] as const).map((k) => (
             <button key={k} role="radio" aria-checked={who === k} className={who === k ? "on" : ""} onClick={() => ctx.mutate((st) => { const x = st.tasks.find((y) => y.id === task.id); if (x) { if (k === "me") delete x.who; else x.who = k; } })}>{BOT[k]}</button>
           ))}

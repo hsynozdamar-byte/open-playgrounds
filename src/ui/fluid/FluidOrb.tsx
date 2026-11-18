@@ -147,7 +147,7 @@ export function AgentOrb({ state = "idle", size = 64, colors = AGENT_COLORS, eye
     return { ...p, ...s, speed: (s.speed ?? p.speed) * (tweaks.speed ?? 1) };
   };
   return (
-    <FluidCanvas size={size} params={base} frame={frame} className={`fluid-agent is-${state}`} label="Asistan">
+    <FluidCanvas size={size} params={base} frame={frame} className={`fluid-agent is-${state}`} label="Assistant">
       {eyes && <span className="fluid-eyes" style={{ ["--s" as string]: typeof size === "number" ? `${size}px` : size }}><i /><i /></span>}
     </FluidCanvas>
   );

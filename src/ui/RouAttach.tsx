@@ -7,8 +7,8 @@ export type Pending = Att & { key: string; up?: boolean; preview?: string };
 
 export async function uploadFile(f: Blob, name: string): Promise<Att | { error: string }> {
   const r = await fetch(`/api/upload?name=${encodeURIComponent(name)}&type=${encodeURIComponent(f.type)}`, { method: "POST", body: f })
-    .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
-  return r.ok ? { file: r.file, name, kind: r.kind } : { error: r.error ?? "Yüklenemedi" };
+    .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
+  return r.ok ? { file: r.file, name, kind: r.kind } : { error: r.error ?? "Couldn't upload" };
 }
 
 const ICON = { video: Video, audio: Music, file: FileText } as const;
@@ -24,7 +24,7 @@ export function AttChips({ list, onRemove }: { list: Pending[]; onRemove: (key: 
           <li key={a.key} className={a.up ? "is-up" : ""}>
             {a.kind === "image" && a.preview ? <img src={a.preview} alt="" /> : I && <I size={15} />}
             <span>{a.name}</span>
-            {a.up ? <Loader2 size={13} className="spin" /> : <button type="button" onClick={() => onRemove(a.key)} aria-label={`${a.name} kaldır`}><X size={13} /></button>}
+            {a.up ? <Loader2 size={13} className="spin" /> : <button type="button" onClick={() => onRemove(a.key)} aria-label={`Remove ${a.name}`}><X size={13} /></button>}
           </li>
         );
       })}
@@ -62,9 +62,9 @@ export function useVoice(onText: (t: string) => void, onError: (e: string) => vo
   useEffect(() => () => rec.current?.stream.getTracks().forEach((t) => t.stop()), []);
 
   const start = async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return onError("Bu pencerede ses kaydı yok");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return onError("Voice recording isn't available in this window");
     let stream: MediaStream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return onError("Mikrofon izni verilmedi"); }
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return onError("Microphone access was denied"); }
     const r = new MediaRecorder(stream);
     const chunks: Blob[] = [];
     r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
@@ -74,13 +74,13 @@ export function useVoice(onText: (t: string) => void, onError: (e: string) => vo
       setState("busy");
       const type = r.mimeType || "audio/webm";
       const blob = new Blob(chunks, { type });
-      const up = await uploadFile(blob, `ses.${type.includes("mp4") ? "m4a" : "webm"}`);
+      const up = await uploadFile(blob, `voice.${type.includes("mp4") ? "m4a" : "webm"}`);
       if ("error" in up) { setState("idle"); return onError(up.error); }
       const t = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file: up.file }) })
-        .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+        .then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
       setState("idle");
-      if (!t.ok) return onError(t.error ?? "Yazıya dökülemedi");
-      if (!t.text?.trim()) return onError("Bir şey duyamadım");
+      if (!t.ok) return onError(t.error ?? "Couldn't transcribe");
+      if (!t.text?.trim()) return onError("I didn't hear anything");
       onText(t.text.trim());
     };
     rec.current = r;

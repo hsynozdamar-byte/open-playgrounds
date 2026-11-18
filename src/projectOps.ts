@@ -38,15 +38,17 @@ export function restoreProject(s: State, snap: ReturnType<typeof takeProject>) {
   s.runs.push(...snap.runs);
 }
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 export function projectStats(s: State, id: string) {
   const p = takeProject(s, id);
   const parts = [
-    p.tasks.length && `${p.tasks.length} görev`,
-    p.automations.length && `${p.automations.length} otomasyon`,
-    p.runs.length && `${p.runs.length} çıktı`,
-    p.sessions.length && `${p.sessions.length} odak kaydı`,
+    p.tasks.length && plural(p.tasks.length, "task", "tasks"),
+    p.automations.length && plural(p.automations.length, "automation", "automations"),
+    p.runs.length && plural(p.runs.length, "output", "outputs"),
+    p.sessions.length && plural(p.sessions.length, "focus session", "focus sessions"),
   ].filter(Boolean);
-  return parts.length ? `İçindekiler de silinir: ${parts.join(", ")}. Hemen ardından geri alabilirsin.` : "İçinde hiçbir şey yok.";
+  return parts.length ? `Everything inside goes too: ${parts.join(", ")}. You can undo right after.` : "There is nothing inside.";
 }
 
 // Projeyi başka dünyaya taşır: işleri, takvim blokları ve otomasyonları da onunla gider.

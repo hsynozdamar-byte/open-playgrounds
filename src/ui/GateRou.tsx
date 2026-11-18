@@ -17,9 +17,7 @@ const TRAIL = 0.42;      // iz uzunluğu, sn
 const ZS = 0.45;         // derinlik ölçeği: z=-1 → 0.55, z=1 → 1.45
 const ZMAX = 1.45;
 const EN = (() => { try { return new URLSearchParams(location.search).get("gate") === "en"; } catch { return false; } })();   // ?gate=en tanıtım kaydı (Gate.tsx)
-const THOUGHTS = EN
-  ? ["Hmm…", "What should we focus on today?", "Any free time on the calendar?", "A coffee would be nice.", "Notes piling up?", "Shall we finish that project?"]
-  : ["Hmm…", "Bugün neye odaklansak?", "Takvimde boşluk var mı?", "Bir kahve iyi giderdi.", "Defterde not birikmiş mi?", "Şu projeyi bitirsek mi?"];
+const THOUGHTS = ["Hmm…", "What should we focus on today?", "Any free time on the calendar?", "A coffee would be nice.", "Notes piling up?", "Shall we finish that project?"];
 
 const RGB = PLAYGROUNDS_COLORS.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
 const palAt = (x: number) => { const n = RGB.length, y = ((x % n) + n) % n, i = Math.floor(y), f = y - i, a = RGB[i], b = RGB[(i + 1) % n];
@@ -140,7 +138,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
       },
     };
     const wave = (at: V) => {
-      hold(2.6, at, (u) => ({ mood: "happy", wave: Math.min(1, u * 8, (1 - u) * 8), bubble: { kind: "say", text: EN ? "Hi there!" : name ? `Selam ${name}!` : "Selam!" }, gaze: null }));
+      hold(2.6, at, (u) => ({ mood: "happy", wave: Math.min(1, u * 8, (1 - u) * 8), bubble: { kind: "say", text: !EN && name ? `Hi ${name}!` : "Hi there!" }, gaze: null }));
       lastGreet = tEnd;
     };
     Object.assign(ACTS, {
