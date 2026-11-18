@@ -6,3 +6,4 @@ render/.cache
 
 # geçici betikler (Claude oturumları)
 scripts/.tmp-*
+dist-electron

@@ -105,6 +105,26 @@ Environment variables override the setting:
 
 Everything Rou answers from (your tasks, notes, sources) is sent to the provider of the command you chose.
 
+## Desktop app
+
+The desktop app (Electron) shows Playgrounds in its own window, starts its own server on Electron's built-in Node (no separate Node install needed to run it), and adds a per-world browser page where Rou can work in your logged-in tabs.
+
+Build an installer on your own machine:
+
+```bash
+npm run dist:mac   # dist-electron/Playgrounds-<version>-<arch>.dmg
+npm run dist:win   # dist-electron/Playgrounds-Setup-<version>.exe (NSIS, Desktop and Start Menu shortcut)
+```
+
+- **macOS**: open the dmg and drag Playgrounds to Applications. Without a signing identity the app is ad-hoc signed, so the first launch needs right-click › Open (or `xattr -dr com.apple.quarantine /Applications/Playgrounds.app`). Set `CSC_NAME` (or `CSC_LINK`) to sign with your own Developer ID.
+- **Windows**: run the setup exe; it installs per user and adds the shortcuts. The installer is unsigned, so SmartScreen asks once. The Windows installer can be built on a Mac.
+- Data lives in the per-user app folder: `~/Library/Application Support/Playgrounds/data` on macOS, `%APPDATA%\Playgrounds\data` on Windows (`PG_DATA` overrides it). The log is `~/Library/Logs/Playgrounds/Playgrounds.log` or `%APPDATA%\Playgrounds\logs`.
+- The app uses port 5340 when it is free. If another server already runs there it uses it only when it is the same install (or the same data folder); otherwise it picks a free port and remembers it.
+- Start at login stays off until you turn it on in the app menu.
+- What the app runs still has to be on your PATH: your LLM CLI, `ffmpeg`/`ffprobe` for media, optionally `whisper-cli` for voice. Video and image rendering (`render/`) needs `npm install` in a checkout and is not part of the installer.
+
+From a checkout, `npm run desktop` opens the same app on the repo (it builds `dist/` when the sources are newer and uses `data/`). `browser/build.sh` (macOS) installs a bundle that runs the checkout directly, for working on the app itself.
+
 ## Develop
 
 ```bash

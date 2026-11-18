@@ -1,30 +1,46 @@
-// Playground Browser: Playgrounds'un kendi tarayıcısı (Electron = Chromium). İki kabukla çalışır:
-// - Playground Browser.app: kendi arayüzü (ui/), dünyalar solda, bölmeler sağda.
-// - Playgrounds.app (PG_SHELL=app, browser/build.sh app): pencerede Playgrounds'un kendisi (localhost:5340); Tarayıcı sayfası
-//   sekmelerin yerini bildirir, gerçek sekmeler oraya oturur. Sunucuyu başlatır, Mac işlerini (giriş öğesi, mikrofon, dış bağlantılar) yapar.
+// Playgrounds masaüstü uygulaması (Electron = Chromium). İki kabukla çalışır:
+// - Varsayılan (PG_SHELL=app ya da boş): pencerede Playgrounds'un kendisi; Tarayıcı sayfası sekmelerin yerini bildirir, gerçek
+//   sekmeler oraya oturur. Sunucuyu Electron'un kendi Node'uyla başlatır (ELECTRON_RUN_AS_NODE), giriş öğesi, mikrofon, dış bağlantılar.
+//   Paketli kurulumda (electron-builder, build/dist.mjs) kod uygulamanın içindedir, veri kullanıcı klasöründe (userData/data).
+//   Depodan (`npm run desktop`, browser/build.sh) çalışınca depo kullanılır: kaynak yeniyse önce derlenir, veri depodaki data/.
+// - PG_SHELL=browser: ayrı tarayıcı arayüzü (ui/), dünyalar solda, bölmeler sağda.
 // İkisi aynı veriyi (oturumlar, sekmeler) kullanır; aynı anda yalnız biri açık olabilir. Her dünya ayrı bir oturum bölmesi (persist:pg-<dünya>),
 // hepsi aynı anda açık; pencerede bir ya da birkaç dünya yan yana gösterilir. Rou DevTools portundan (127.0.0.1:9333).
 // Denetim: 127.0.0.1:9334 (yalnız bu Mac; tarayıcı sayfaları gönderemesin diye "x-pg" başlığı şart). Playgrounds sunucusu (server/pb.mjs)
 // ve `pg pb` bunu kullanır: profili öne getir, sekme aç, Rou etiketi, sekme görüntüsü, oturumlar.
 import { app, BaseWindow, BrowserWindow, WebContentsView, Menu, ipcMain, session, clipboard, shell, nativeTheme, systemPreferences, Notification, dialog } from "electron";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import crypto from "node:crypto";
 import http from "node:http";
+import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { SITES, loginsFromCookies } from "../shared/pb.mjs";
 
-const SHELL = process.env.PG_SHELL === "app";
+const SHELL = process.env.PG_SHELL !== "browser";
 const NAME = SHELL ? "Playgrounds" : "Playground Browser";
-const CDP_PORT = Number(process.env.PB_PORT || 9333);
+const MAC = process.platform === "darwin";
+// DevTools portu (Rou'nun tarayıcı araçları) Chromium açılmadan verilmeli; doluysa (başka bir Playgrounds açık) boş bir port seçilir,
+// yoksa Rou o uygulamanın sekmelerini sürerdi. Denetim API'si de aynı: tercih 9333/9334, doluysa boş port; sunucuya ortamla gider.
+function freePortSync(want) {
+  const js = `const s=require("net").createServer();s.once("error",()=>{const t=require("net").createServer();t.listen(0,"127.0.0.1",()=>{process.stdout.write(String(t.address().port));t.close();});});s.listen(${want},"127.0.0.1",()=>{process.stdout.write("${want}");s.close();});`;
+  try { return Number(execFileSync(process.execPath, ["-e", js], { env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", timeout: 5000, windowsHide: true })) || want; } catch { return want; }
+}
+const CDP_PORT = freePortSync(Number(process.env.PB_PORT || 9333));
 const API_PORT = Number(process.env.PB_API_PORT || 9334);
-const PG = process.env.PG_URL || "http://127.0.0.1:5340";
+let apiPort = API_PORT;
+// Playgrounds sunucusunun adresi; kabukta port açılışta seçilir (pickPort).
+let PG = process.env.PG_URL || "http://127.0.0.1:5340";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 
 app.setName(NAME);
-// Oturumlar ve sekmeler iki kabukta da aynı klasörde.
-app.setPath("userData", path.join(app.getPath("appData"), "Playground Browser"));
+// Windows bildirimleri ve görev çubuğu gruplaması için.
+if (process.platform === "win32") app.setAppUserModelId("app.playgrounds.desktop");
+// Oturumlar, sekmeler ve (paketli kurulumda) veri: ~/Library/Application Support/Playgrounds, %APPDATA%\Playgrounds.
+// PG_USER_DATA başka bir klasör verir (deneme, ekran görüntüsü).
+app.setPath("userData", process.env.PG_USER_DATA || path.join(app.getPath("appData"), "Playgrounds"));
 app.commandLine.appendSwitch("remote-debugging-port", String(CDP_PORT));
 app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
 // Siteler Electron'u değil Chrome'u görsün (bazı girişler gömülü tarayıcıyı reddediyor).
@@ -505,7 +521,7 @@ const QUIT_HTML = `<!doctype html><meta charset="utf-8"><style>html,body{margin:
 body{display:grid;place-items:center;font:600 13px/1 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 div{display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;background:rgb(23 21 29/.86);color:#fff;box-shadow:0 8px 24px -8px rgb(0 0 0/.35);animation:in .18s ease-out}
 kbd{font:inherit;padding:3px 7px;border-radius:6px;background:rgb(255 255 255/.16)}
-@keyframes in{from{opacity:0;transform:translateY(-6px)}}</style><div>Çıkmak için <kbd>⌘Q</kbd> tuşuna tekrar bas</div>`;
+@keyframes in{from{opacity:0;transform:translateY(-6px)}}</style><div>Çıkmak için <kbd>${MAC ? "⌘Q" : "Ctrl+Q"}</kbd> tuşuna tekrar bas</div>`;
 let quitAt = 0, quitView = null, quitT = null;
 function askQuit() {
   if (Date.now() - quitAt < 2000 || !win || win.isDestroyed()) return app.quit();
@@ -548,28 +564,89 @@ function menu() {
   ]));
 }
 
-// ---- Playgrounds kabuğu (PG_SHELL=app) ----
-// Eski Mac uygulamasının (mac/Playgrounds.swift) işleri: sunucu yoksa derleyip başlatır, son sayfa ve yakınlaştırma hatırlanır,
-// pencereyi kapatmak uygulamayı kapatmaz (hatırlatmalar sürer), dış bağlantılar varsayılan tarayıcıda, mikrofon yalnız Playgrounds'a.
+// ---- Playgrounds kabuğu ----
+// Eski Mac uygulamasının (mac/Playgrounds.swift) işleri: sunucu yoksa başlatır, son sayfa ve yakınlaştırma hatırlanır,
+// pencereyi kapatmak macOS'ta uygulamayı kapatmaz (hatırlatmalar sürer), dış bağlantılar varsayılan tarayıcıda, mikrofon yalnız Playgrounds'a.
 const ROOT = path.join(DIR, "..");
-const PG_PORT = Number(new URL(PG).port || 5340);
-const LOG = path.join(os.homedir(), "Library", "Logs", "Playgrounds.log");
+// Depodan mı çalışıyor (src/ var), yoksa paketli kopya mı (yalnız derlenmiş dist/, server/, shared/, scripts/).
+const DEV = fs.existsSync(path.join(ROOT, "src"));
+let PG_PORT = Number(new URL(PG).port || 5340);
+const LOG = () => path.join(app.getPath("logs"), "Playgrounds.log");
 const SHELL_FILE = () => path.join(app.getPath("userData"), "pg-shell.json");
+// Paketli kurulumda veri kullanıcı klasöründe; depodan çalışınca depodaki data/ (PG_DATA ikisinde de kazanır).
+const DATA = () => process.env.PG_DATA || (DEV ? "" : path.join(app.getPath("userData"), "data"));
 const isLocal = (u) => { try { const x = new URL(u); return ["localhost", "127.0.0.1"].includes(x.hostname) && Number(x.port) === PG_PORT; } catch { return false; } };
 let server = null, quitting = false, uiFocus = true;
-const splash = (text) => "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;font:500 15px -apple-system,system-ui;color:#8a919e;background:#f4f5f7"><style>@media (prefers-color-scheme: dark){body{background:#0a0b0e!important}}</style><div>${text}</div>`);
-const alive = () => fetch(`${PG}/api/backups`, { signal: AbortSignal.timeout(1500) }).then((r) => r.ok).catch(() => false);
-// Kaynak dist'ten yeniyse önce derler. Finder'dan açılınca PATH boş gelir; node ve claude yolları eklenir.
+const splash = (text) => "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><meta charset="utf-8"><body style="margin:0;height:100vh;display:grid;place-items:center;font:500 15px -apple-system,system-ui,sans-serif;color:#8a919e;background:#f4f5f7"><style>@media (prefers-color-scheme: dark){body{background:#0a0b0e!important}}</style><div>${text}</div>`);
+
+// Kimlik: bu kurulumun belirteci (userData/install.json) ve veri klasörünün özeti. Aynı porttaki sunucu yalnız kimliği
+// tutarsa kullanılır (sahibinin başka bir Playgrounds'u 5340'ta çalışıyor olabilir); tutmazsa boş bir port seçilir.
+const TOKEN = (() => {
+  const f = () => path.join(app.getPath("userData"), "install.json");
+  const j = readJson(f(), {});
+  if (j.token) return j.token;
+  const token = crypto.randomUUID();
+  try { fs.mkdirSync(path.dirname(f()), { recursive: true }); fs.writeFileSync(f(), JSON.stringify({ token })); } catch { /* bir sonraki açılışta yeniden */ }
+  return token;
+})();
+const dataTag = (dir) => crypto.createHash("sha256").update(path.resolve(dir)).digest("hex").slice(0, 16);
+const whoami = (port) => fetch(`http://127.0.0.1:${port}/api/whoami`, { signal: AbortSignal.timeout(1500) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+const portFree = (port) => new Promise((res) => { const t = net.createServer(); t.once("error", () => res(false)); t.listen(port, "127.0.0.1", () => t.close(() => res(true))); });
+const anyPort = () => new Promise((res) => { const t = net.createServer(); t.listen(0, "127.0.0.1", () => { const { port } = t.address(); t.close(() => res(port)); }); });
+const ours = (w) => w?.app === "playgrounds" && (w.token === TOKEN || w.data === dataTag(DATA() || path.join(ROOT, "data")));
+async function pickPort() {
+  const st = readJson(SHELL_FILE(), {});
+  // Sıra: PORT, geçen seferki port (sayfanın yerel depolaması porta bağlı), 5340.
+  for (const p of [...new Set([Number(process.env.PORT), st.port, 5340].filter((x) => x > 0))]) {
+    const w = await whoami(p);
+    if (ours(w)) return { port: p, running: true };
+    if (!w && (await portFree(p))) return { port: p, running: false };
+  }
+  return { port: await anyPort(), running: false };
+}
+const alive = () => whoami(PG_PORT).then(ours);
+
+// Finder'dan açılan uygulamanın PATH'i kısadır (/usr/bin:/bin...): claude, ffmpeg, whisper bulunamaz. Kullanıcının kabuğundan
+// PATH okunur ve bilinen klasörler eklenir. Windows'ta PATH olduğu gibi gelir.
+function userPath() {
+  const sep = path.delimiter;
+  const list = String(process.env.PATH || "").split(sep);
+  if (process.platform !== "win32") {
+    try {
+      const out = execFileSync(process.env.SHELL || "/bin/zsh", ["-ilc", 'printf "__PGPATH__%s" "$PATH"'], { encoding: "utf8", timeout: 4000, stdio: ["ignore", "pipe", "ignore"] });
+      list.unshift(...(out.split("__PGPATH__")[1] ?? "").trim().split(sep));
+    } catch { /* kabuk okunamadı: bilinen klasörler yeter */ }
+    list.push(path.join(os.homedir(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin");
+  }
+  return [...new Set(list.filter(Boolean))].join(sep);
+}
+// Depoda kaynak dist'ten yeniyse önce derlenir (paketli kurulumda dist hazır gelir).
+function stale() {
+  if (!DEV) return false;
+  let built = 0;
+  try { built = fs.statSync(path.join(ROOT, "dist", "index.html")).mtimeMs; } catch { return true; }
+  const newer = (p) => { let st; try { st = fs.statSync(p); } catch { return false; } return st.isDirectory() ? fs.readdirSync(p).some((f) => f !== "node_modules" && newer(path.join(p, f))) : st.mtimeMs > built; };
+  return ["src", "shared", "index.html", "public"].some((r) => newer(path.join(ROOT, r)));
+}
+// Sunucu Electron'un kendi Node'uyla çalışır (ayrı Node kurulumu gerekmez). Ortamı: veri klasörü, port, kabuğun portları, kimlik.
+function serverEnv() {
+  return {
+    ...process.env, ELECTRON_RUN_AS_NODE: "1", PATH: userPath(), PORT: String(PG_PORT), PG_SHELL: "app", PG_INSTALL_TOKEN: TOKEN,
+    PB_PORT: String(CDP_PORT), PB_API_PORT: String(apiPort), ...(DATA() ? { PG_DATA: DATA() } : {}), ...(DEV ? {} : { PG_PACKAGED: "1" }),
+  };
+}
 function launchServer() {
-  const script = `NVM_NODE=$(ls -d $HOME/.nvm/versions/node/*/bin 2>/dev/null | tail -1)
-export PATH="$HOME/.local/bin:$NVM_NODE:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-cd "${ROOT}" || exit 1
-echo "--- $(date) başlıyor (Playgrounds kabuğu)"
-if [ ! -f dist/index.html ] || [ -n "$(find src shared index.html public -newer dist/index.html -print -quit)" ]; then npx vite build || exit 1; fi
-exec node server/serve.mjs`;
-  const out = fs.openSync(LOG, "a");
-  server = spawn("/bin/zsh", ["-c", script], { stdio: ["ignore", out, out] });
-  server.on("exit", () => { server = null; });
+  fs.mkdirSync(path.dirname(LOG()), { recursive: true });
+  const out = fs.openSync(LOG(), "a");
+  fs.writeSync(out, `--- ${new Date().toISOString()} başlıyor (Playgrounds kabuğu, port ${PG_PORT}${DEV ? ", depo" : ""})\n`);
+  const env = serverEnv();
+  const serve = () => {
+    server = spawn(process.execPath, [path.join(ROOT, "server", "serve.mjs")], { cwd: ROOT, env, stdio: ["ignore", out, out], windowsHide: true });
+    server.on("exit", () => { server = null; });
+  };
+  if (!stale()) return serve();
+  server = spawn(process.execPath, [path.join(ROOT, "node_modules", "vite", "bin", "vite.js"), "build"], { cwd: ROOT, env, stdio: ["ignore", out, out], windowsHide: true });
+  server.on("exit", (code) => { server = null; if (code === 0 && !quitting) serve(); });
 }
 // Sunucu bir sebeple kapanırsa (çökme, elle durdurma) dakikada bir bakılır ve yeniden başlatılır; sayfa bağlantıyı kendisi tazeler.
 async function keepServer() {
@@ -578,18 +655,25 @@ async function keepServer() {
 }
 async function startPlaygrounds() {
   const st = readJson(SHELL_FILE(), {});
+  if (!process.env.PG_URL) {
+    const { port } = await pickPort();
+    PG_PORT = port;
+    PG = `http://127.0.0.1:${port}`;
+    fs.writeFileSync(SHELL_FILE(), JSON.stringify({ ...readJson(SHELL_FILE(), {}), port }));
+  }
   const go = () => {
     ui.webContents.setZoomFactor(st.zoom || 1);
     ui.webContents.loadURL(`${PG}/${st.route ? `#${st.route}` : ""}`);
   };
   if (await alive()) return go();
+  if (process.env.PG_URL) return ui.webContents.loadURL(splash(`Sunucu yanıt vermiyor: ${PG}`));
   launchServer();
-  for (let i = 0; i < 180; i++) {
+  for (let i = 0; i < 360; i++) {
     await new Promise((r) => setTimeout(r, 500));
     if (await alive()) return go();
-    if (!server) break;
+    if (!server && i > 4) break;
   }
-  ui.webContents.loadURL(splash("Sunucu başlamadı. Ayrıntı: ~/Library/Logs/Playgrounds.log"));
+  ui.webContents.loadURL(splash(`Sunucu başlamadı. Ayrıntı: ${LOG()}`));
 }
 function remember() {
   if (!ui || ui.webContents.isDestroyed()) return;
@@ -630,12 +714,14 @@ async function shellWindow() {
   wc.session.setPermissionCheckHandler((w, perm, origin) => isLocal(origin) && ["media", "notifications", "clipboard-read", "clipboard-sanitized-write"].includes(perm));
   wc.loadURL(splash("Açılıyor…"));
   win.show();
-  // Kapatınca gizlenir (Dock'tan geri gelir); ⌘Q ile kapanır.
-  win.on("close", (e) => { if (!quitting) { e.preventDefault(); remember(); win.hide(); } });
+  // macOS'ta kapatınca gizlenir (Dock'tan geri gelir); ⌘Q ile kapanır. Windows'ta Dock yok: kapatmak uygulamayı kapatır.
+  win.on("close", (e) => { if (!quitting && MAC) { e.preventDefault(); remember(); win.hide(); } });
+  if (!MAC) win.on("closed", () => app.quit());
   win.on("blur", remember);
-  app.on("before-quit", () => { quitting = true; remember(); server?.kill("SIGTERM"); });
+  // Kapanış takılmasın (SIGTERM ile, ya da bir pencere kapanmayı bekletirse): sunucu durdurulur, 3 sn sonra süreç zorla biter.
+  app.on("before-quit", () => { quitting = true; remember(); server?.kill("SIGTERM"); setTimeout(() => app.exit(0), 3000); });
   // Girişte başlatma kapalı gelir; menüden açılır.
-  if (systemPreferences.getMediaAccessStatus("microphone") === "not-determined") systemPreferences.askForMediaAccess("microphone").catch(() => {});
+  if (MAC && systemPreferences.getMediaAccessStatus("microphone") === "not-determined") systemPreferences.askForMediaAccess("microphone").catch(() => {});
   await startPlaygrounds();
 }
 // Tarayıcıda çalışılan sekme: odak bir sekmedeyse ⌘R/⌘W/⌘[ ona gider, değilse Playgrounds'a.
@@ -645,8 +731,9 @@ function shellMenu() {
   const zoom = (f) => { const wc = ui.webContents; wc.setZoomFactor(f(wc.getZoomFactor())); remember(); layout(); };
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: NAME, submenu: [
+      // Giriş öğesi yalnız kullanıcı açarsa (varsayılan kapalı).
       { label: "Girişte başlat", type: "checkbox", checked: app.getLoginItemSettings().openAtLogin, click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
-      { type: "separator" }, { role: "hide", label: "Playgrounds'u gizle" }, { role: "hideOthers", label: "Diğerlerini gizle" }, { type: "separator" },
+      { type: "separator" }, ...(MAC ? [{ role: "hide", label: "Playgrounds'u gizle" }, { role: "hideOthers", label: "Diğerlerini gizle" }, { type: "separator" }] : []),
       { label: "Playgrounds'tan çık", accelerator: "CmdOrCtrl+Q", click: askQuit },
     ] },
     { label: "Düzen", submenu: [{ role: "undo", label: "Geri al" }, { role: "redo", label: "Yinele" }, { type: "separator" }, { role: "cut", label: "Kes" }, { role: "copy", label: "Kopyala" }, { role: "paste", label: "Yapıştır" }, { role: "selectAll", label: "Tümünü seç" }] },
@@ -676,8 +763,9 @@ let browserOpen = false;
 app.whenReady().then(async () => {
   nativeTheme.themeSource = "system";
   // İndirilenler sorusuz İndirilenler klasörüne.
-  app.on("session-created", (s) => s.on("will-download", (_e, item) => item.setSavePath(path.join(os.homedir(), "Downloads", item.getFilename()))));
+  app.on("session-created", (s) => s.on("will-download", (_e, item) => item.setSavePath(path.join(app.getPath("downloads"), item.getFilename()))));
   const saved = readJson(STATE_FILE(), { shown: [], tabs: [] });
+  await listenApi();
   if (SHELL) await shellWindow();
   else {
     win = new BaseWindow({ width: 1440, height: 920, minWidth: 760, minHeight: 520, titleBarStyle: "hiddenInset", trafficLightPosition: { x: 18, y: 18 }, backgroundColor: "#f3f1f7", title: NAME, show: false });
@@ -696,8 +784,17 @@ app.whenReady().then(async () => {
   show(saved.shown?.length ? saved.shown : worlds.slice(0, 1).map((w) => w.id), saved.focus);
   setInterval(() => { loadWorlds(); checkUpdate(); sleepIdle(); if (SHELL) keepServer(); }, 60000);
   win.on("focus", checkUpdate); win.on("resize", placeUpdate);
-  http.createServer(api).listen(API_PORT, "127.0.0.1");
 });
+// Denetim API'si: tercih edilen port doluysa boş bir port (sunucu onu PB_API_PORT ile öğrenir).
+function listenApi() {
+  return new Promise((resolve) => {
+    const srv = http.createServer(api);
+    srv.once("error", () => { const alt = http.createServer(api); alt.listen(0, "127.0.0.1", () => { apiPort = alt.address().port; resolve(); }); });
+    srv.listen(API_PORT, "127.0.0.1", () => { apiPort = API_PORT; resolve(); });
+  });
+}
+// SIGTERM/SIGINT (kill <pid>, oturum kapanışı): normal çıkış yolu.
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { quitting = true; app.quit(); setTimeout(() => app.exit(0), 3000); });
 app.on("second-instance", () => { if (win) { win.show(); app.focus({ steal: true }); } });
 app.on("activate", () => win?.show());
 app.on("web-contents-created", (_e, wc) => { wc.on("will-attach-webview", (ev) => ev.preventDefault()); });

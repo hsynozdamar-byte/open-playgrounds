@@ -1,7 +1,7 @@
 #!/bin/zsh
-# Playgrounds.app: Electron kabuğu (Chromium). Pencerede Playgrounds'un kendisi, Tarayıcı sayfasında dünyaların gerçek sekmeleri.
-# Kod bu klasörde kalır: uygulama browser/main.mjs'i doğrudan çalıştırır, kod değişince yalnız uygulamayı yeniden başlatmak yeter.
-# İlk kurulum ya da Electron sürümü değişince: `browser/build.sh` (oturumlar ~/Library/Application Support/Playground Browser'da kalır).
+# Geliştirici kurulumu (yalnız macOS): Playgrounds.app depodaki browser/main.mjs'i doğrudan çalıştırır, kod değişince yalnız uygulamayı
+# yeniden başlatmak yeter; veri depodaki data/. Başkalarına dağıtılacak paket bu değil: `npm run dist:mac` / `npm run dist:win` (build/dist.mjs).
+# İlk kurulum ya da Electron sürümü değişince: `browser/build.sh` (oturumlar ~/Library/Application Support/Playgrounds'ta kalır).
 # Kurulum ${PG_APP_DIR:-~/Applications}/Playgrounds.app'e yazılır. PG_BUNDLE_ID kimliği, PG_SIGN_ID imza kimliğini (yoksa ad-hoc),
 # PG_DESKTOP_ALIAS=1 Masaüstüne Finder kısayolunu ekler.
 set -e

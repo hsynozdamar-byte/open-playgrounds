@@ -1,6 +1,7 @@
 // Tek doğruluk kaynağı: data/playground.json. Uygulama, CLI (pg) ve Claude aynı dosyayı okur/yazar.
 import { update as updateApp, version } from "./update.mjs";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { prepare, prepareMany, rerender, copyMedia, makeImage, cancel, setRunText, activeJobs } from "./prepare.mjs";
@@ -189,6 +190,10 @@ export function handle(req, res, next) {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
   };
+  // Kimlik: masaüstü uygulaması bir porttaki sunucuyu yalnız kendi kurulumunun (belirteç) ya da aynı veri klasörünün
+  // sunucusuysa kullanır (browser/main.mjs pickPort). Klasörün kendisi değil özeti gider.
+  if (url.pathname === "/api/whoami" && req.method === "GET")
+    return send(200, { app: "playgrounds", token: process.env.PG_INSTALL_TOKEN || null, data: createHash("sha256").update(path.resolve(DATA_DIR)).digest("hex").slice(0, 16) });
   if (url.pathname === "/api/state" && req.method === "GET") return send(200, read());
   if (url.pathname === "/api/library" && req.method === "GET")
     return void import("./library.mjs").then((L) => { const r = L.listAll(url.searchParams.get("p")); send(r.ok ? 200 : 404, r); }).catch((e) => send(500, { ok: false, error: String(e?.message ?? e).slice(0, 200) }));
