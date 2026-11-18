@@ -1,7 +1,7 @@
-// Otomasyonlar. Uygulama ve pg aynı kuralı kullanır.
-// Bir otomasyon (state.automations) seçili günlerde, her saati için o günün işini (Task: autoId + autoSlot) açar.
-// İş yalnız günü gelince açılır; ilerideki günler takvimde soluk "hayalet" olarak görünür.
-// horizon = işleri açılmış son gün; silinen iş aynı gün geri gelmez. Saatler/günler değişince horizon sıfırlanır.
+// Automations. The app and pg use the same rule.
+// On its days an automation (state.automations) opens that day's task for each of its times (Task: autoId + autoSlot).
+// A task opens only when its day comes; later days show as faint "ghosts" on the calendar.
+// horizon = the last day whose tasks were opened; a deleted task does not come back that day. Changing times/days resets horizon.
 
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -10,28 +10,28 @@ const rid = () => Math.random().toString(36).slice(2, 8);
 const ts = (day, min) => { const m = Math.max(0, Math.min(24 * 60 - 1, min)); return `${day}T${pad(Math.floor(m / 60))}:${pad(m % 60)}`; };
 const toMin = (hm) => { const [h, m] = hm.split(":").map(Number); return h * 60 + m; };
 
-export const KIND_LABEL = { text: "Metin", image: "Görsel", video: "Video", post: "Paylaşım", other: "Diğer" };
-export const TOOL_LABEL = { claude: "Rou", me: "Ben" };
-// Kayıtlı adım yoksa eski alanlardan çıkarılır: hazırlayanın metni.
+export const KIND_LABEL = { text: "Text", image: "Image", video: "Video", post: "Share", other: "Other" };
+export const TOOL_LABEL = { claude: "Rou", me: "Me" };
+// No saved steps: derived from the old fields, the preparer's text.
 export const stepsOf = (a) => a.steps?.length ? a.steps : [{ id: "s1", kind: "text", tool: a.who }];
 export const stepText = (st) => [KIND_LABEL[st.kind] ?? st.kind, TOOL_LABEL[st.tool] ?? st.tool, st.account].filter(Boolean).join(" · ");
-// Hazırlayan botun yapmadığı adımlar: her işte kontrol listesi.
+// Steps the preparing bot does not do: a checklist on every task.
 export const manualSteps = (a) => stepsOf(a).filter((st) => a.who === "me" || st.tool !== a.who);
 
-export const DAY_SHORT = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+export const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const repeatsOn = (a, day) => a.days.includes(weekday(day));
-// Saatsiz otomasyonun tek "yuvası" "" (gün içinde saati yok).
+// An automation without times has one "slot": "" (no time of day).
 export const slotsOf = (a) => (a.times?.length ? [...a.times].sort() : [""]);
 
 function daysText(a) {
   const k = [...a.days].sort().join();
-  if (k === "0,1,2,3,4,5,6") return "Her gün";
-  if (k === "1,2,3,4,5") return "Hafta içi";
-  if (k === "0,6") return "Hafta sonu";
+  if (k === "0,1,2,3,4,5,6") return "Every day";
+  if (k === "1,2,3,4,5") return "Weekdays";
+  if (k === "0,6") return "Weekends";
   return [1, 2, 3, 4, 5, 6, 0].filter((x) => a.days.includes(x)).map((x) => DAY_SHORT[x]).join(", ");
 }
-export const scheduleText = (a) => (a.every ? `${daysText(a)} · ${a.every.from}–${a.every.to} arası ${a.every.hours === 1 ? "saatte bir" : `${a.every.hours} saatte bir`}` : a.times?.length ? `${daysText(a)} · ${slotsOf(a).join(", ")}` : daysText(a));
-// Aralıklı otomasyonun saatleri: from'dan to'ya (dahil) her N saatte bir.
+export const scheduleText = (a) => (a.every ? `${daysText(a)} · ${a.every.from}–${a.every.to} ${a.every.hours === 1 ? "every hour" : `every ${a.every.hours} hours`}` : a.times?.length ? `${daysText(a)} · ${slotsOf(a).join(", ")}` : daysText(a));
+// Times of an interval automation: every N hours from `from` to `to` (inclusive).
 export function everyTimes(e) {
   const toM = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
   const out = [];
@@ -39,12 +39,12 @@ export function everyTimes(e) {
   return out;
 }
 
-// Otomasyonun bir gün ve saat için işi: başlık, proje, saat ve kim yapacağı otomasyondan gelir.
-// Otomasyonun ileri tarihli konuları bu anahtarla tutulur: "YYYY-MM-DD HH:MM" (saatsizse yalnız gün).
+// The automation's task for one day and time: title, project, time and who does it come from the automation.
+// Topics planned ahead are kept under this key: "YYYY-MM-DD HH:MM" (only the day when there is no time).
 export const topicKey = (day, slot) => (slot ? `${day} ${slot}` : day);
 
-// Sırayla biçimler (a.formats, ör. ig_reel, ig_post): otomasyonun ilk gününden bu yuvaya kadar kaçıncı çalışma olduğuna göre seçilir.
-// Sayım takvimden yapılır (silinen işler sırayı kaydırmaz); ileri tarihli hayaletler de aynı biçimi gösterir.
+// Rotating formats (a.formats, e.g. ig_reel, ig_post): picked by how many runs there have been from the first day up to this slot.
+// Counted from the calendar (deleted tasks don't shift the order); future ghosts show the same format.
 export function formatAt(a, day, slot) {
   const list = a.formats?.filter(Boolean) ?? [];
   if (list.length < 2) return a.format;
@@ -75,11 +75,11 @@ export function makeOccurrence(s, a, day, slot) {
   if (slot) s.blocks.push({ id: rid(), taskId: task.id, worldId: a.worldId, title: "", start: ts(day, toMin(slot)), end: ts(day, toMin(slot) + (a.minutes || 30)), kind: "plan" });
   return task;
 }
-// autoDay: işin ait olduğu gün. İş başka güne taşınsa da o günün yerini tutar, taşındığı günün işini engellemez.
+// autoDay: the day the task belongs to. Moved to another day, it still holds its own day's place and doesn't block the new day's task.
 export const occurrenceOf = (s, a, day, slot) => s.tasks.find((t) => t.autoId === a.id && (t.autoDay ?? t.day) === day && (t.autoSlot ?? "") === slot);
 
-// İşin gününü değiştirir; bugünden itibaren başka günlerdeki saatleri de yeni güne aynı saatle taşır.
-// Tarihsiz ya da geçmiş bir güne alınırsa o ileri saatler kalkar. Geçmiş saatler (yapılmış iş) yerinde kalır.
+// Changes the task's day; its blocks on other days from today on move to the new day at the same time.
+// Moved to no day or a past day, those future blocks go. Past blocks (work done) stay.
 export function setDay(s, task, day, today = iso(new Date())) {
   if (task.autoId && task.autoDay === undefined && task.day) task.autoDay = task.day;
   task.day = day;
@@ -91,8 +91,8 @@ export function setDay(s, task, day, today = iso(new Date())) {
   });
 }
 
-// Bugünün ve yarının işleri henüz açılmadıysa açar (yarının gönderisi bugünden hazırlanır,
-// onay bir gün önceden verilir). horizon: işleri açılmış son gün. Değişiklik olduysa true.
+// Opens today's and tomorrow's tasks if they are not open yet (tomorrow's post is prepared today,
+// approved a day ahead). horizon: the last day whose tasks are open. True when something changed.
 const nextDay = (day) => { const [y, m, d] = day.split("-").map(Number); const x = new Date(y, m - 1, d + 1); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
 export function materialize(s, today = iso(new Date())) {
   let changed = false;
@@ -112,7 +112,7 @@ export function materialize(s, today = iso(new Date())) {
 }
 export const needsMaterialize = (s, today = iso(new Date())) => (s.automations ?? []).some((a) => a.status === "active" && !(a.horizon && a.horizon >= nextDay(today)));
 
-// Sıradaki çalışma: gün + saat (saatsizse günün başı).
+// Next run: day + time (start of the day when there is no time).
 export function nextRun(a, from = new Date()) {
   for (let i = 0; i < 8; i++) {
     const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);

@@ -286,7 +286,7 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
     const cur = st.steps.find((y) => y.key === st.current);
     // Hazırlanamayan da senden bekleniyor (Gönderiler'in "Onayını bekliyor"u gibi): yeniden hazırlat ya da revize et.
     if (!st.busy && runOfTask(s.runs, x.id)?.status === "failed") return { x, what: "Error" };
-    return !st.busy && cur?.who === "Sen" ? { x, what: cur.key === "voice" ? "Voice" : cur.key === "approve" ? "Approval" : "Action" } : null;
+    return !st.busy && cur?.who === "You" ? { x, what: cur.key === "voice" ? "Voice" : cur.key === "approve" ? "Approval" : "Action" } : null;
   }).filter(Boolean) as { x: Task; what: string }[];
   const cur = live.find((b) => tsMin(b.start) <= nowM && (tsMin(b.end) || 1440) > nowM);
   const next = live.find((b) => tsMin(b.start) > nowM);

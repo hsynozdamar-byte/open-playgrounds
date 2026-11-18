@@ -406,7 +406,7 @@ export function PostCard({ it, open, onToggle, s, when }: { it: Item; open: bool
   const auto = it.auto ?? (it.task ? autoOf(s, it.task) : undefined);
   const tp = auto ? topicOf(s, auto, it.day, it.time) : undefined;
   const late = it.day < today() && !["posted", "approved", "failed"].includes(st);
-  const fmt = it.format && FORMATS[it.format].short !== "Gönderi" ? FORMATS[it.format].short : "";
+  const fmt = it.format && FORMATS[it.format].short !== "Post" ? FORMATS[it.format].short : "";
   return (
     <li>
       <button className={`stcard st-${st} ${open ? "on" : ""} ${late ? "is-late" : ""}`} aria-expanded={open} onClick={onToggle} title={stHint(it) || undefined}>

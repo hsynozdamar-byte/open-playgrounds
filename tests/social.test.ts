@@ -51,11 +51,11 @@ describe("sosyal gönderi", () => {
 
   it("ölçülebilir sorunlar ve kopyalanacak metin", () => {
     const long = normalize("thread", { tweets: ["x".repeat(300), "kısa"] });
-    expect(problems(long)).toEqual(["1. tweet 300 karakter, en fazla 280."]);
+    expect(problems(long)).toEqual(["Tweet 1 is 300 characters, at most 280."]);
     const ig = normalize("ig_post", { slides: [{ title: "Kapak" }, { title: "İki", text: "t" }], caption: "Açıklama", hashtags: ["#a"] });
     expect(bodyOf(ig)).toBe("Açıklama\n\n#a");
     const reel = normalize("ig_reel", { hook: "h", scenes: [{ text: "bir iki üç dört beş altı yedi sekiz dokuz on", sec: 2 }] });
-    expect(problems(reel)).toContain("1. sahne 2 sn içinde okunamaz.");
+    expect(problems(reel)).toContain("Scene 1 can't be read in 2 s.");
     expect(reel && reel.format === "ig_reel" && reelSeconds(reel)).toBeCloseTo(6.2);
   });
 });

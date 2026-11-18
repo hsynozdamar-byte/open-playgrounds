@@ -53,7 +53,7 @@ describe("materialize", () => {
     const s = state();
     s.automations.push(auto({ steps: [{ id: "x", kind: "text", tool: "claude" }, { id: "y", kind: "post", tool: "me", account: "LinkedIn" }] }));
     materialize(s, MON);
-    expect(s.tasks.find((t) => t.autoId)!.checklist.map((c) => c.text)).toEqual(["Paylaşım · Ben · LinkedIn"]);
+    expect(s.tasks.find((t) => t.autoId)!.checklist.map((c) => c.text)).toEqual(["Share · Me · LinkedIn"]);
   });
 });
 

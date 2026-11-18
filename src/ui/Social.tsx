@@ -5,7 +5,7 @@ import { Folder, Globe, KeyRound, Pencil, RefreshCw, X } from "lucide-react";
 import type { Account, Feed, Platform, World } from "../types";
 import type { Ctx } from "../lib";
 import { uid } from "../store";
-import { FEEDS, LANGS, PLATFORMS, isFeed, platformName, projectsOfAccount } from "../../shared/social.mjs";
+import { DEFAULT_LANG, FEEDS, LANGS, PLATFORMS, isFeed, platformName, projectsOfAccount } from "../../shared/social.mjs";
 import { AddRow } from "./QuickAdd";
 import { Orb } from "./Orb";
 import { reveal } from "./reveal";
@@ -13,8 +13,6 @@ import { toast } from "./Toast";
 import { binIt } from "../trashOps";
 import { Select } from "./Select";
 
-// LANGS labels (shared/social.mjs) are Turkish; shown in English here.
-const LANG_NAME: Record<string, string> = { tr: "Turkish", en: "English", "tr+en": "Turkish + English" };
 
 // Hesaplar dünyada durur: paylaşım hesapları (Instagram, LinkedIn...) ve gelen kaynakları (Gmail, Slack...).
 // Hesabın hangi projelerde kullanıldığı (project.accountIds) hesap penceresinin Projeler satırında seçilir.
@@ -33,7 +31,7 @@ const MAKES: Record<Platform, string> = {
 };
 // Tarayıcıdan paylaşılabilen platformlar (server/publish.mjs HOME ile aynı).
 export const PUBLISHABLE = new Set<string>(["instagram", "linkedin", "x", "threads", "tiktok", "youtube"]);
-export const emptyAccount = (platform: Kind = "instagram"): AccountDraft => ({ platform, name: "", handle: "", voice: "" });
+export const emptyAccount = (platform: Kind = "instagram"): AccountDraft => ({ platform, name: "", handle: "", voice: "", lang: DEFAULT_LANG });
 export const cleanHandle = (a: AccountDraft) => {
   const h = a.handle.trim();
   if (!h || isFeed(a.platform) || a.platform === "other") return h;
@@ -116,7 +114,7 @@ export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDr
             <span>Language</span>
             <div className="seg" role="radiogroup" aria-label="Language">
               {LANGS.map((l) => (
-                <button key={l.id} type="button" role="radio" aria-checked={(a.lang ?? "tr") === l.id} className={(a.lang ?? "tr") === l.id ? "on" : ""} onClick={() => set({ lang: l.id })}>{LANG_NAME[l.id] ?? l.label}</button>
+                <button key={l.id} type="button" role="radio" aria-checked={(a.lang ?? DEFAULT_LANG) === l.id} className={(a.lang ?? DEFAULT_LANG) === l.id ? "on" : ""} onClick={() => set({ lang: l.id })}>{l.label}</button>
               ))}
             </div>
           </div>

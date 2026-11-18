@@ -2,6 +2,7 @@ import type { Account, Feed, Platform, Post, PostFormat, Project, State, Task, W
 
 export const FEEDS: Record<Feed, { label: string; what: string; field: string; hint: string }>;
 export const LANGS: { id: import("../src/types").Lang; label: string }[];
+export const DEFAULT_LANG: import("../src/types").Lang;
 export const SEP: string;
 export function langRule(acc: unknown, format: string): string;
 export function isFeed(platform: string): platform is Feed;

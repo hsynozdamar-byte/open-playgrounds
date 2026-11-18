@@ -1,5 +1,5 @@
-// Birden çok Rou: state.rous { id, name, color, persona }. Varsayılan Rou ("rou") hep vardır; dış öneri kanalı (pg propose) onundur.
-// Sohbetler state.chat[rouId] içinde ayrı durur. Hafıza: rouId'siz kayıt ortaktır (tüm Rou'lar bilir), rouId'li yalnız o Rou'nundur.
+// Several Rous: state.rous { id, name, color, persona }. The default Rou ("rou") always exists; the outside proposal channel (pg propose) is its.
+// Chats are kept apart in state.chat[rouId]. Memory: a record without rouId is shared (every Rou knows it), one with rouId belongs to that Rou.
 export const DEFAULT_ROU = "rou";
 export const ROU_COLORS = ["", "#3d5afe", "#14b8a6", "#ff6b5b", "#e0218a", "#9a2fe0", "#22c8e6", "#ffb020"];
 const base = () => ({ id: DEFAULT_ROU, name: "Rou", color: "", persona: "" });
@@ -7,7 +7,7 @@ const base = () => ({ id: DEFAULT_ROU, name: "Rou", color: "", persona: "" });
 export const rousOf = (s) => (s.rous?.length ? s.rous : [base()]);
 export const rouOf = (s, id) => rousOf(s).find((r) => r.id === id) ?? rousOf(s).find((r) => r.id === DEFAULT_ROU) ?? base();
 
-// Eski tek Rou verisi: rous yoksa varsayılan eklenir, düz sohbet listesi varsayılan Rou'nun sohbeti olur.
+// Old single-Rou data: without rous the default is added, a flat chat list becomes the default Rou's chat.
 export function migrateRous(s) {
   let changed = false;
   if (!s.rous?.some((r) => r.id === DEFAULT_ROU)) {
@@ -22,13 +22,13 @@ export function migrateRous(s) {
 }
 
 export const chatOf = (s, id) => (Array.isArray(s.chat) ? (id === DEFAULT_ROU ? s.chat : []) : (s.chat?.[id] ?? []));
-// Bir Rou'nun sohbetini değiştirir (son 60 mesaj kalır).
+// Changes one Rou's chat (the last 60 messages are kept).
 export function setChat(s, id, fn) {
   if (!s.chat || Array.isArray(s.chat)) s.chat = { [DEFAULT_ROU]: Array.isArray(s.chat) ? s.chat : [] };
   s.chat[id] = fn(s.chat[id] ?? []).slice(-60);
 }
 
-// Rou'nun gördüğü hafıza: ortak + kendi. rouId yoksa yalnız ortak.
+// The memory a Rou sees: shared + its own. Without rouId only the shared one.
 export const memoryOf = (s, rouId) => (s.memory ?? []).filter((m) => !m.rouId || (rouId && m.rouId === rouId));
 
 let n = 0;

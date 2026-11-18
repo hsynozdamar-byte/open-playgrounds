@@ -1,14 +1,14 @@
-// Sosyal gönderiler. Uygulama (önizleme), sunucu (hazırlatma) ve pg aynı kuralları kullanır.
-// Hesap DÜNYADA durur (world.accounts): paylaşım hesapları (Instagram, LinkedIn...) ve gelen kaynakları (Gmail, Slack...).
-// Proje dünyanın hesaplarından kullandıklarını seçer (project.accountIds). Otomasyon ya da planlanan gönderi bir hesabı seçer
-// (automation.accountId / task.post.accountId) ve o platformun bir biçimini (seçilmezse ilki). Hesap yoksa çıktı düz metindir.
+// Social posts. The app (preview), the server (prepare) and pg share these rules.
+// Accounts live on the WORLD (world.accounts): posting accounts (Instagram, LinkedIn...) and incoming sources (Gmail, Slack...).
+// A project picks which of its world's accounts it uses (project.accountIds). An automation or a planned post picks an account
+// (automation.accountId / task.post.accountId) and one of that platform's formats (the first when none is picked). No account = plain text.
 
-// Gelen kaynakları: buradan gelenler dünyanın Defter'ine düşer. Bağlantı (okuma) Faz 3'te; şimdilik hesap kaydı.
+// Incoming sources: what arrives from them lands in the world's Notebook. Reading them is not built yet; for now only the account record.
 export const FEEDS = {
-  gmail: { label: "Gmail", what: "Mailler", field: "E-posta adresi", hint: "ad@gmail.com" },
-  gcal: { label: "Google Takvim", what: "Toplantılar", field: "Takvimin hesabı", hint: "ad@gmail.com" },
-  slack: { label: "Slack", what: "Mesajlar", field: "Çalışma alanı", hint: "şirket.slack.com" },
-  clickup: { label: "ClickUp", what: "Görevler", field: "Çalışma alanı", hint: "Şirket" },
+  gmail: { label: "Gmail", what: "Mail", field: "Email address", hint: "name@gmail.com" },
+  gcal: { label: "Google Calendar", what: "Meetings", field: "Calendar account", hint: "name@gmail.com" },
+  slack: { label: "Slack", what: "Messages", field: "Workspace", hint: "company.slack.com" },
+  clickup: { label: "ClickUp", what: "Tasks", field: "Workspace", hint: "Company" },
 };
 export const isFeed = (platform) => Object.hasOwn(FEEDS, platform);
 
@@ -19,33 +19,33 @@ export const PLATFORMS = {
   threads: { label: "Threads", formats: ["threads"] },
   tiktok: { label: "TikTok", formats: ["short"] },
   youtube: { label: "YouTube Shorts", formats: ["short"] },
-  other: { label: "Diğer", formats: ["text"] },
+  other: { label: "Other", formats: ["text"] },
 };
 export const PLATFORM_LABEL = Object.fromEntries(Object.entries(PLATFORMS).map(([k, v]) => [k, v.label]));
 export const FORMATS = {
-  ig_post: { label: "Instagram gönderisi", short: "Gönderi" },
+  ig_post: { label: "Instagram post", short: "Post" },
   ig_reel: { label: "Reels", short: "Reels" },
-  linkedin: { label: "LinkedIn gönderisi", short: "Gönderi" },
+  linkedin: { label: "LinkedIn post", short: "Post" },
   tweet: { label: "Tweet", short: "Tweet" },
-  thread: { label: "Flood", short: "Flood" },
-  threads: { label: "Threads gönderisi", short: "Gönderi" },
-  short: { label: "Dikey video", short: "Video" },
-  text: { label: "Gönderi", short: "Gönderi" },
+  thread: { label: "Thread", short: "Thread" },
+  threads: { label: "Threads post", short: "Post" },
+  short: { label: "Vertical video", short: "Video" },
+  text: { label: "Post", short: "Post" },
 };
 export const formatsOf = (platform) => PLATFORMS[platform]?.formats ?? ["text"];
 export const isVideo = (format) => format === "ig_reel" || format === "short";
-// Ek alabilen biçimler: metin gönderileri. Instagram ve dikey video biçimleri zaten görsel/videodur.
+// Formats that take an attachment: text posts. Instagram and vertical video formats are already image/video.
 export const TEXT_FORMATS = ["linkedin", "tweet", "thread", "threads", "text"];
 export const canAttach = (format) => TEXT_FORMATS.includes(format);
-export const ATTACH_LABEL = { image: "Görsel", video: "Video" };
-// LinkedIn gönderisi görselsiz çıkmaz: eki varsayılan olarak tek görsel (otomasyonda video seçildiyse video).
+export const ATTACH_LABEL = { image: "Image", video: "Video" };
+// A LinkedIn post never goes out without media: one image by default (a video when the automation picks video).
 export const needsImage = (format) => format === "linkedin";
 export const attachOf = (format, a) => (needsImage(format) ? (a?.attach === "video" ? "video" : "image") : a?.attach);
-// Görseli henüz olmayan LinkedIn çıktısı: onaylanamaz, paylaşılamaz. Paylaşılmış ya da yapılmış gönderi eksik sayılmaz.
+// A LinkedIn output with no image yet cannot be approved or shared. A posted or done post is not counted as missing.
 export const missingImage = (run) => needsImage(run?.post?.format) && !run.images?.length && !run.video && !["posted", "acted"].includes(run.status);
-export const platformName = (acc) => (acc.platform === "other" ? acc.name || "Diğer" : PLATFORM_LABEL[acc.platform] ?? FEEDS[acc.platform]?.label ?? acc.platform);
-// Hesabın herkese açık profil adresi (hesap kontrolü). LinkedIn şirket sayfası ve site adresi olan kullanıcı adları
-// adres olarak alınır; Facebook gibi "Diğer" hesaplarda kullanıcı adı adres değilse profil adresi yok (null).
+export const platformName = (acc) => (acc.platform === "other" ? acc.name || "Other" : PLATFORM_LABEL[acc.platform] ?? FEEDS[acc.platform]?.label ?? acc.platform);
+// The account's public profile address (account check). LinkedIn company pages and handles that are a site address
+// are taken as the address; for "Other" accounts such as Facebook, a handle that is not an address gives no profile (null).
 export function profileUrl(acc) {
   const h = String(acc?.handle ?? "").trim();
   if (!h) return null;
@@ -149,12 +149,13 @@ export function formatOf(s, a) {
   return a.format && list.includes(a.format) ? a.format : list[0];
 }
 
-// Hesabın dili (account.lang, yoksa tr). "tr+en": önce Türkçe metin, altında aynı metnin İngilizcesi.
+// The account's language (account.lang, default en). "tr+en": the Turkish text first, the same text in English below it.
 export const LANGS = [
-  { id: "tr", label: "Türkçe" },
-  { id: "en", label: "İngilizce" },
-  { id: "tr+en", label: "Türkçe + İngilizce" },
+  { id: "en", label: "English" },
+  { id: "tr", label: "Turkish" },
+  { id: "tr+en", label: "Turkish + English" },
 ];
+export const DEFAULT_LANG = "en";
 export const SEP = "· · ·";
 // Hesabın dil ayarı kesindir (dil hesap başına seçilir). Otomasyon talimatında, marka
 // örneğinde ya da eski gönderilerde başka dil geçse de bu geçerli; yalnız o gönderiye yazılan revize notu dili değiştirebilir.
@@ -162,7 +163,7 @@ export function langRule(acc, format) {
   return `${langOf(acc, format)} Bu hesabın dil ayarıdır ve kesindir: otomasyon talimatı, örnek metin ya da eski gönderiler başka dilde olsa da bu dilde yaz. Yalnız bu gönderiye yazılmış bir revize notu dili değiştirebilir.`;
 }
 function langOf(acc, format) {
-  const l = acc?.lang ?? "tr";
+  const l = acc?.lang ?? DEFAULT_LANG;
   if (l === "en") return "Dil: her şey İngilizce (metin, slayt, başlık, ekrandaki yazı, açıklama). Doğal, ana dili İngilizce olan biri gibi.";
   if (l !== "tr+en") return "Dil: Türkçe.";
   const visual = format === "ig_post" || format === "ig_reel" || format === "short";
@@ -292,7 +293,7 @@ export function bodyOf(post) {
   return post.tweets.join("\n\n");
 }
 
-// Kurallara göre ölçülebilir sorunlar. Kontrol geçişine verilir, önizlemede de uyarı olur.
+// Measurable problems against the rules. Given to the check pass and shown as warnings in the preview.
 // Hesaba göre biçim kuralları: X Premium'da 280 sınırı yok.
 export function rulesOf(format, acc) {
   if (!acc?.premium || (format !== "tweet" && format !== "thread")) return RULES[format];
@@ -305,23 +306,23 @@ export function problems(post, acc) {
   const out = [];
   const words = (t) => t.split(/\s+/).filter(Boolean).length;
   if (post.format === "tweet" || post.format === "thread") {
-    post.tweets.forEach((t, i) => t.length > tweetMax(acc) && out.push(`${post.tweets.length > 1 ? `${i + 1}. tweet` : "Tweet"} ${t.length} karakter, en fazla ${tweetMax(acc)}.`));
-    if (post.format === "thread" && post.tweets.length < 2) out.push("Flood en az 2 tweet olmalı.");
+    post.tweets.forEach((t, i) => t.length > tweetMax(acc) && out.push(`${post.tweets.length > 1 ? `Tweet ${i + 1}` : "Tweet"} is ${t.length} characters, at most ${tweetMax(acc)}.`));
+    if (post.format === "thread" && post.tweets.length < 2) out.push("A thread needs at least 2 tweets.");
   }
-  if (post.format === "threads" && post.tweets[0]?.length > THREADS_MAX) out.push(`Gönderi ${post.tweets[0].length} karakter, en fazla ${THREADS_MAX}.`);
+  if (post.format === "threads" && post.tweets[0]?.length > THREADS_MAX) out.push(`The post is ${post.tweets[0].length} characters, at most ${THREADS_MAX}.`);
   if (post.format === "ig_post" || isVideo(post.format)) {
-    if (post.caption.length > IG_CAPTION_MAX) out.push(`Açıklama ${post.caption.length} karakter, en fazla ${IG_CAPTION_MAX}.`);
-    if (post.hashtags.length > 8) out.push(`${post.hashtags.length} etiket var, en fazla 8.`);
+    if (post.caption.length > IG_CAPTION_MAX) out.push(`The caption is ${post.caption.length} characters, at most ${IG_CAPTION_MAX}.`);
+    if (post.hashtags.length > 8) out.push(`${post.hashtags.length} hashtags, at most 8.`);
   }
   if (post.format === "ig_post") {
-    if (post.slides.length < 2) out.push("Kaydırmalı gönderi en az 2 slayt olmalı.");
-    if (post.slides[0] && words(post.slides[0].title) > 10) out.push("Kapak slaytı uzun, en fazla 8 kelime.");
+    if (post.slides.length < 2) out.push("A carousel needs at least 2 slides.");
+    if (post.slides[0] && words(post.slides[0].title) > 10) out.push("The cover slide is long, at most 8 words.");
   }
   if (isVideo(post.format)) {
-    if (post.hook && words(post.hook) > 9) out.push("Hook uzun, en fazla 7 kelime.");
-    post.scenes.forEach((x, i) => words(x.text) * 0.4 > x.sec + 0.01 && out.push(`${i + 1}. sahne ${x.sec} sn içinde okunamaz.`));
+    if (post.hook && words(post.hook) > 9) out.push("The hook is long, at most 7 words.");
+    post.scenes.forEach((x, i) => words(x.text) * 0.4 > x.sec + 0.01 && out.push(`Scene ${i + 1} can't be read in ${x.sec} s.`));
   }
-  if (post.format === "linkedin" && post.text.length > 3000) out.push("LinkedIn en fazla 3000 karakter.");
+  if (post.format === "linkedin" && post.text.length > 3000) out.push("LinkedIn takes at most 3000 characters.");
   return out;
 }
 

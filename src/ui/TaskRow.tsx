@@ -229,7 +229,7 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
         // Otomasyon işi: hangi adımda, kimi bekliyor. Satırın sağında, başlık hizasında; açma oku yanında.
         const run = s.runs.filter((r) => r.taskId === task.id).sort((x, y) => (x.at < y.at ? 1 : -1))[0];
         const st = stagesOf(s, botAuto, task, run);
-        const mine = !st.busy && st.steps.find((x) => x.key === st.current)?.who === "Sen";
+        const mine = !st.busy && st.steps.find((x) => x.key === st.current)?.who === "You";
         const act = st.current === "approve" && mine;
         return (
           <button className={`autochip rtailchip ${st.finished ? "is-done" : mine ? "is-you" : st.busy ? "is-busy" : ""} ${act ? "is-act" : ""}`} onClick={(e) => (e.stopPropagation(), ctx.open(task.id))} title={`Automation: ${scheduleText(botAuto)}`}>

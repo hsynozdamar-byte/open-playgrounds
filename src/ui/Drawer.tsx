@@ -11,7 +11,6 @@ import { spent, stop } from "../timer";
 import { stable, uid } from "../store";
 import { Check, Play } from "./TaskRow";
 import { AutoInfoRow, BOT, OutputSection, autoOf, kickOff, kickOffWhat } from "./Auto";
-import { whoName } from "./Board";
 import { PostBasis } from "./PostBasis";
 import { stagesOf } from "../../shared/stages.mjs";
 import { openAutoForm } from "./AutoForm";
@@ -532,7 +531,7 @@ function WhoRow({ task, ctx, play }: { task: Task; ctx: Ctx; play?: React.ReactN
             <span key={x.key} className={`whostep is-pick ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key]}
               {(["claude", "me"] as const).map((k) => <button key={k} className={x.who === BOT[k] ? "on" : ""} aria-pressed={x.who === BOT[k]} onClick={() => ctx.mutate((stt) => { const y = stt.tasks.find((z) => z.id === task.id); if (y) { if (k === (a.sharer ?? "claude")) delete y.sharer; else y.sharer = k; } })}>{BOT[k]}</button>)}
             </span>
-          ) : <span key={x.key} className={`whostep ${x.who === "Sen" ? "is-you" : ""} ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key] ?? x.key}<b>{whoName(x.who)}</b></span>)}
+          ) : <span key={x.key} className={`whostep ${x.who === "You" ? "is-you" : ""} ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key] ?? x.key}<b>{x.who}</b></span>)}
         </dd>
       </div>
     );

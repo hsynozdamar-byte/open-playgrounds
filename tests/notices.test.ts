@@ -31,11 +31,11 @@ describe("bildirimler", () => {
     s.runs = [run({})];
     const n = addNotice(s, { kind: "share_failed", runId: "r1" });
     expect(noticeCtas(s, n).map((c) => c.id)).toEqual(["retry", "card"]);
-    s.runs[0].publish = { phase: "Rou paylaşıyor", at: "", by: "claude" } as Run["publish"];
+    s.runs[0].publish = { phase: "Rou is sharing", at: "", by: "claude" } as Run["publish"];
     expect(noticeCtas(s, n).map((c) => c.id)).toEqual(["card"]);
-    expect(noticeNow(s, n)).toBe("Rou paylaşıyor");
+    expect(noticeNow(s, n)).toBe("Rou is sharing");
     Object.assign(s.runs[0], { status: "posted", postUrl: "https://x", publish: undefined });
     expect(noticeCtas(s, n).map((c) => c.id)).toEqual(["view", "card"]);
-    expect(noticeNow(s, n)).toBe("Sonra paylaşıldı");
+    expect(noticeNow(s, n)).toBe("Shared later");
   });
 });

@@ -31,17 +31,14 @@ export function boardRows(ctx: Ctx): BoardRow[] {
 // Senin elinde olan adımlar: ses, onay, kendi işin.
 export const yourTurn = (ctx: Ctx, rows: BoardRow[]) => rows.filter(({ task, a, run }) => {
   const st = stagesOf(ctx.state, a, task, run);
-  return !st.busy && st.steps.find((x) => x.key === st.current)?.who === "Sen";
+  return !st.busy && st.steps.find((x) => x.key === st.current)?.who === "You";
 }).length;
 
-// stagesOf (shared) names the person "Sen"; shown as "You".
-export const whoName = (w: string) => (w === "Sen" ? "You" : w);
-// Kartın tek cümlelik durumu: hangi aşamada ve sıradaki adım kimde ("Onaylandı · Rou paylaşacak").
+// The card's one-line status: which stage it is in and who holds the next step ("Approved · Rou will share").
 export const whereText = (st: ReturnType<typeof stagesOf>, run?: Run) => {
   const shares = st.steps.some((x) => x.key === "publish");
   if (st.finished) return run?.status === "posted" ? "Shared · done" : "Done";
-  const cur0 = st.steps.find((x) => x.key === st.current)!;
-  const cur = { ...cur0, who: whoName(cur0.who) };
+  const cur = st.steps.find((x) => x.key === st.current)!;
   if (cur.state === "fail") return cur.key === "video" ? "Couldn't make the video" : cur.key === "image" ? "Couldn't make the image" : cur.key === "publish" ? "Couldn't share" : "Couldn't prepare";
   if (st.busy) return cur.key === "video" ? "Rou is making the video" : cur.key === "image" ? "Rou is making the image" : cur.key === "publish" ? `${cur.who} ${cur.who === "You" ? "are" : "is"} sharing` : `${cur.who} ${cur.who === "You" ? "are" : "is"} preparing`;
   if (cur.key === "publish" && run?.publish?.phase) return `${cur.who} ${cur.who === "You" ? "are" : "is"} sharing`;

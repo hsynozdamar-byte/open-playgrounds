@@ -1,10 +1,10 @@
-// Çöp Kutusu: silinen kayıtlar (ve onlarla giden bağlı kayıtlar) 30 gün state.trash'te durur; oradan geri alınır.
-// Uygulama ve pg aynı işlevleri kullanır.
+// Trash: deleted records (and the records that went with them) stay in state.trash for 30 days and can be restored.
+// The app and `pg` use the same functions.
 export const KEEP_DAYS = 30;
 const LISTS = ["worlds", "projects", "tasks", "blocks", "sessions", "inbox", "automations", "runs"];
 const DAY_MS = 864e5;
 
-// Kaydı çöpe koyar. recs: { tasks: [...], blocks: [...], ... , account?: { worldId, acc, projectIds }, source?: { projectId, src } }
+// Puts a record in the trash. recs: { tasks: [...], blocks: [...], ... , account?: { worldId, acc, projectIds }, source?: { projectId, src } }
 export function toTrash(s, id, kind, title, recs) {
   const now = Date.now();
   s.trash = [{ id, kind, title, at: new Date(now).toISOString(), recs: structuredClone(recs) }, ...(s.trash ?? [])]
@@ -12,16 +12,16 @@ export function toTrash(s, id, kind, title, recs) {
     .slice(0, 300);
 }
 
-// Geri almaya engel: bağlı olduğu dünya ya da proje artık yoksa onun adı.
+// What blocks a restore: the name of the world or project it belonged to, if that is gone.
 export function blocker(s, b) {
   const r = b.recs;
   const worlds = new Set([...s.worlds.map((w) => w.id), ...(r.worlds ?? []).map((w) => w.id)]);
   const projects = new Set([...s.projects.map((p) => p.id), ...(r.projects ?? []).map((p) => p.id)]);
   const lost = (x) => (x.worldId && !worlds.has(x.worldId)) || (x.projectId && !projects.has(x.projectId));
   const gone = [...(r.projects ?? []), ...(r.tasks ?? []), ...(r.automations ?? []), ...(r.inbox ?? [])].find(lost);
-  if (gone) return s.trash?.find((t) => t.recs.worlds?.some((w) => w.id === gone.worldId) || t.recs.projects?.some((p) => p.id === gone.projectId))?.title ?? "dünyası ya da projesi";
-  if (r.account && !s.worlds.some((w) => w.id === r.account.worldId)) return "dünyası";
-  if (r.source && !s.projects.some((p) => p.id === r.source.projectId)) return "projesi";
+  if (gone) return s.trash?.find((t) => t.recs.worlds?.some((w) => w.id === gone.worldId) || t.recs.projects?.some((p) => p.id === gone.projectId))?.title ?? "its world or project";
+  if (r.account && !s.worlds.some((w) => w.id === r.account.worldId)) return "its world";
+  if (r.source && !s.projects.some((p) => p.id === r.source.projectId)) return "its project";
   return null;
 }
 
@@ -43,21 +43,20 @@ export function restoreTrash(s, id) {
   return true;
 }
 
-// Kalıcı sil: id verilmezse hepsi.
+// Delete for good: all of it when no id is given.
 export function purgeTrash(s, id) {
   s.trash = id ? (s.trash ?? []).filter((x) => x.id !== id) : [];
 }
 
-// Kartta görünecek içerik özeti.
-// Kaydın kendisi sayılmaz: silinen proje "5 iş", otomasyon tek başınaysa boş.
+// What else went with it, for the card. The record itself is not counted: a deleted project says "5 tasks", a lone automation nothing.
 export function trashSummary(b) {
   const r = b.recs;
   const own = { world: "worlds", project: "projects", task: "tasks", auto: "automations", run: "runs", note: "inbox" }[b.kind];
-  const n = (k, label) => { const c = (r[k]?.length ?? 0) - (k === own ? 1 : 0); return c > 0 ? `${c} ${label}` : null; };
-  return [n("projects", "proje"), n("tasks", "iş"), n("automations", "otomasyon"), n("runs", "çıktı"), n("inbox", "not"), n("sessions", "odak kaydı")].filter(Boolean).join(", ");
+  const n = (k, one, many) => { const c = (r[k]?.length ?? 0) - (k === own ? 1 : 0); return c > 0 ? `${c} ${c === 1 ? one : many}` : null; };
+  return [n("projects", "project", "projects"), n("tasks", "task", "tasks"), n("automations", "automation", "automations"), n("runs", "output", "outputs"), n("inbox", "note", "notes"), n("sessions", "focus session", "focus sessions")].filter(Boolean).join(", ");
 }
 
-// Nereden geldi: "Dünya › Proje" gibi. Adlar önce uygulamada, yoksa çöpteki kayıtlarda aranır.
+// Where it came from, e.g. "Work › Website". Names are looked up in the app first, then in the trash.
 export function trashOrigin(s, b) {
   const r = b.recs;
   const all = (k) => [...(s[k] ?? []), ...(s.trash ?? []).flatMap((t) => t.recs[k] ?? [])];

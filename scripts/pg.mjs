@@ -219,7 +219,7 @@ try {
       if (handle && (w.accounts ?? []).some((x) => x.platform === platform && x.handle === handle)) throw new Error(`Bu hesap zaten var: ${handle}`);
       const p = args.project && args.project !== true ? s.projects.find((x) => x.id === args.project && x.worldId === w.id) : null;
       if (args.project && !p) throw new Error(`Bu dünyada proje yok: ${args.project}`);
-      const acc = { id: id(), platform, name, handle, voice: args.voice && args.voice !== true ? String(args.voice).trim() : "", ...(lang ? { lang } : {}) };
+      const acc = { id: id(), platform, name, handle, voice: args.voice && args.voice !== true ? String(args.voice).trim() : "", lang: lang ?? "en" };
       w.accounts = [...(w.accounts ?? []), acc];
       if (p) p.accountIds = [...(p.accountIds ?? []), acc.id];
       out = `+ hesap ${acc.id}  ${acc.name} ${acc.handle}${p ? `  proje ${p.id}` : ""}`;

@@ -11,7 +11,7 @@ import { PUBLISHABLE, openAccountForm, worldOfAccount } from "./Social";
 import { accountOf, missingImage, platformName, taskRef } from "../../shared/social.mjs";
 import { bansOf, revisionsOf } from "../../shared/revise.mjs";
 import { uploadFile } from "./RouAttach";
-import { ImageStep, VideoStep, VoiceStep, whoName } from "./Board";
+import { ImageStep, VideoStep, VoiceStep } from "./Board";
 import { DraftPost, PostPreview, download, mediaFiles } from "./Preview";
 import { openAutoForm } from "./AutoForm";
 import type { Automation, Run, State, Task } from "../types";
@@ -68,7 +68,7 @@ async function cancelPrepare(taskId: string) {
 export async function prepare(taskId: string, tries = 3, feedback?: string, files?: { file: string; name: string; kind: "image" | "video" }[]): Promise<boolean | void> {
   const r = await fetch("/api/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId, feedback, files }) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
   // Yeni açılan iş dosyaya henüz yazılmadıysa kısa bir süre sonra yeniden dener.
-  if (!r.ok && r.error === "Görev yok" && tries > 1) return void setTimeout(() => prepare(taskId, tries - 1), 700);
+  if (!r.ok && r.error === "No such task" && tries > 1) return void setTimeout(() => prepare(taskId, tries - 1), 700);
   if (!r.ok) toast(r.error ?? "Couldn't prepare");
   else if (r.queued) toast(r.message ?? "Queued: starts when the current one is done");
   else toast("Rou started preparing; progress shows under Progress");
@@ -319,8 +319,7 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
   type Row = { state: "done" | "now" | "todo" | "fail"; title: string; text?: React.ReactNode; at?: string; body?: React.ReactNode };
   const rows: Row[] = [];
   const stg = stagesOf(s, a, task, r);
-  const sharerRaw = stg.steps.find((x) => x.key === "publish")?.who ?? "Rou";
-  const sharer = whoName(sharerRaw);
+  const sharer = stg.steps.find((x) => x.key === "publish")?.who ?? "Rou";
   const isVideo = out === "video";
   const what = isVideo ? "the video script" : out === "post" ? "the post text" : out === "report" ? "the report" : "the text";
   for (const x of stg.steps) {
@@ -346,8 +345,8 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
       : { state: "todo", title: "Approval is yours", text: isVideo ? "Once the video is ready, you watch and approve it." : undefined });
     if (x.key === "publish") {
       // Rou Playgrounds'un tarayıcısında, hesabın dünyasının oturumunda paylaşır. Saatinde kendiliğinden (server/share.mjs).
-      const byRou = sharerRaw === "Rou";
-      const byMe = sharerRaw === "Sen";
+      const byRou = sharer === "Rou";
+      const byMe = sharer === "You";
       const plats = platformsOf(s, a);
       const ready = byMe || !!acc;
       const where = accName || plats.map((p) => PLATFORM_NAME[p] ?? p).join(", ");
@@ -368,7 +367,7 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
       rows.push(x.state === "done" ? { state: "done", title: "Shared", at: hm(r?.postedAt), text: r?.postUrl ? <a className="link" href={r.postUrl} target="_blank" rel="noreferrer" onClick={(e) => openPost(r, e)}>Open post ↗</a> : "No link added." }
         : r?.publish?.handoff ? { state: "fail", title: "Sharing is left to you", text: `${r.publish.reason}. The text and files are in the share folder; press "I shared it" once you've shared it.`, at: hm(r.publish.at), body: kit }
         : r?.publish?.error ? { state: "fail", title: "Couldn't share", text: r.publish.error, body: now }
-        : r?.publish?.phase ? { state: "now", title: r.publish.phase.startsWith(sharerRaw) ? r.publish.phase : `${sharer} ${byMe ? "are" : "is"} sharing`, text: r.publish.live ? "The link comes here when it's done." : `${r.publish.phase}. The link comes here when it's done.`, at: hm(r.publish.at), body: r.publish.by === "claude" ? <LiveBox live={r.publish.live} busy runId={r.id} /> : undefined }
+        : r?.publish?.phase ? { state: "now", title: r.publish.phase.startsWith(sharer) ? r.publish.phase : `${sharer} ${byMe ? "are" : "is"} sharing`, text: r.publish.live ? "The link comes here when it's done." : `${r.publish.phase}. The link comes here when it's done.`, at: hm(r.publish.at), body: r.publish.by === "claude" ? <LiveBox live={r.publish.live} busy runId={r.id} /> : undefined }
         : x.state === "now" ? { state: "now", title: byMe ? "Sharing is yours" : ready ? `${sharer} will share it` : "Sharing waits", text: how, body: now }
         : { state: "todo", title: byMe ? "You share it" : `${sharer} shares it`, text: how });
     }

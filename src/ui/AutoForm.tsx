@@ -7,7 +7,7 @@ import { PLATFORMS, PLATFORM_NAME } from "../../shared/stages.mjs";
 import type { Automation, PostFormat, Step, StepKind } from "../types";
 import { type Ctx, blocksOf, dflt, worldOf } from "../lib";
 import { hm, mkTs, today, toMin } from "../date";
-import { everyTimes, repeatsOn, scheduleText, slotsOf, stepsOf } from "../../shared/repeat.mjs";
+import { DAY_SHORT, KIND_LABEL, TOOL_LABEL, everyTimes, repeatsOn, scheduleText, slotsOf, stepsOf } from "../../shared/repeat.mjs";
 import { FORMATS, accountsOfProject, attachOf, canAttach, formatsOf, isFeed, isVideo, needsImage, platformName } from "../../shared/social.mjs";
 import { uid } from "../store";
 import { toast } from "./Toast";
@@ -22,10 +22,6 @@ import { SWATCHES } from "../../shared/world.mjs";
 //   openAutoForm({ fromTask }) / ({ fromNote })  bir işi ya da notu otomasyona çevir (Claude taslağı doldurur)
 type FormReq = { id?: string; worldId?: string; projectId?: string | null; accountId?: string; fromTask?: string; fromNote?: string; text?: string };
 const NOTE_HINT: Record<string, string> = { text: "How: e.g. warm, short", image: "How: e.g. square, 1080 px", video: "How: e.g. 15 s, vertical", other: "Short note" };
-// English labels for the step pickers and weekdays (the shared/repeat.mjs tables are Turkish; stored keys stay the same).
-const KIND_LABEL = { text: "Text", image: "Image", video: "Video", post: "Share", other: "Other" };
-const TOOL_LABEL = { claude: "Rou", me: "Me" };
-const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const openAutoForm = (r: FormReq) => dispatchEvent(new CustomEvent("pg-auto-form", { detail: r }));
 
 type Draft = Pick<Automation, "title" | "worldId" | "projectId" | "days" | "times" | "minutes" | "who" | "action" | "every"> & { steps: Step[]; format?: PostFormat; accountId?: string; platforms?: string[]; sharer?: Automation["sharer"]; browser?: Automation["browser"]; folder?: string; attach?: Automation["attach"]; autoShare?: boolean; color?: string };

@@ -7,7 +7,7 @@ import type { Automation, Lang } from "../types";
 import { toast } from "./Toast";
 import { type Ctx, projectOf, worldOf } from "../lib";
 import { scheduleText, slotsOf } from "../../shared/repeat.mjs";
-import { FORMATS, LANGS, accountOf, attachOf, formatOf, platformName } from "../../shared/social.mjs";
+import { DEFAULT_LANG, FORMATS, LANGS, accountOf, attachOf, formatOf, platformName } from "../../shared/social.mjs";
 import { addDays, dayNum, dayShort, today } from "../date";
 import { OUTPUT_LABEL, outputOf, platformsOf } from "../../shared/stages.mjs";
 import { BOT, ghosts } from "./Auto";
@@ -83,9 +83,8 @@ function AutoView({ ctx, a, onClose }: { ctx: Ctx; a: Automation; onClose: () =>
   const brand = !!(p?.brand && (p.brand.use || p.brand.avoid || p.brand.audience));
   const media = (p?.mediaDirs?.length ?? 0) + (p?.mediaDir ? 1 : 0);
   const notes = p?.sources?.filter((x) => x.use).length ?? 0;
-  const langId = (acc as { lang?: string } | undefined)?.lang ?? "tr";
-  // LANGS labels (shared/social.mjs) are Turkish; shown in English here.
-  const langName = (id: string) => ({ tr: "Turkish", en: "English", "tr+en": "Turkish + English" } as Record<string, string>)[id] ?? id;
+  const langId = (acc as { lang?: string } | undefined)?.lang ?? DEFAULT_LANG;
+  const langName = (id: string) => LANGS.find((l) => l.id === id)?.label ?? id;
   const lang = langName(langId);
   // Dil hesabındır (aynı hesabın bütün otomasyonları); talimattaki dil sözünü geçer (shared/social.mjs langRule).
   const setLang = (id: Lang) => {

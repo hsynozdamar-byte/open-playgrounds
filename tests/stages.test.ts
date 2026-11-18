@@ -14,7 +14,7 @@ describe("adımlar", () => {
     const pub = (a: object, t?: object) => stagesOf(s, a as never, t as never, undefined).steps.find((x) => x.key === "publish")?.who;
     expect(pub(vid)).toBe("Rou");
     expect(pub({ ...(vid as object), sharer: "claude" })).toBe("Rou");
-    expect(pub({ ...(vid as object), sharer: "claude" }, { sharer: "me" })).toBe("Sen");
+    expect(pub({ ...(vid as object), sharer: "claude" }, { sharer: "me" })).toBe("You");
   });
   it("sesli video: metin bitince sıra seste, ses gelince videoda, video gelince onayda", () => {
     expect(keys(stagesOf(s, vid, undefined, undefined))).toBe("write:now voice:todo video:todo approve:todo publish:todo");
