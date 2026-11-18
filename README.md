@@ -11,7 +11,7 @@ Worlds, projects, tasks, a calendar, a focus timer and a notebook, all in one JS
 You need Node.js 20.11 or newer.
 
 ```bash
-git clone https://github.com/<you>/open-playgrounds.git
+git clone https://github.com/hsynozdamar-byte/open-playgrounds.git
 ```
 
 ```bash
