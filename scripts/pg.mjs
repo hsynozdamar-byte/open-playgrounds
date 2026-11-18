@@ -4,6 +4,10 @@
 import { read, update, id } from "../server/store.mjs";
 import { toTrash } from "../shared/trash.mjs";
 import { newWorld, SWATCHES } from "../shared/world.mjs";
+import { spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 const HELP = `pg: Playgrounds from the command line
 
@@ -16,6 +20,7 @@ Reading
   pg context <projectId>                 a project, its open tasks and its sources (hand this to an AI tool)
   pg now                                 the running timer
   pg json                                the whole data file
+  pg open [-w]                           open the Mac app (-w / --web: the app in the browser)
 
 Writing
   pg add "Title" --world W [--project P] [--day D] [--at 14:00] [--min 60] [--est 60]
@@ -122,6 +127,37 @@ function row(s, t) {
   const est = t.estimate ? ` · ${t.estimate} min` : "";
   const mark = { done: "✓", doing: "▶", waiting: "…" }[t.status] ?? "·";
   return `${t.id}  ${mark} ${at ? at + " " : ""}${t.title}  [${where}]${est}${dl}${late}`;
+}
+
+// pg open: the menu bar app (desktop/build.sh), or the app in the browser.
+const ROOT = path.resolve(import.meta.dirname, "..");
+const PORT = Number(process.env.PORT || 5340);
+const URL_ = `http://localhost:${PORT}/`;
+const opener = (target) => spawnSync(process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open", [target], { stdio: "ignore" });
+
+function openApp() {
+  if (process.platform !== "darwin") throw new Error("The desktop app is for macOS. Use pg open -w");
+  if (spawnSync("open", ["-b", "dev.openplaygrounds.app"], { stdio: "ignore" }).status === 0) return "Playgrounds is open.";
+  const found = [path.join(os.homedir(), "Applications/Playgrounds.app"), "/Applications/Playgrounds.app", path.join(ROOT, "desktop/build/Playgrounds.app")].find((p) => fs.existsSync(p));
+  if (!found) throw new Error("The app is not built yet. Run npm run desktop (or use pg open -w)");
+  opener(found);
+  return "Playgrounds is open.";
+}
+
+const up = async () => { try { await fetch(`${URL_}api/state`, { method: "HEAD", signal: AbortSignal.timeout(800) }); return true; } catch { return false; } };
+
+// Uses the server that already runs (the app, npm run dev or npm start); otherwise starts server/app.mjs in the background.
+async function openWeb() {
+  if (!(await up())) {
+    if (!fs.existsSync(path.join(ROOT, "dist/index.html"))) throw new Error("No build found. Run npm run build first, or npm run dev");
+    const log = fs.openSync(path.join(os.tmpdir(), "playgrounds-server.log"), "a");
+    spawn(process.execPath, [path.join(ROOT, "server/app.mjs")], { cwd: ROOT, detached: true, stdio: ["ignore", log, log], env: { ...process.env, PORT: String(PORT) } }).unref();
+    let ok = false;
+    for (let i = 0; i < 40 && !ok; i++) { await new Promise((r) => setTimeout(r, 150)); ok = await up(); }
+    if (!ok) throw new Error(`The server did not start. See ${path.join(os.tmpdir(), "playgrounds-server.log")}`);
+  }
+  opener(URL_);
+  return `Opened ${URL_}`;
 }
 
 let out = "";
@@ -348,6 +384,8 @@ try {
     const part = (title, list) => (list.length ? [title, ...list.map((t) => `  ${row(s, t)}`)] : []);
     const byDay = args.week ? [...new Set(days.map((t) => t.day))].flatMap((d) => part(d === d0 ? `Today (${d})` : d, days.filter((t) => t.day === d))) : part(`Today (${d0})`, days);
     out = [...part("Late", late), ...byDay, ...part("Later / someday", later), ...part("Done today", doneToday)].join("\n") || 'Nothing planned. Add a task: pg add "Title" --day today';
+  } else if (cmd === "open") {
+    out = (args.web || args.w || args._.includes("-w")) ? await openWeb() : openApp();
   } else {
     // An unknown command must fail: a tool that mistyped it would otherwise think the work was done.
     throw new Error(`Unknown command: ${cmd}. Run pg help`);

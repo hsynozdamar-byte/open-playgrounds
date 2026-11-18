@@ -26,6 +26,16 @@ Open http://localhost:5340. Start with the example world or create your own.
 
 `npm start` builds the app and serves it with a small Node server on the same port (no dev tooling). Both listen on 127.0.0.1 only.
 
+### Mac app
+
+```bash
+npm run desktop
+```
+
+Builds `Playgrounds.app` into `~/Applications` and opens it. It lives in the menu bar: click the orb to show or hide the window (or press ⌥⌘P anywhere), right-click for today's tasks, the running timer, "Open at login" and Quit. The app starts the server itself and uses the same `data/` as `pg`. Run it again after pulling changes. `pg open` opens the app, `pg open -w` the browser version.
+
+While you work on the code, quit the app first: `npm run dev` needs port 5340 too.
+
 ## What is in it
 
 - **Worlds**: the areas of your life (Work, Home, a side project). Each has its own color and lens; the logo shows them all.

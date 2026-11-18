@@ -4,3 +4,4 @@ data/
 *.tsbuildinfo
 .DS_Store
 .env*
+desktop/build/

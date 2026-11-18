@@ -15,7 +15,7 @@ import { Select, projectGroups } from "../ui/Select";
 const CATS: { id: NoteCategory; label: string; plural: string; Icon: typeof StickyNote; empty: string }[] = [
   { id: "note", label: "Note", plural: "Notes", Icon: StickyNote, empty: "Anything on your mind. Turn it into a task later or put it in a world." },
   { id: "idea", label: "Idea", plural: "Ideas", Icon: Lightbulb, empty: "Ideas for a new game, video or app. Once they mature they become a task." },
-  { id: "todo", label: "To do", plural: "To dos", Icon: CheckSquare, empty: "Small things you have not put on a day yet. Make them a task and they go on the calendar." },
+  { id: "todo", label: "To do", plural: "To-do's", Icon: CheckSquare, empty: "Small things you have not put on a day yet. Make them a task and they go on the calendar." },
   { id: "link", label: "Link", plural: "Links", Icon: Link2, empty: "Pages to look at later. Paste one and the link becomes its title." },
 ];
 const catOf = (i: InboxItem): NoteCategory => i.category ?? "note";
