@@ -8,7 +8,7 @@ import { AccountTile } from "../ui/Social";
 import { toast } from "../ui/Toast";
 import { inShell, LiveBrowser } from "../ui/LiveBrowser";
 
-// Browser: Playground Browser (server/pb.mjs). Each world is a profile; Rou works there, the user watches from here.
+// Browser: the desktop app's per-world browser (server/pb.mjs). Each world is a profile; Rou works there, the user watches from here.
 // While the page is open the state refreshes every 4 s, and the tab images are captured again at the same pace.
 type Page = { id: string; title: string; url: string; rou?: string };
 type Profile = { worldId: string; dir: string; exists: boolean; open: boolean; accounts: Record<string, boolean | null>; pages: Page[] };
