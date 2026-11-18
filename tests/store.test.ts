@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-// The store works in a temporary folder: real data is never touched.
+// Sunucu deposu geçici bir klasörde: gerçek veriye dokunulmaz.
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-test-"));
 process.env.PG_DATA = dir;
 const store = await import("../server/store.mjs");

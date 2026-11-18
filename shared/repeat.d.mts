@@ -1,0 +1,20 @@
+import type { Automation, PostFormat, State, Step, Task } from "../src/types";
+export const DAY_SHORT: string[];
+export function repeatsOn(a: Automation, day: string): boolean;
+export function slotsOf(a: Automation): string[];
+export function scheduleText(a: Automation): string;
+export const topicKey: (day: string, slot: string) => string;
+export function formatAt(a: Automation, day: string, slot: string): PostFormat | undefined;
+export function makeOccurrence(s: State, a: Automation, day: string, slot: string): Task;
+export function occurrenceOf(s: State, a: Automation, day: string, slot: string): Task | undefined;
+export function materialize(s: State, today?: string): boolean;
+export function needsMaterialize(s: State, today?: string): boolean;
+export function nextRun(a: Automation, from?: Date): { day: string; slot: string } | null;
+export function setDay(s: State, task: Task, day: string | null, today?: string): void;
+export const KIND_LABEL: Record<string, string>;
+export const TOOL_LABEL: Record<string, string>;
+export function stepsOf(a: Automation): Step[];
+export function stepText(st: Step): string;
+export function manualSteps(a: Automation): Step[];
+
+export function everyTimes(e: { hours: number; from: string; to: string }): string[];

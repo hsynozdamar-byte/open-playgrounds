@@ -3,12 +3,12 @@ import { createPortal } from "react-dom";
 import { Minus, Plus } from "lucide-react";
 import { useOutside, usePlace } from "./Select";
 
-// Fields in the app's own design instead of the browser's (time wheel, number arrows, color panel).
+// Tarayıcının kendi alanları (saat çarkı, sayı okları, renk paneli) yerine uygulamanın kendi tasarımıyla alanlar.
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const TIMES = Array.from({ length: 96 }, (_, i) => `${pad(Math.floor(i / 4))}:${pad((i % 4) * 15)}`);
 
-// "9" → 09:00, "930" → 09:30, "21.30" → 21:30, "7:5" → 07:05. null if invalid.
+// "9" → 09:00, "930" → 09:30, "21.30" → 21:30, "7:5" → 07:05. Geçersizse null.
 export function parseTime(v: string): string | null {
   const t = v.trim();
   if (!t) return null;
@@ -24,8 +24,8 @@ export function parseTime(v: string): string | null {
 
 type TimeProps = { value: string; onChange: (v: string) => void; label?: string; autoFocus?: boolean; className?: string; placeholder?: string };
 
-// Time field: can be typed (9, 930, 21.30) or picked from the dropdown list in 15-minute steps.
-// The list opens under the field on focus; arrows move through it, Enter picks, Esc closes.
+// Saat alanı: yazılabilir (9, 930, 21.30) ya da açılan listeden 15 dakikalık adımlarla seçilir.
+// Liste odaklanınca alanın altına açılır; oklar listede gezer, Enter seçer, Esc kapatır.
 export function TimeField({ value, onChange, label, autoFocus, className = "", placeholder = "--:--" }: TimeProps) {
   const [draft, setDraft] = useState(value);
   const [open, setOpen] = useState(false);
@@ -63,7 +63,7 @@ function TimePop({ anchor, list, value, active, setActive, onPick, onClose }: { 
   const pop = useRef<HTMLDivElement>(null);
   const pos = usePlace(anchor, pop, 112, 132);
   useOutside(anchor, pop, onClose);
-  // On open the selected time sits in the middle of the list; then, moving with the arrows, it scrolls just enough to stay visible.
+  // Açılınca seçili saat listenin ortasında; sonra oklarla gezerken yalnız görünür kalacak kadar kayar.
   const placed = pos !== null;
   useEffect(() => {
     const box = pop.current, el = box?.querySelector<HTMLElement>(`[data-i="${active}"]`);
@@ -87,7 +87,7 @@ function TimePop({ anchor, list, value, active, setActive, onPick, onClose }: { 
 
 type StepProps = { value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number; label: string; className?: string };
 
-// Number: − value + . The value can be typed; arrows and buttons change it by one step and never leave the limits.
+// Sayı: − değer + . Değer yazılabilir; oklar ve düğmeler adım kadar değiştirir, sınırların dışına çıkmaz.
 export function Stepper({ value, onChange, min = -Infinity, max = Infinity, step = 1, label, className = "" }: StepProps) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
@@ -95,7 +95,7 @@ export function Stepper({ value, onChange, min = -Infinity, max = Infinity, step
   const set = (n: number) => { const v = fix(n); setDraft(String(v)); if (v !== value) onChange(v); };
   return (
     <span className={`stepper ${className}`}>
-      <button type="button" tabIndex={-1} onClick={() => set(value - step)} disabled={value <= min} aria-label={`Decrease ${label}`}><Minus size={13} /></button>
+      <button type="button" tabIndex={-1} onClick={() => set(value - step)} disabled={value <= min} aria-label={`${label} azalt`}><Minus size={13} /></button>
       <input value={draft} inputMode="decimal" aria-label={label} spellCheck={false}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => { const n = parseFloat(draft.replace(",", ".")); if (Number.isFinite(n)) set(n); else setDraft(String(value)); }}
@@ -104,12 +104,12 @@ export function Stepper({ value, onChange, min = -Infinity, max = Infinity, step
           else if (e.key === "ArrowDown") { e.preventDefault(); set(value - step); }
           else if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         }} />
-      <button type="button" tabIndex={-1} onClick={() => set(value + step)} disabled={value >= max} aria-label={`Increase ${label}`}><Plus size={13} /></button>
+      <button type="button" tabIndex={-1} onClick={() => set(value + step)} disabled={value >= max} aria-label={`${label} artır`}><Plus size={13} /></button>
     </span>
   );
 }
 
-// A wide palette for a world's main color and second tone. A typed hex is accepted too.
+// Geniş palet: dünyanın ana rengi ve ikinci tonu için. Yazılabilir hex de kabul edilir.
 const PALETTE = [
   "#ff2a2a", "#ff5a36", "#ff7a45", "#ffb020", "#f5c518", "#a3c614",
   "#22b357", "#14b8a6", "#06a3c4", "#2d8cff", "#3d5afe", "#5b4cf5",
@@ -150,7 +150,7 @@ function ColorPop({ anchor, value, onPick, onClose }: { anchor: React.RefObject<
       </div>
       <form className="chex" onSubmit={(e) => { e.preventDefault(); if (ok) { onPick(ok); onClose(); } }}>
         <i style={{ background: ok ?? value }} />
-        <input value={hex} onChange={(e) => { setHex(e.target.value); const v = normHex(e.target.value); if (v) onPick(v); }} aria-label="Color code" spellCheck={false} placeholder="#3d5afe" />
+        <input value={hex} onChange={(e) => { setHex(e.target.value); const v = normHex(e.target.value); if (v) onPick(v); }} aria-label="Renk kodu" spellCheck={false} placeholder="#3d5afe" />
       </form>
     </div>,
     document.body,

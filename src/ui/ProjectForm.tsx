@@ -7,8 +7,8 @@ import { DatePick } from "./DatePick";
 import { toast } from "./Toast";
 import { Select } from "./Select";
 
-// New project: name, world, description and time in one window. Saving opens the project page.
-// Time: with a deadline or ongoing.
+// Yeni proje: ad, dünya, açıklama, zaman tek pencerede; hesaplar Gönderiler'deki hesap penceresinden bağlanır. Kaydedince proje sayfası açılır.
+// Zaman: deadline'lı ya da sürekli. Sürekli projede gün seçilirse ritim projenin otomasyonu olur (Rou o günlerde hazırlar).
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 type Req = { worldId: string };
 export const openProjectForm = (r: Req) => dispatchEvent(new CustomEvent("pg-project-form", { detail: r }));
@@ -44,52 +44,53 @@ function ProjectForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
       st.projects.push({ id, worldId, name: name.trim(), description: about.trim(), status: "active", deadline: ongoing ? null : deadline || null, ...(ongoing ? { ongoing: true } : {}) });
     });
     ctx.go({ view: "projects", lens: worldId, project: id });
-    toast(`${name.trim()} created`);
+    toast(`${name.trim()} kuruldu`);
     onClose();
   };
   return (
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <motion.form className="modal autoform projform" style={{ ["--w" as string]: w?.color }} initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} onSubmit={(e) => (e.preventDefault(), save())}>
         <div className="afhead">
-          <h2 className="mtitle">New project</h2>
-          <button type="button" className="x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <h2 className="mtitle">Yeni proje</h2>
+          <button type="button" className="x" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
         </div>
-        <input className="big" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Project name" aria-label="Project name" />
+        <input className="big" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Projenin adı" aria-label="Projenin adı" />
         <dl className="props">
           <div>
-            <dt>World</dt>
+            <dt>Dünya</dt>
             <dd>
-              <Select className="ppick" style={{ ["--w" as string]: w?.color }} label="World" value={worldId} onChange={setWorld}
+              <Select className="ppick" style={{ ["--w" as string]: w?.color }} label="Dünya" value={worldId} onChange={setWorld}
                 groups={[{ options: s.worlds.map((x) => ({ value: x.id, label: x.name, color: x.color })) }]}>
                 <i />{w?.name}
               </Select>
             </dd>
           </div>
           <div>
-            <dt>About</dt>
-            <dd><textarea className="notes" rows={2} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Goal, scope." /></dd>
+            <dt>Hakkında</dt>
+            <dd><textarea className="notes" rows={2} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Hedef, kapsam. Rou hazırlarken bunu da okur." /></dd>
           </div>
           <div>
-            <dt>Time</dt>
+            <dt>Zaman</dt>
             <dd className="pftime">
               <div className="seg">
                 <button type="button" className={!ongoing ? "on" : ""} onClick={() => setOngoing(false)}><Flag size={13} />Deadline</button>
-                <button type="button" className={ongoing ? "on" : ""} onClick={() => setOngoing(true)}><Repeat size={13} />Ongoing</button>
+                <button type="button" className={ongoing ? "on" : ""} onClick={() => setOngoing(true)}><Repeat size={13} />Sürekli</button>
               </div>
-              {!ongoing && <DatePick value={deadline} onChange={setDeadline} label="Deadline" placeholder="Pick a date" />}
+              {!ongoing && <DatePick value={deadline} onChange={setDeadline} label="Deadline" placeholder="Tarih seç" />}
             </dd>
           </div>
+          {/* Proje sürekli durur; tekrar eden iş projenin içinde bir işe bağlanır (iş kartı › Düzenli tekrarlansın). */}
           {ongoing && (
             <div>
               <dt />
-              <dd><p className="muted whohint pfsum">An ongoing project has no end date.</p></dd>
+              <dd><p className="muted whohint pfsum">Sürekli proje bitmez. Düzenli paylaşım gibi tekrar eden görevleri projeyi kurduktan sonra bir göreve bağlarsın: görevi aç, Düzenli tekrarlansın.</p></dd>
             </div>
           )}
         </dl>
         <div className="foot">
           <span />
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" disabled={!name.trim()}>Create project</button>
+          <button type="button" className="btn" onClick={onClose}>Vazgeç</button>
+          <button className="btn primary" disabled={!name.trim()}>Projeyi kur</button>
         </div>
       </motion.form>
     </div>

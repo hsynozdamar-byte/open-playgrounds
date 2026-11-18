@@ -25,7 +25,7 @@ describe("timer", () => {
     expect(s.sessions).toHaveLength(0);
     at(100); resume(run(s));
     at(150); stop(run(s));
-    // 50 s + 50 s of work: written as one session.
+    // 50 sn + 50 sn çalışıldı: tek oturum olarak yazılır.
     expect(seconds(s)).toBe(100);
     expect(s.timer).toBeNull();
   });
@@ -49,5 +49,33 @@ describe("timer", () => {
     expect(s.timer!.base).toBeUndefined();
     expect(s.timer!.pausedAt).toBeUndefined();
     expect(elapsed(s.timer!, T0 + 1630 * 1000)).toBe(30);
+  });
+});
+
+describe("drop on a board column", () => {
+  it("starts the timer when your task is dropped on doing, and stops it when moved out", async () => {
+    const { dropStatus } = await import("../src/timer");
+    const s = begin("free");
+    s.timer = null;
+    dropStatus(s, "t1", "doing", "free");
+    expect(s.timer!.taskId).toBe("t1");
+    expect(s.tasks[0].status).toBe("doing");
+    at(300);
+    dropStatus(s, "t1", "done");
+    expect(s.timer).toBeNull();
+    expect(s.tasks[0].status).toBe("done");
+    expect(seconds(s)).toBe(300);
+  });
+
+  it("does not start a timer for Rou's task or an automation's", async () => {
+    const { dropStatus } = await import("../src/timer");
+    const s = begin("free");
+    s.timer = null;
+    s.tasks[0].who = "claude";
+    s.tasks[1].autoId = "a1";
+    dropStatus(s, "t1", "doing");
+    dropStatus(s, "t2", "doing");
+    expect(s.timer).toBeNull();
+    expect(s.tasks.map((t) => t.status)).toEqual(["doing", "doing"]);
   });
 });

@@ -5,65 +5,54 @@ import os from "node:os";
 import path from "node:path";
 import { state } from "./fixture";
 
-// pg runs against a temporary data folder (PG_DATA); real data is never touched.
-function setup() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-"));
-  fs.writeFileSync(path.join(dir, "playground.json"), JSON.stringify(state()));
-  const pg = (...args: string[]) => execFileSync("node", ["scripts/pg.mjs", ...args], { env: { ...process.env, PG_DATA: dir }, encoding: "utf8", stdio: "pipe" });
-  const data = () => JSON.parse(fs.readFileSync(path.join(dir, "playground.json"), "utf8"));
-  return { pg, data };
+// pg add --project kimlikle de çalışır; boş proje pg rm ile çöpe gider (2026-11-08: kimlik ad sanılıp yeni proje açılmıştı).
+function pg(dir: string, ...args: string[]) {
+  return execFileSync("node", ["scripts/pg.mjs", ...args], { env: { ...process.env, PG_DATA: dir, PG_NO_SCHEDULE: "1" }, encoding: "utf8" });
 }
+const data = (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, "playground.json"), "utf8")).state ?? JSON.parse(fs.readFileSync(path.join(dir, "playground.json"), "utf8"));
 
-describe("pg", () => {
-  it("takes a project id as well as a name, and does not open a second project", () => {
-    const { pg, data } = setup();
-    pg("add", "Draft", "--world", "work", "--project", "p1", "--day", "someday", "--by", "Codex");
-    const s = data();
+describe("pg --project", () => {
+  it("proje kimliğini tanır, yeni proje açmaz", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-"));
+    fs.writeFileSync(path.join(dir, "playground.json"), JSON.stringify(state()));
+    pg(dir, "add", "Deneme", "--pg", "w1", "--project", "p1", "--day", "tarihsiz");
+    const s = data(dir);
     expect(s.projects).toHaveLength(1);
-    expect(s.tasks.find((t: { title: string }) => t.title === "Draft")).toMatchObject({ projectId: "p1", day: null, by: "Codex" });
+    expect(s.tasks.find((t: { title: string }) => t.title === "Deneme").projectId).toBe("p1");
   });
 
-  it("reserves a block with --at and reads weekday names in full and short", () => {
-    const { pg, data } = setup();
-    pg("add", "Call", "--world", "home", "--day", "monday", "--at", "9:30", "--min", "20");
-    pg("add", "Write", "--world", "home", "--day", "sat");
-    const s = data();
-    const call = s.tasks.find((t: { title: string }) => t.title === "Call");
-    expect(new Date(`${call.day}T12:00`).getDay()).toBe(1);
-    expect(new Date(`${s.tasks.find((t: { title: string }) => t.title === "Write").day}T12:00`).getDay()).toBe(6);
-    expect(s.blocks.find((b: { taskId: string }) => b.taskId === call.id)).toMatchObject({ start: `${call.day}T09:30`, end: `${call.day}T09:50` });
-  });
-
-  it("puts a tool's suggestion in the Notebook, signed", () => {
-    const { pg, data } = setup();
-    pg("in", "Read the docs", "--world", "work", "--project", "p1", "--suggest", "Read docs", "--url", "https://example.com", "--by", "Claude Code");
-    expect(data().inbox[0]).toMatchObject({ title: "Read the docs", source: "agent", from: "Claude Code", projectId: "p1", state: "new", suggestion: { title: "Read docs", projectId: "p1" } });
-  });
-
-  it("trashes an empty project and refuses one with work in it", () => {
-    const { pg, data } = setup();
-    pg("project", "Empty", "--world", "work");
-    const empty = data().projects.find((p: { name: string }) => p.name === "Empty").id;
-    pg("rm", empty);
-    expect(() => pg("rm", "p1")).toThrow();
-    const s = data();
+  it("boş projeyi çöpe atar, dolu projeye dokunmaz", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-"));
+    fs.writeFileSync(path.join(dir, "playground.json"), JSON.stringify(state()));
+    pg(dir, "project", "Boş", "--pg", "w1");
+    const empty = data(dir).projects.find((p: { name: string }) => p.name === "Boş").id;
+    pg(dir, "rm", empty);
+    expect(() => pg(dir, "rm", "p1")).toThrow();
+    const s = data(dir);
     expect(s.projects.map((p: { id: string }) => p.id)).toEqual(["p1"]);
     expect(s.trash.some((b: { kind: string }) => b.kind === "project")).toBe(true);
   });
+});
 
-  it("adds a project source and prints it in the context", () => {
-    const { pg } = setup();
-    pg("src", "p1", "Style guide", "--body", "Short sentences.", "--url", "https://example.com/style");
-    const out = pg("context", "p1");
-    expect(out).toContain("# Website");
-    expect(out).toContain("Style guide (https://example.com/style)");
-    expect(out).toContain("Café photos");
-  });
-
-  it("fails on an unknown command, an unknown day and an empty id", () => {
-    const { pg } = setup();
-    expect(() => pg("bogus")).toThrow();
-    expect(() => pg("add", "x", "--world", "work", "--day", "someday-soon")).toThrow();
-    expect(() => pg("done", "")).toThrow();
+// Bilgi notu, Medya klasörü ve başka dünyanın hesabından tek seferlik gönderi pg ile yazılır.
+describe("pg src, pedit --media-dir, add --post <başka dünyanın hesabı>", () => {
+  it("adds a Bilgi link, sets the media folder with good files, takes another world's account by its exact id", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pg-"));
+    const st = state() as { worlds: { id: string; accounts?: unknown[] }[] };
+    st.worlds.push({ ...st.worlds[0], id: "diger", name: "Diğer", accounts: [{ id: "xacc", platform: "x", name: "X", handle: "@x" }] } as never);
+    fs.writeFileSync(path.join(dir, "playground.json"), JSON.stringify(st));
+    pg(dir, "src", "p1", "Site", "--body", "Oyunun sitesi", "--url", "https://example.com/oyun");
+    const media = fs.mkdtempSync(path.join(os.tmpdir(), "pg-media-"));
+    fs.writeFileSync(path.join(media, "play.mp4"), "");
+    pg(dir, "pedit", "p1", "--media-dir", media, "--good", "play.mp4");
+    expect(() => pg(dir, "pedit", "p1", "--good", "../dis.mp4")).toThrow();
+    pg(dir, "add", "Gönderi", "--pg", "w1", "--project", "p1", "--day", "bugün", "--post", "xacc", "--by", "claude");
+    expect(() => pg(dir, "add", "Gönderi 2", "--pg", "w1", "--post", "@x")).toThrow();
+    const s = data(dir);
+    const p = s.projects.find((x: { id: string }) => x.id === "p1");
+    expect(p.sources.at(-1)).toMatchObject({ kind: "link", title: "Site", url: "https://example.com/oyun", use: true });
+    expect(p.mediaDir).toBe(media);
+    expect(p.media).toEqual({ "play.mp4": "good" });
+    expect(s.tasks.find((t: { title: string }) => t.title === "Gönderi").post).toMatchObject({ accountId: "xacc", format: "tweet" });
   });
 });

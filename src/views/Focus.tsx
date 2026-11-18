@@ -6,7 +6,7 @@ import { localTs, today } from "../date";
 import { BREAK_OPTS, POMO_OPTS, breakLen, pomoLen, setLens, clock, elapsed, lastMode, saveMode, setMode, spent, start, stop, finish, pause, resume } from "../timer";
 import { useNow } from "../ui/useNow";
 
-// The big timer on the Focus page. A task is started with ▶ from the Today list below.
+// Odak sayfasının büyük zamanlayıcısı. İş, alttaki Bugün listesinden ▶ ile başlatılır.
 export function FocusTimer({ ctx }: { ctx: Ctx }) {
   const s = ctx.state;
   const t = s.timer;
@@ -14,7 +14,7 @@ export function FocusTimer({ ctx }: { ctx: Ctx }) {
   const task = t ? s.tasks.find((x) => x.id === t.taskId) : undefined;
   const sec = t ? elapsed(t, now) : 0;
   const total = t?.length ? t.length * 60 : 0;
-  // When the time is up the timer does not stop: it counts the overrun as +01:23.
+  // Süre dolunca sayaç durmaz: ne kadar aşıldığını +01:23 diye sayar.
   const over = !!total && sec >= total;
   const shown = over ? sec - total : total ? total - sec : sec;
   const pct = total ? Math.min(1, sec / total) : (sec % 3600) / 3600;
@@ -31,20 +31,20 @@ export function FocusTimer({ ctx }: { ctx: Ctx }) {
         <div className="seg">
           {(["free", "pomo"] as const).map((m) => (
             <button key={m} className={mode === m ? "on" : ""} onClick={() => (saveMode(m), setPref(m), t && setMode(ctx.mutate, m))}>
-              {m === "free" ? "Free" : "Pomodoro"}
+              {m === "free" ? "Serbest" : "Pomodoro"}
             </button>
           ))}
         </div>
         {mode === "pomo" ? (
           <div className="plens">
-            <span>Focus</span>
+            <span>Odak</span>
             <div className="seg sm">{POMO_OPTS.map((m) => <button key={m} className={lens.f === m ? "on" : ""} onClick={() => pick(m, lens.b)}>{m}</button>)}</div>
-            <span>Break</span>
+            <span>Mola</span>
             <div className="seg sm">{BREAK_OPTS.map((m) => <button key={m} className={lens.b === m ? "on" : ""} onClick={() => pick(lens.f, m)}>{m}</button>)}</div>
-            <span>min</span>
+            <span>dk</span>
           </div>
         ) : (
-          <p className="plens free">No time limit. Save when you finish.</p>
+          <p className="plens free">Süre sınırı yok, bitirince kaydet.</p>
         )}
       </div>
 
@@ -54,12 +54,12 @@ export function FocusTimer({ ctx }: { ctx: Ctx }) {
           <motion.circle cx="130" cy="130" r={R} className="fill" strokeDasharray={C} animate={{ strokeDashoffset: C * (1 - (t ? pct : 0)) }} transition={{ duration: 0.6 }} />
         </svg>
         <div className="bigcenter">
-          <span className="bigphase">{!t ? "Ready" : t.pausedAt ? "Paused" : over ? (t.phase === "break" ? "Break over" : "Time is up") : t.phase === "break" ? "Break" : t.mode === "pomo" ? `Pomodoro ${t.round}` : "Focus"}</span>
+          <span className="bigphase">{!t ? "Hazır" : t.pausedAt ? "Duraklatıldı" : over ? (t.phase === "break" ? "Mola bitti" : "Süre doldu") : t.phase === "break" ? "Mola" : t.mode === "pomo" ? `Pomodoro ${t.round}` : "Odak"}</span>
           <span className="bigclock">{t ? `${over ? "+" : ""}${clock(shown)}` : mode === "pomo" ? `${lens.f}:00` : "00:00"}</span>
           {task && <span className="bigtask">{task.title}</span>}
           {task && task.checklist.length > 0 && (
             <button className="bigsteps" onClick={() => ctx.open(task.id)}>
-              {task.checklist.filter((c) => c.done).length}/{task.checklist.length} {task.checklist.length === 1 ? "step" : "steps"}
+              {task.checklist.filter((c) => c.done).length}/{task.checklist.length} adım
             </button>
           )}
         </div>
@@ -68,20 +68,20 @@ export function FocusTimer({ ctx }: { ctx: Ctx }) {
       {t && task ? (
         <div className="fctl fslot">
           {t.phase === "break" ? (
-            <button className="btn" onClick={() => start(ctx.mutate, task.id, "pomo", t.round + 1)}><SkipForward size={16} />Continue</button>
+            <button className="btn" onClick={() => start(ctx.mutate, task.id, "pomo", t.round + 1)}><SkipForward size={16} />Devam et</button>
           ) : (
             <>
               {t.pausedAt
-                ? <button className="btn wfill" onClick={() => resume(ctx.mutate)}><Play size={16} />Resume</button>
-                : <button className="btn wfill" onClick={() => pause(ctx.mutate)}><Pause size={16} />Pause</button>}
-              <button className="btn ghost" onClick={() => stop(ctx.mutate)}>Stop and save</button>
+                ? <button className="btn wfill" onClick={() => resume(ctx.mutate)}><Play size={16} />Devam et</button>
+                : <button className="btn wfill" onClick={() => pause(ctx.mutate)}><Pause size={16} />Duraklat</button>}
+              <button className="btn ghost" onClick={() => stop(ctx.mutate)}>Bitir, kaydet</button>
             </>
           )}
-          <button className="btn ghost" onClick={() => finish(ctx.mutate, ctx.state)}>Finish task</button>
-          <button className="btn ghost" onClick={() => ctx.open(task.id)}>Open task</button>
+          <button className="btn ghost" onClick={() => finish(ctx.mutate, ctx.state)}>Görevi bitir</button>
+          <button className="btn ghost" onClick={() => ctx.open(task.id)}>Görevi aç</button>
         </div>
       ) : (
-        <p className="fhint fslot">Press ▶ on a task in the list below.</p>
+        <p className="fhint fslot">Aşağıdaki listeden bir görevin ▶ düğmesine bas.</p>
       )}
 
     </section>

@@ -1,0 +1,10 @@
+import type { ChatMsg, Memory, Rou, State } from "../src/types";
+export const DEFAULT_ROU: string;
+export const ROU_COLORS: string[];
+export function rousOf(s: State): Rou[];
+export function rouOf(s: State, id?: string | null): Rou;
+export function migrateRous(s: State): boolean;
+export function chatOf(s: State, id: string): ChatMsg[];
+export function setChat(s: State, id: string, fn: (l: ChatMsg[]) => ChatMsg[]): void;
+export function memoryOf(s: State, rouId?: string | null): Memory[];
+export function newRou(name: string, color?: string, persona?: string): Rou;

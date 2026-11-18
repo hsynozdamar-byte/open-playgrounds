@@ -2,24 +2,24 @@ import { type Ctx, ALL, worldOf } from "../lib";
 import { Logo, Orb } from "./Orb";
 import { openWorldSettings } from "./Rail";
 
-// Title row: the selected world's sphere + the page title. The sphere opens the world settings. Same as the Today card.
+// Başlık satırı: seçili dünyanın küresi + sayfa başlığı. Küre dünya ayarlarını açar. Bugün kartıyla aynı.
 export function TitleRow({ ctx, children }: { ctx: Ctx; children: React.ReactNode }) {
   const w = ctx.route.lens === ALL ? null : worldOf(ctx.state, ctx.route.lens);
   return (
     <div className="titlerow">
       {w ? (
-        <button className="torb" onClick={() => openWorldSettings(w.id)} aria-label={`${w.name} settings`} title={`${w.name}: world settings`}>
+        <button className="torb" onClick={() => openWorldSettings(w.id)} aria-label={`${w.name} ayarları`} title={`${w.name}: dünya ayarları`}>
           <Orb world={w} size={30} />
         </button>
       ) : (
-        <span className="torb" title="All worlds"><Logo size={30} /></span>
+        <span className="torb" title="Tüm dünyalar"><Logo size={30} /></span>
       )}
       <h1>{children}</h1>
     </div>
   );
 }
 
-// Page header card: sphere + title, the page's own subline if any; the page's controls on the right.
+// Sayfa başı kartı: küre + başlık, varsa sayfanın kendi alt satırı; sağda sayfanın kontrolleri.
 export function PageHead({ ctx, title, sub, className = "", children }: { ctx: Ctx; title: React.ReactNode; sub?: React.ReactNode; className?: string; children?: React.ReactNode }) {
   return (
     <header className={`card pagehead ${className}`}>

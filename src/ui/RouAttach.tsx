@@ -1,0 +1,93 @@
+import { useEffect, useRef, useState } from "react";
+import { FileText, Loader2, Music, Video, X } from "lucide-react";
+import type { Att } from "../types";
+
+// Rou'ya ek: görsel, video, ses, belge. Dosya sunucuya yüklenir (data/media), mesajda yalnız adı durur.
+export type Pending = Att & { key: string; up?: boolean; preview?: string };
+
+export async function uploadFile(f: Blob, name: string): Promise<Att | { error: string }> {
+  const r = await fetch(`/api/upload?name=${encodeURIComponent(name)}&type=${encodeURIComponent(f.type)}`, { method: "POST", body: f })
+    .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+  return r.ok ? { file: r.file, name, kind: r.kind } : { error: r.error ?? "Yüklenemedi" };
+}
+
+const ICON = { video: Video, audio: Music, file: FileText } as const;
+
+// Gönderilmeyi bekleyen ekler (yazma alanının üstünde).
+export function AttChips({ list, onRemove }: { list: Pending[]; onRemove: (key: string) => void }) {
+  if (!list.length) return null;
+  return (
+    <ul className="ratts">
+      {list.map((a) => {
+        const I = a.kind === "image" ? null : ICON[a.kind];
+        return (
+          <li key={a.key} className={a.up ? "is-up" : ""}>
+            {a.kind === "image" && a.preview ? <img src={a.preview} alt="" /> : I && <I size={15} />}
+            <span>{a.name}</span>
+            {a.up ? <Loader2 size={13} className="spin" /> : <button type="button" onClick={() => onRemove(a.key)} aria-label={`${a.name} kaldır`}><X size={13} /></button>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// Mesajdaki ekler: görsel küçük resim, video ve ses oynatıcı, belge adıyla.
+export function MsgFiles({ files }: { files: Att[] }) {
+  return (
+    <div className="rmfiles">
+      {files.map((f) =>
+        f.kind === "image" ? <img key={f.file} src={`/media/${f.file}`} alt={f.name} loading="lazy" />
+        : f.kind === "video" ? <video key={f.file} src={`/media/${f.file}`} controls preload="metadata" />
+        : f.kind === "audio" ? <audio key={f.file} src={`/media/${f.file}`} controls preload="metadata" />
+        : <span key={f.file} className="rmdoc"><FileText size={14} />{f.name}</span>,
+      )}
+    </div>
+  );
+}
+
+// Sesli komut: kayıt → yükle → yerelde yazıya dök → metin yazma alanına gelir; gönderen kullanıcı (düzeltebilsin diye).
+// Kayıt sırasında vazgeç (kaydı atar) ya da bitir (yazıya döker). Mikrofon izni ilk kullanımda sorulur.
+export function useVoice(onText: (t: string) => void, onError: (e: string) => void) {
+  const [state, setState] = useState<"idle" | "rec" | "busy">("idle");
+  const [sec, setSec] = useState(0);
+  const rec = useRef<MediaRecorder | null>(null);
+  const drop = useRef(false);
+  useEffect(() => {
+    if (state !== "rec") return;
+    setSec(0);
+    const t = setInterval(() => setSec((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [state]);
+  useEffect(() => () => rec.current?.stream.getTracks().forEach((t) => t.stop()), []);
+
+  const start = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return onError("Bu pencerede ses kaydı yok");
+    let stream: MediaStream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return onError("Mikrofon izni verilmedi"); }
+    const r = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
+    r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    r.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      if (drop.current) return setState("idle");
+      setState("busy");
+      const type = r.mimeType || "audio/webm";
+      const blob = new Blob(chunks, { type });
+      const up = await uploadFile(blob, `ses.${type.includes("mp4") ? "m4a" : "webm"}`);
+      if ("error" in up) { setState("idle"); return onError(up.error); }
+      const t = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ file: up.file }) })
+        .then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+      setState("idle");
+      if (!t.ok) return onError(t.error ?? "Yazıya dökülemedi");
+      if (!t.text?.trim()) return onError("Bir şey duyamadım");
+      onText(t.text.trim());
+    };
+    rec.current = r;
+    drop.current = false;
+    r.start();
+    setState("rec");
+  };
+  const stop = (discard = false) => { drop.current = discard; if (rec.current?.state === "recording") rec.current.stop(); };
+  return { state, sec, start: () => void start(), finish: () => stop(), cancel: () => stop(true) };
+}

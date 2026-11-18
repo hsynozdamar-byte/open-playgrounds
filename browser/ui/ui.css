@@ -1,0 +1,116 @@
+/* Playground Browser arayüzü: Playgrounds'un yumuşak dili. Sol şeritte dünyalar, sağda dünya başına bölmeler. */
+:root {
+  --bg: #f3f1f7; --panel: #ffffff; --ink: #17151d; --ink-2: #5f5c6c; --ink-3: #9a97a6; --line: rgb(23 21 29 / 0.08); --hover: rgb(23 21 29 / 0.05);
+  --ok: #138a57; --off: #c2412d; --w: #5b3df0;
+  --font: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --fs-1: 11px; --fs-2: 12px; --fs-3: 13px; --fs-4: 14px; --fs-5: 16px; --fs-7: 26px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #131218; --panel: #1c1a23; --ink: #f1f0f5; --ink-2: #aeabba; --ink-3: #75727f; --line: rgb(255 255 255 / 0.08); --hover: rgb(255 255 255 / 0.06); --ok: #3cc788; --off: #f0745f; color-scheme: dark; }
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { display: flex; background: var(--bg); color: var(--ink); font: 400 var(--fs-4)/1.4 var(--font); -webkit-font-smoothing: antialiased; user-select: none; }
+/* Zemin: odaktaki dünyanın renginden iki yumuşak alan. */
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1;
+  background: radial-gradient(60% 70% at 8% 0%, color-mix(in srgb, var(--w) 14%, transparent), transparent 70%), radial-gradient(50% 60% at 100% 100%, color-mix(in srgb, var(--w2, var(--w)) 10%, transparent), transparent 70%);
+  transition: background 0.6s; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--w); outline-offset: 2px; }
+
+/* ---- sol şerit ---- */
+.side { width: 236px; flex: none; display: flex; flex-direction: column; padding: 0 10px 14px; }
+.drag { height: 46px; -webkit-app-region: drag; flex: none; }
+.brand { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 0 0 10px; margin-bottom: 14px; font-size: var(--fs-4); white-space: nowrap; }
+.brand b { font-weight: 650; letter-spacing: -0.01em; }
+.brand b + span { color: var(--ink-3); font-weight: 500; }
+.brand .mark { position: relative; align-self: center; width: 18px; height: 18px; }
+.sidetog { margin-left: auto; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); flex: none; }
+.sidetog:hover { background: var(--hover); color: var(--ink); }
+/* Dar kenar çubuğu: yalnız küreler; adlar ipucunda (title). Trafik ışıkları 18-70 px: sağında da 18 px boşluk kalsın diye 88 px. */
+.side { transition: width 0.22s cubic-bezier(0.23, 1, 0.32, 1); overflow: hidden; }
+.is-mini .side { width: 88px; }
+.is-mini .brand { padding: 0; justify-content: center; }
+.is-mini .brand > :not(.sidetog) { display: none; }
+.is-mini .sidetog { margin: 0; }
+.is-mini .wrow { grid-template-columns: 1fr; justify-items: center; padding: 0; }
+.is-mini .wtext, .is-mini .wadd, .is-mini .hint { display: none; }
+.worlds { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
+.wrow { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) 26px; align-items: center; gap: 10px; height: 50px; padding: 0 6px 0 8px; border-radius: 12px; text-align: left; }
+.wrow:hover { background: var(--hover); }
+.wrow.is-shown { background: var(--panel); box-shadow: 0 1px 2px rgb(16 24 40 / 0.06), inset 0 0 0 1px var(--line); }
+.wrow.is-focus { box-shadow: 0 1px 2px rgb(16 24 40 / 0.06), inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent); }
+.orb { position: relative; width: 28px; height: 28px; flex: none; }
+/* Küre Playgrounds'un motoruyla çizilir (orbs.js): tuval kutudan %15 taşar, şekil kesilmez. */
+.fluid { position: absolute; inset: 0; display: block; }
+.orb.sm { width: 18px; height: 18px; }
+.orb .pulse { position: absolute; z-index: 1; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--c); border: 2px solid var(--bg); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(0.7); opacity: 0.55; } }
+.wtext { display: grid; min-width: 0; }
+.wtext b { font-size: var(--fs-4); font-weight: 620; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtext span { font-size: var(--fs-2); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wtext span.is-work { color: var(--ink); font-weight: 560; }
+.wadd { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); opacity: 0; }
+.wrow:hover .wadd, .wadd.on { opacity: 1; }
+.wadd:hover { background: var(--hover); color: var(--ink); }
+.wadd.on { color: var(--c); }
+.hint { padding: 10px 10px 0; font-size: var(--fs-2); color: var(--ink-3); line-height: 1.45; }
+
+/* ---- bölmeler ---- */
+.stage { flex: 1; min-width: 0; display: grid; gap: 10px; padding: 10px 10px 10px 0; }
+.stage.n1 { grid-template-columns: 1fr; }
+.stage.n2 { grid-template-columns: 1fr 1fr; }
+.stage.n3, .stage.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.stage.n3 .pane:first-child { grid-row: span 2; }
+.pane { --c: var(--w); display: flex; flex-direction: column; min-width: 0; min-height: 0; border-radius: 16px; background: var(--panel); box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 8px 24px -12px rgb(16 24 40 / 0.12), inset 0 0 0 1px var(--line); overflow: hidden; }
+.pane.is-focus { box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 10px 28px -14px color-mix(in srgb, var(--c) 45%, transparent), inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent); }
+.phead { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 8px 0 12px; flex: none; }
+.pname { display: flex; align-items: center; gap: 8px; flex: none; font-size: var(--fs-4); font-weight: 650; letter-spacing: -0.01em; }
+/* Yeni sekme düğmesi Chrome gibi son sekmenin hemen yanında; sağdaki öğeler whoslot ile itilir. */
+.tabs { display: flex; gap: 4px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; padding: 0 2px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { position: relative; display: flex; align-items: center; gap: 7px; height: 30px; max-width: 200px; min-width: 64px; padding: 0 6px 0 10px; border-radius: 9px; color: var(--ink-2); font-size: var(--fs-3); flex: 0 1 auto; }
+.tab:hover { background: var(--hover); }
+.tab.on { background: color-mix(in srgb, var(--c) 9%, var(--panel)); color: var(--ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 22%, var(--line)); }
+.tab img, .tab .fav { width: 14px; height: 14px; flex: none; border-radius: 3px; }
+.tab .fav { background: var(--hover); }
+.tab .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tab .x { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; flex: none; color: var(--ink-3); opacity: 0; }
+.tab:hover .x, .tab.on .x { opacity: 1; }
+.tab .x:hover { background: var(--hover); color: var(--ink); }
+.tab .who { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; animation: pulse 1.4s ease-in-out infinite; }
+.iconbtn { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); flex: none; }
+.iconbtn:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+.iconbtn:disabled { opacity: 0.35; }
+.whoslot { margin-left: auto; }
+.who-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: var(--fs-2); font-weight: 600; color: #fff; background: var(--c); flex: none; white-space: nowrap; }
+.who-chip i { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: pulse 1.4s ease-in-out infinite; }
+.pbar { display: flex; align-items: center; gap: 2px; height: 42px; padding: 0 8px 8px; flex: none; }
+.addr { flex: 1; min-width: 0; height: 32px; margin-left: 4px; border-radius: 10px; border: 0; padding: 0 12px; background: var(--hover); color: var(--ink); font: 450 var(--fs-3) var(--font); }
+.addr::placeholder { color: var(--ink-3); }
+.addr:focus { outline: none; background: var(--panel); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent); }
+.sess { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; margin-left: 6px; border-radius: 999px; font-size: var(--fs-2); font-weight: 560; color: var(--ink-2); background: var(--hover); white-space: nowrap; flex: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.sess i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.sess.ok i { background: var(--ok); } .sess.off i { background: var(--off); }
+.pbody { position: relative; flex: 1; min-height: 0; margin: 0 8px 8px; border-radius: 10px; background: var(--bg); overflow: hidden; }
+
+/* Sekmesi olmayan dünya: hesapları ve girişleri. */
+.empty { position: absolute; inset: 0; display: grid; place-content: center; padding: 24px; overflow-y: auto; }
+.empty .in { width: min(440px, 100%); display: flex; flex-direction: column; gap: 18px; }
+.empty h2 { display: flex; align-items: center; gap: 12px; font-size: var(--fs-7); font-weight: 650; letter-spacing: -0.03em; }
+.empty p { color: var(--ink-2); font-size: var(--fs-4); }
+.accs { display: flex; flex-direction: column; border-radius: 14px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.acc { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; }
+.acc + .acc { border-top: 1px solid var(--line); }
+.plat { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: var(--fs-2); font-weight: 700; color: #fff; }
+.acc .t { display: grid; min-width: 0; }
+.acc .t b { font-size: var(--fs-4); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc .t span { font-size: var(--fs-2); color: var(--ink-3); }
+.acc .t span.ok { color: var(--ok); } .acc .t span.off { color: var(--off); }
+.btn { height: 30px; padding: 0 12px; border-radius: 9px; background: var(--hover); font-size: var(--fs-3); font-weight: 600; white-space: nowrap; }
+.btn:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.btn.pri { background: var(--c); color: #fff; }
+.none { text-align: center; color: var(--ink-3); font-size: var(--fs-4); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+[hidden] { display: none !important; }

@@ -1,6 +1,6 @@
 import { motion, LayoutGroup, Reorder, useDragControls } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, FolderKanban, History, NotebookPen, Plus, Search, Target, Trash2, type LucideIcon } from "lucide-react";
+import { CalendarDays, FolderKanban, Globe, History, Megaphone, NotebookPen, Plus, Search, Target, Trash2, type LucideIcon } from "lucide-react";
 import { commit as commitTimer } from "../timer";
 import { toast } from "./Toast";
 import { binIt } from "../trashOps";
@@ -10,6 +10,9 @@ import { today } from "../date";
 import { Logo, Orb } from "./Orb";
 import { readMe } from "../views/Profile";
 import { SWATCHES, worldId } from "../../shared/world.mjs";
+import { RouButton, useRouUnseen } from "./Rou";
+import { NoticeBell } from "./Notices";
+import { postsWaiting } from "../views/Studio";
 import { openSearch } from "./Search";
 import { openBackups } from "./Backups";
 import { openTrash } from "./Trash";
@@ -18,9 +21,9 @@ import { ColorPick } from "./Fields";
 
 type View = Ctx["route"]["view"];
 
-// Side panel: brand (= home), pages, worlds. The selected world filters every page.
-// The world list scrolls only if it really overflows; if not, nothing is clipped while the selection frame moves.
-// The world list scrolls sideways; the edge that hides a world fades.
+// Sol panel: marka (= ana sayfa), sayfalar, dünyalar. Seçilen dünya her sayfayı süzer.
+// Dünya listesi yalnız gerçekten taşıyorsa kaydırılır; taşmıyorsa seçili çerçeve kayarken hiçbir yeri kırpılmaz.
+// Dünya listesi yatay kayar; hangi kenarda gizli dünya varsa o kenar solar.
 function useScrollEdges(active: string) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
@@ -35,7 +38,7 @@ function useScrollEdges(active: string) {
     check();
     return () => (ro.disconnect(), el.removeEventListener("scroll", check));
   }, []);
-  // Keep the selected world in view.
+  // Seçili dünya görünür alanda kalsın.
   useEffect(() => {
     ref.current?.querySelector(".railitem.on")?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [active]);
@@ -44,12 +47,13 @@ function useScrollEdges(active: string) {
 
 export function Rail(ctx: Ctx) {
   const { state, route, go, mutate } = ctx;
+  const unseen = useRouUnseen(state);
   const [worldsRef, edges] = useScrollEdges(route.lens);
   const t = today();
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const editing = state.worlds.find((w) => w.id === editId) ?? null;
-  // World settings can be opened from anywhere: openWorldSettings(id).
+  // Dünya ayarları her yerden açılabilir: openWorldSettings(id).
   useEffect(() => {
     const h = (e: Event) => setEditId((e as CustomEvent<string>).detail);
     const n = () => setAdding(true);
@@ -57,7 +61,7 @@ export function Rail(ctx: Ctx) {
     addEventListener("pg-world-new", n);
     return () => (removeEventListener("pg-world-settings", h), removeEventListener("pg-world-new", n));
   }, []);
-  // The order of worlds changes by dragging. While dragging the order is kept locally, and saved on drop.
+  // Dünyaların sırası sürükleyerek değişir. Sürüklerken sıra yerelde tutulur, bırakınca kaydedilir.
   const [order, setOrder] = useState<World[] | null>(null);
   const shown = order ? order.map((w) => state.worlds.find((x) => x.id === w.id) ?? w).filter((w) => state.worlds.some((x) => x.id === w.id)) : state.worlds;
   const saveOrder = () => {
@@ -67,15 +71,17 @@ export function Rail(ctx: Ctx) {
     if (ids.join() === state.worlds.map((w) => w.id).join()) return;
     mutate((s) => void s.worlds.sort((a, b) => (ids.indexOf(a.id) + 1 || 1e9) - (ids.indexOf(b.id) + 1 || 1e9)));
   };
-  // The Profile is a page of its own: while it is open no world (nor Playgrounds) shows as selected on top; pressing one leaves the profile for Focus.
+  // Profil kendi başına bir sayfa: açıkken üstte hiçbir dünya (ve Playgrounds) seçili görünmez; birine basınca profilden çıkılıp Odak'a geçilir.
   const onProfile = route.view === "profile";
   const leave = onProfile ? { view: "focus" as View, project: undefined } : {};
   const count = (id: string) => state.tasks.filter((x) => (id === ALL || x.worldId === id) && x.status !== "done" && x.day && x.day <= t).length;
   const pages: { id: View; label: string; short?: string; n?: number; Icon: LucideIcon; desk?: boolean }[] = [
-    { id: "focus", label: "Focus", Icon: Target, n: count(route.lens) },
-    { id: "calendar", label: "Calendar", Icon: CalendarDays },
-    { id: "inbox", label: "Notebook", Icon: NotebookPen, n: inboxNew(state, route.lens).length },
-    { id: "projects", label: "Projects", Icon: FolderKanban },
+    { id: "focus", label: "Odak", Icon: Target, n: count(route.lens) },
+    { id: "calendar", label: "Takvim", Icon: CalendarDays },
+    { id: "inbox", label: "Defter", Icon: NotebookPen, n: inboxNew(state, route.lens).length },
+    { id: "projects", label: "Projeler", Icon: FolderKanban },
+    { id: "posts", label: "Gönderiler", Icon: Megaphone, n: postsWaiting(state, route.lens) },
+    { id: "browser", label: "Tarayıcı", Icon: Globe, desk: true },
   ];
   return (
     <div className="chrome">
@@ -94,20 +100,22 @@ export function Rail(ctx: Ctx) {
               </WorldItem>
             ))}
           </Reorder.Group>
-          <button className="addworld" onClick={() => setAdding(true)} aria-label="New world" title="New world">
+          <button className="addworld" onClick={() => setAdding(true)} aria-label="Yeni dünya" title="Yeni dünya">
             <Plus size={16} strokeWidth={2} />
           </button>
         </div>
       </LayoutGroup>
-      {/* On mobile the bottom of the side panel (Profile, Trash, Backups) is hidden; Profile opens from here, the other two live on the Profile page. */}
-      <button className={`mprofile ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })} aria-label="Profile" title="Profile">
-        <span className="proav" aria-hidden>{(readMe().name || readMe().email || "Y").slice(0, 1).toLocaleUpperCase("en")}</span>
+      {/* Mobilde sol panelin altı (Profil, Çöp Kutusu, Yedekler) gizli; Profil buradan açılır, diğer ikisi Profil sayfasında. */}
+      <button className={`mprofile ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })} aria-label="Profil" title="Profil">
+        <span className="proav" aria-hidden>{(readMe().name || readMe().email || "S").slice(0, 1).toLocaleUpperCase("tr")}</span>
       </button>
+      <NoticeBell ctx={ctx} />
+      <RouButton waiting={unseen} />
       </header>
       <nav className="rail">
-      <button className="searchbtn" onClick={openSearch} aria-label="Search" title="Search (⌘K)">
+      <button className="searchbtn" onClick={openSearch} aria-label="Ara" title="Ara (⌘K)">
         <Search className="pi" size={17} strokeWidth={1.9} />
-        <span className="tl">Search</span>
+        <span className="tl">Ara</span>
         <kbd>⌘K</kbd>
       </button>
       <LayoutGroup id="pages">
@@ -124,17 +132,17 @@ export function Rail(ctx: Ctx) {
       </LayoutGroup>
       <div className="railfoot">
         <button className={`pageitem proitem ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })}>
-          <span className="proav" aria-hidden>{(readMe().name || readMe().email || "Y").slice(0, 1).toLocaleUpperCase("en")}</span>
-          <span className="tl">Profile</span>
+          <span className="proav" aria-hidden>{(readMe().name || readMe().email || "S").slice(0, 1).toLocaleUpperCase("tr")}</span>
+          <span className="tl">Profil</span>
         </button>
         <button className="pageitem" onClick={openTrash}>
           <Trash2 className="pi" size={17} strokeWidth={1.9} />
-          <span className="tl">Trash</span>
+          <span className="tl">Çöp Kutusu</span>
           {!!state.trash?.length && <span className="n is-quiet">{state.trash.length}</span>}
         </button>
         <button className="pageitem" onClick={openBackups}>
           <History className="pi" size={17} strokeWidth={1.9} />
-          <span className="tl">Backups</span>
+          <span className="tl">Yedekler</span>
         </button>
       </div>
       </nav>
@@ -167,7 +175,7 @@ export function Rail(ctx: Ctx) {
           }}
           onDelete={() => {
             const { index: _i, world, ...rest } = takeWorld(state, editing.id);
-            binIt({ mutate }, "world", editing.name, { worlds: [world], ...rest }, (s) => removeWorld(s, editing.id), `${editing.name} deleted`);
+            binIt({ mutate }, "world", editing.name, { worlds: [world], ...rest }, (s) => removeWorld(s, editing.id), `${editing.name} silindi`);
             if (route.lens === editing.id) go({ lens: ALL });
             setEditId(null);
           }}
@@ -177,7 +185,7 @@ export function Rail(ctx: Ctx) {
   );
 }
 
-// With a mouse it drags at once; on touch the bar can scroll, so you have to press and hold first.
+// Fareyle hemen sürüklenir; dokunmatikte çubuk kaydırılabildiği için önce basılı tutmak gerekir.
 function WorldItem({ world, onDone, children }: { world: World; onDone: () => void; children: React.ReactNode }) {
   const controls = useDragControls();
   const ref = useRef<HTMLDivElement>(null);
@@ -187,7 +195,7 @@ function WorldItem({ world, onDone, children }: { world: World; onDone: () => vo
   const liftedRef = useRef(false);
   liftedRef.current = lifted;
   const cancel = () => clearTimeout(hold.current.t);
-  // The page must not scroll when an item is held and lifted.
+  // Basılı tutup kaldırınca sayfa kaymasın.
   useEffect(() => {
     const el = ref.current;
     const stop = (e: TouchEvent) => liftedRef.current && e.preventDefault();
@@ -213,7 +221,7 @@ function WorldItem({ world, onDone, children }: { world: World; onDone: () => vo
       onPointerMove={(e) => e.pointerType !== "mouse" && Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > 8 && cancel()}
       onPointerUp={() => (cancel(), !moved.current && setLifted(false))}
       onPointerCancel={() => (cancel(), setLifted(false))}
-      // After dragging and dropping, the world must not also be selected.
+      // Sürükleyip bırakınca dünya ayrıca seçilmesin.
       onClickCapture={(e) => moved.current && (e.stopPropagation(), (moved.current = false))}
       onContextMenu={(e) => e.preventDefault()}
       whileDrag={{ scale: 1.06, zIndex: 2 }}
@@ -225,14 +233,14 @@ function WorldItem({ world, onDone, children }: { world: World; onDone: () => vo
 }
 
 function Item({ on, onClick, label, hint, n, color, home, children }: { on: boolean; onClick: () => void; label: string; hint?: string; n: number; color?: string; home?: boolean; children: React.ReactNode }) {
-  // On a narrow screen the bar can scroll: keep the selected world in view.
+  // Dar ekranda çubuk kayabilir: seçili dünya görünür kalsın.
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (on) ref.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, [on]);
   return (
-    <button ref={ref} className={`railitem ${on ? "on" : ""} ${home ? "ishome" : ""}`} onClick={onClick} title={home ? "All worlds" : hint ? `${label}: ${hint}` : label} style={color ? { ["--w" as string]: color } : undefined}>
-      {/* Critically damped: it does not overshoot, so it never looks clipped when reaching an item at the edge. */}
+    <button ref={ref} className={`railitem ${on ? "on" : ""} ${home ? "ishome" : ""}`} onClick={onClick} title={home ? "Tüm dünyalar" : hint ? `${label}: ${hint}` : label} style={color ? { ["--w" as string]: color } : undefined}>
+      {/* Kritik sönümlü: hedefi geçmez, kenardaki öğeye gelirken taşıp kesik görünmez. */}
       {on && <motion.span layoutId="rail-ring" className="ring" transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} />}
       <motion.span className="orbwrap" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.92 }}>{children}</motion.span>
       <span className="name">{label}</span>
@@ -243,7 +251,7 @@ function Item({ on, onClick, label, hint, n, color, home, children }: { on: bool
 
 type WorldDraft = { name: string; color: string; color2?: string; description: string };
 
-// New world and world settings share one form. When editing, "Delete world" is at the bottom.
+// Yeni dünya ve dünya ayarları aynı formu kullanır. Düzenlemede altta "Dünyayı sil" var.
 function WorldForm({ world, used = [], stats, onClose, onSave, onDelete }: { world?: World; used?: string[]; stats?: string; onClose: () => void; onSave: (d: WorldDraft) => void; onDelete?: () => void }) {
   const [name, setName] = useState(world?.name ?? "");
   const [color, setColor] = useState(world?.color ?? SWATCHES.find((c) => !used.includes(c)) ?? SWATCHES[0]);
@@ -261,49 +269,49 @@ function WorldForm({ world, used = [], stats, onClose, onSave, onDelete }: { wor
           if (name.trim()) onSave({ name: name.trim(), color, color2: color2 || undefined, description: desc.trim() });
         }}
       >
-        <p className="flabel">{world ? "World settings" : "New world"}</p>
+        <p className="flabel">{world ? "Dünya ayarları" : "Yeni dünya"}</p>
         <div className="newworld">
           <Orb world={{ id: world?.id ?? "x", name, color, color2: color2 || undefined, description: "" }} size={52} blob />
-          <input className="big" autoFocus={!world} placeholder="World name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="big" autoFocus={!world} placeholder="Dünyanın adı" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="toneset">
-          <span className="flabel">Main color</span>
+          <span className="flabel">Ana renk</span>
           <div className="swatches">
             {SWATCHES.map((c) => (
               <button type="button" key={c} className={c === color ? "on" : ""} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
             ))}
-            <ColorPick className={`pick ${SWATCHES.includes(color) ? "" : "on"}`} title="Another color" value={color} onChange={setColor} label="Another main color" />
+            <ColorPick className={`pick ${SWATCHES.includes(color) ? "" : "on"}`} title="Başka bir renk" value={color} onChange={setColor} label="Başka bir ana renk" />
           </div>
         </div>
         <div className="toneset">
-          <span className="flabel">Second tone</span>
+          <span className="flabel">İkinci ton</span>
           <div className="swatches">
-            <button type="button" className={`auto ${color2 ? "" : "on"}`} onClick={() => setColor2("")} aria-label="Automatic" title="Close tones of the main color">A</button>
+            <button type="button" className={`auto ${color2 ? "" : "on"}`} onClick={() => setColor2("")} aria-label="Otomatik" title="Ana rengin yakın tonları">A</button>
             {SWATCHES.filter((c) => c !== color).map((c) => (
               <button type="button" key={c} className={c === color2 ? "on" : ""} style={{ background: c }} onClick={() => setColor2(c)} aria-label={c} />
             ))}
-            <ColorPick className={`pick ${color2 && !SWATCHES.includes(color2) ? "on" : ""}`} title="Another color" value={color2 || color} onChange={setColor2} label="Another second tone" />
+            <ColorPick className={`pick ${color2 && !SWATCHES.includes(color2) ? "on" : ""}`} title="Başka bir renk" value={color2 || color} onChange={setColor2} label="Başka bir ikinci ton" />
           </div>
         </div>
         <label className="field">
-          <span className="flabel">Short description</span>
-          <input maxLength={80} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="E.g. My game projects, social media" />
+          <span className="flabel">Kısa açıklama</span>
+          <input maxLength={80} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ör. Oyun projelerim, sosyal medya" />
         </label>
         {confirm && onDelete ? (
           <div className="wdel">
-            <p>Delete <b>{world?.name}</b>? {stats}</p>
+            <p><b>{world?.name}</b> silinsin mi? {stats}</p>
             <div className="foot">
               <span />
-              <button type="button" className="btn" onClick={() => setConfirm(false)}>Cancel</button>
-              <button type="button" className="btn dangerfill" onClick={onDelete}>Yes, delete</button>
+              <button type="button" className="btn" onClick={() => setConfirm(false)}>Vazgeç</button>
+              <button type="button" className="btn dangerfill" onClick={onDelete}>Evet, sil</button>
             </div>
           </div>
         ) : (
         <div className="foot">
-          {onDelete ? <button type="button" className="btn danger" onClick={() => setConfirm(true)}>Delete world</button> : null}
+          {onDelete ? <button type="button" className="btn danger" onClick={() => setConfirm(true)}>Dünyayı sil</button> : null}
           <span />
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" disabled={!name.trim()}>{world ? "Save" : "Create"}</button>
+          <button type="button" className="btn" onClick={onClose}>Vazgeç</button>
+          <button className="btn primary" disabled={!name.trim()}>{world ? "Kaydet" : "Oluştur"}</button>
         </div>
         )}
       </motion.form>
@@ -314,9 +322,10 @@ function WorldForm({ world, used = [], stats, onClose, onSave, onDelete }: { wor
 export const openNewWorld = () => dispatchEvent(new Event("pg-world-new"));
 export const openWorldSettings = (id: string) => dispatchEvent(new CustomEvent("pg-world-settings", { detail: id }));
 
-// Deleting a world takes its projects, tasks, blocks, sessions and notes with it. Undo puts them all back.
+// Silme: dünyanın projeleri, işleri, blokları, oturumları, notları ve otomasyonları birlikte gider. Geri al hepsini geri koyar.
 function takeWorld(s: State, id: string) {
   const tasks = new Set(s.tasks.filter((t) => t.worldId === id).map((t) => t.id));
+  const autos = new Set(s.automations.filter((a) => a.worldId === id).map((a) => a.id));
   return {
     index: s.worlds.findIndex((w) => w.id === id),
     world: s.worlds.find((w) => w.id === id)!,
@@ -325,6 +334,8 @@ function takeWorld(s: State, id: string) {
     blocks: s.blocks.filter((b) => b.worldId === id || (b.taskId && tasks.has(b.taskId))),
     sessions: s.sessions.filter((x) => tasks.has(x.taskId)),
     inbox: s.inbox.filter((x) => x.worldId === id),
+    automations: s.automations.filter((a) => autos.has(a.id)),
+    runs: s.runs.filter((r) => r.taskId && tasks.has(r.taskId)),
   };
 }
 function removeWorld(s: State, id: string) {
@@ -336,15 +347,19 @@ function removeWorld(s: State, id: string) {
   s.blocks = drop(s.blocks, snap.blocks);
   s.sessions = drop(s.sessions, snap.sessions);
   s.inbox = drop(s.inbox, snap.inbox);
+  s.automations = drop(s.automations, snap.automations);
+  s.runs = drop(s.runs, snap.runs);
   if (s.timer && snap.tasks.some((t) => t.id === s.timer!.taskId)) { commitTimer(s); s.timer = null; }
 }
 function deleteStats(s: State, id: string) {
   const w = takeWorld(s, id);
   const parts = [
-    w.projects.length && `${w.projects.length} ${w.projects.length === 1 ? "project" : "projects"}`,
-    w.tasks.length && `${w.tasks.length} ${w.tasks.length === 1 ? "task" : "tasks"}`,
-    w.inbox.length && `${w.inbox.length} ${w.inbox.length === 1 ? "note" : "notes"}`,
-    w.sessions.length && `${w.sessions.length} focus ${w.sessions.length === 1 ? "session" : "sessions"}`,
+    w.projects.length && `${w.projects.length} proje`,
+    w.tasks.length && `${w.tasks.length} görev`,
+    w.automations.length && `${w.automations.length} otomasyon`,
+    w.inbox.length && `${w.inbox.length} not`,
+    w.runs.length && `${w.runs.length} çıktı`,
+    w.sessions.length && `${w.sessions.length} odak kaydı`,
   ].filter(Boolean);
-  return parts.length ? `Everything inside goes too: ${parts.join(", ")}. You can undo right after.` : "There is nothing inside.";
+  return parts.length ? `İçindekiler de silinir: ${parts.join(", ")}. Hemen ardından geri alabilirsin.` : "İçinde hiçbir şey yok.";
 }

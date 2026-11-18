@@ -1,9 +1,10 @@
 import { PageHead } from "../ui/PageHead";
 import { WeekReview } from "../ui/WeekReview";
+import { runOfTask } from "../runs";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Block, Task } from "../types";
+import type { Automation, Block, Task } from "../types";
 import { type Ctx, ALL, blockTitle, dflt, inLens, newTask, worldOf } from "../lib";
 import { addDays, dayLong, dayNum, dayShort, dur, fromMin, mkTs, range, spanMin, today, tsDay, tsMin, weekStart, localTs } from "../date";
 import { uid } from "../store";
@@ -11,13 +12,17 @@ import { TaskList } from "../ui/TaskRow";
 import { StatusMark } from "../ui/StatusMark";
 import { useNow } from "../ui/useNow";
 import { toast } from "../ui/Toast";
-import { ArrowUpRight, CalendarX2, ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ArrowUpRight, CalendarX2, ChevronLeft, ChevronRight, Play, Repeat, Send } from "lucide-react";
 import { startTask } from "../timer";
+import { autoOf, doNow, ghosts, whoOf } from "../ui/Auto";
+import { whereText } from "../ui/Board";
+import { stagesOf } from "../../shared/stages.mjs";
+import { openAutoForm } from "../ui/AutoForm";
 
 const START = 0;
 const END = 24;
 const HOUR = 80;
-// A short (15 min) block keeps a readable height: the title and status mark fit comfortably.
+// Kısa (15 dk) blok da okunur yükseklikte kalır: başlık ve durum işareti rahat sığar.
 const MIN_BLK = 34;
 const SNAP = 15;
 const MINUTES = (END - START) * 60;
@@ -33,7 +38,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   const t = today();
   const [mode, setMode] = useState<"week" | "day">(() => (embedded || isNarrow() ? "day" : "week"));
   const [anchor, setAnchor] = useState(t);
-  // If the app stays open past midnight, a calendar showing today moves to the new day (otherwise tasks would be left on yesterday's hours).
+  // Uygulama gece yarısını açık geçerse bugünü gösteren takvim yeni güne geçer (yoksa dünün saatlerine iş bırakılır).
   const wasToday = useRef(t);
   useEffect(() => {
     const was = wasToday.current;
@@ -47,7 +52,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   const tasks = s.tasks.filter(inLens(lens));
   const cols = useRef<(HTMLDivElement | null)[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
-  // The hour grid stretches to the bottom of the window, leaving 12 px of space like on the sides.
+  // Saat ızgarası pencerenin altına kadar uzar; altta yanlardaki gibi 12 px boşluk kalır.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (embedded || !el) return;
@@ -69,15 +74,15 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   };
   const [draft, setDraft] = useState<{ col: number; a: number; b: number } | null>(null);
   const [sel, setSel] = useState<string | null>(null);
-  // Removing always asks first: the Delete key also opens the menu at the confirm step.
+  // Silme her zaman onaylı: Delete tuşu da menüyü onay adımında açar.
   const [askRemove, setAskRemove] = useState(false);
   const [review, setReview] = useState(false);
   const overTray = useRef(false);
   const [trayHot, setTrayHot] = useState(false);
-  // Right panel: tasks without a time. Today, this week (the shown days) or someday.
+  // Sağ panel: saati olmayan işler. Bugün, bu hafta (gösterilen günler) ya da tarihsiz.
   const [trayTab, setTrayTab] = useState<"today" | "week" | "none">(() => { try { return (localStorage.getItem("pg-tray") as "today" | "week" | "none" | null) ?? "today"; } catch { return "today"; } });
-  const pickTray = (k: "today" | "week" | "none") => { setTrayTab(k); try { localStorage.setItem("pg-tray", k); } catch { /* none */ } };
-  // If a block goes back to the backlog: the block is deleted; if the task has no other block, its day is cleared too.
+  const pickTray = (k: "today" | "week" | "none") => { setTrayTab(k); try { localStorage.setItem("pg-tray", k); } catch { /* yok */ } };
+  // Blok backlog'a dönerse: blok silinir; işin başka saati kalmadıysa tarihi de kalkar.
   const unplan = (blockId: string) =>
     mutate((st) => {
       const blk = st.blocks.find((x) => x.id === blockId);
@@ -88,7 +93,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   const now = useNow(true, 30000);
 
   useEffect(() => {
-    // Start an hour early; when it hits the bottom it still lands on a full hour line so the hour label above is not clipped.
+    // Bir saat önceden başla; en alta dayanınca da tam saat çizgisine otursun ki üstteki saat etiketi kesilmesin.
     const g = scroller.current;
     if (!g) return;
     const h = new Date().getHours();
@@ -96,19 +101,19 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     g.scrollTo({ top: Math.max(0, top - 12) });
   }, []);
 
-  // Only this block leaves the calendar; the task and its other blocks stay. Can be undone from the toast.
+  // Sadece bu saat takvimden kalkar; iş ve diğer saatleri kalır. Bildirimden geri alınır.
   const removeBlock = (id: string) => {
     const blk = s.blocks.find((b) => b.id === id);
     setSel(null);
     if (!blk) return;
     mutate((st) => void (st.blocks = st.blocks.filter((b) => b.id !== id)));
-    toast("Block removed from the calendar", () => mutate((st) => void (st.blocks.some((b) => b.id === blk.id) || st.blocks.push(blk))));
+    toast("Saat takvimden kaldırıldı", () => mutate((st) => void (st.blocks.some((b) => b.id === blk.id) || st.blocks.push(blk))));
   };
 
-  // Delete the selected block with the Delete key.
+  // Seçili bloğu Delete ile sil.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      // No block is deleted while a task card is open or a text field is focused.
+      // İş kartı açıkken ya da yazı alanındayken blok silinmez.
       if (!sel || (e.target as HTMLElement).closest("input,textarea,select") || document.querySelector(".drawer, .modal")) return;
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); setAskRemove(true); }
       if (e.key === "Escape") setSel(null);
@@ -127,14 +132,14 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     return i < 0 ? fallback : i;
   };
 
-  // Dragging: tracked on the window, saved on release.
+  // Sürükleme: pencere üzerinden izlenir, bırakınca kaydedilir.
   useEffect(() => {
     if (!drag) return;
     const move = (e: PointerEvent) => {
       const d = dragRef.current;
       if (!d) return;
       if (d.kind === "move") {
-        // Dragging a block to the backlog takes it off the calendar.
+        // Bloğu backlog'a sürüklemek: takvimden çıkar.
         const hit = !!(document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest(".tray");
         if (hit !== overTray.current) { overTray.current = hit; setTrayHot(hit); }
       }
@@ -162,12 +167,12 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
       if (d.kind === "move" && toTray && d.moved) return unplan(d.id);
       if (d.kind === "create") return setDraft({ col: d.col, a: d.a, b: Math.min(END * 60, d.moved ? d.b : d.a + 60) });
       if (!d.moved) {
-        // Click: select the block; a small menu opens next to it asking what to do.
+        // Tıklama: bloğu seç, yanında ne yapılacağını soran küçük menü açılır.
         setSel(d.id);
         return;
       }
       const day = days[d.col];
-      // Dragging with ⌥: adds a new block to the same task (no separate task); if it touches the old one they merge.
+      // ⌥ ile sürükleme: aynı işe yeni bir saat eklenir (ayrı iş açılmaz); değerse eskisiyle birleşir.
       if (d.kind === "move" && d.copy) {
         const nid = uid();
         mutate((st) => {
@@ -184,7 +189,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
         blk.start = mkTs(day, d.a);
         blk.end = mkTs(day, d.b);
         const task = blk.taskId ? st.tasks.find((x) => x.id === blk.taskId) : undefined;
-        if (task && task.status !== "done") task.day = day;
+        if (task && task.status !== "done") { if (task.autoId) task.autoDay ??= task.day ?? day; task.day = day; }
       });
     };
     const cancel = () => setDrag(null);
@@ -208,14 +213,15 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     setDrag({ kind, id: b.id, col, a, b: bb, y0: e.clientY, x0: e.clientX, a0: a, b0: bb, col0: col, moved: false, lane, of });
   };
 
-  // Dropping a task from the sidebar (or a list) onto the calendar.
+  // Kenar çubuğundan (ya da listeden) bir işi takvime bırakma.
   const dropTask = (taskId: string, day: string, min: number | null) =>
     mutate((st) => {
       const task = st.tasks.find((x) => x.id === taskId);
       if (!task) return;
+      if (task.autoId) task.autoDay ??= task.day ?? day;
       task.day = day;
       if (min === null) return;
-      // If the task already has a block in this range, that one moves; no second block is added (for an extra block use ⌥ or "+ Add block").
+      // İşin bu aralıkta zaten bir saati varsa o taşınır; ikinci saat eklenmez (ek saat için ⌥ ya da "+ Saat ekle").
       const existing = st.blocks.find((b) => b.taskId === taskId && days.includes(tsDay(b.start)));
       if (existing) {
         const len = Math.max(SNAP, spanMin(existing.start, existing.end));
@@ -230,25 +236,34 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     });
 
   const visible = (d: string) => tasks.filter((x) => x.day === d && x.status !== "done" && !s.blocks.some((b) => b.taskId === x.id && tsDay(b.start) === d));
-  // Backlog: tasks with no place on the calendar (someday or day passed). A task with a day or a block does not show here.
+  // Backlog: takvimde hiç yeri olmayan işler (tarihsiz ya da günü geçmiş). Günü ya da saati olan iş burada görünmez.
   const unplanned = tasks.filter((x) => x.status !== "done" && (!x.day || (x.day < t && !days.includes(x.day))) && !s.blocks.some((b) => b.taskId === x.id && days.includes(tsDay(b.start))));
   const weekMin = blocks.reduce((n, b) => n + spanMin(b.start, b.end), 0);
   const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes();
 
+  // Gerçekte çalışılan süre (oturumlar + çalışan zamanlayıcı), yerel saate çevrilir.
+
+  // Botların hazırladığı, belli bir güne planlanmış çıktılar (ör. Sosyal gönderileri).
+  const runWorld = (r: (typeof s.runs)[number]) => s.tasks.find((x) => x.id === r.taskId)?.worldId;
+  const posts = s.runs.filter((r) => r.on && (r.status === "ready" || r.status === "approved") && days.includes(r.on) && runWorld(r) && (lens === ALL || runWorld(r) === lens));
+  // İlerideki tekrarlar: henüz açılmamış günlerde soluk yer tutucu.
+  const ghostList = ghosts(s, lens, days);
+  const openGhost = (a: (typeof s.automations)[number]) => openAutoForm({ id: a.id });
+
   const calEl = (
         <div className="cal" style={{ ["--days" as string]: days.length }}>
-          {/* The calendar's own toolbar: navigation and view, right above the grid it controls, on the left edge. */}
+          {/* Takvimin kendi araç satırı: gezinme ve görünüm, yönettiği ızgaranın hemen üstünde, sol kenarda. */}
           {!embedded && <div className="caltool">
             <div className="seg sm">
-              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? -7 : -1))} aria-label="Previous"><ChevronLeft size={16} /></button>
-              <button className={days.includes(t) ? "on" : ""} aria-pressed={days.includes(t)} onClick={() => setAnchor(t)}>Today</button>
-              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? 7 : 1))} aria-label="Next"><ChevronRight size={16} /></button>
+              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? -7 : -1))} aria-label="Önceki"><ChevronLeft size={16} /></button>
+              <button className={days.includes(t) ? "on" : ""} aria-pressed={days.includes(t)} onClick={() => setAnchor(t)}>Bugün</button>
+              <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? 7 : 1))} aria-label="Sonraki"><ChevronRight size={16} /></button>
             </div>
             <div className="seg sm">
-              <button className={mode === "day" ? "on" : ""} onClick={() => setMode("day")}>Day</button>
-              <button className={mode === "week" ? "on" : ""} onClick={() => setMode("week")}>Week</button>
+              <button className={mode === "day" ? "on" : ""} onClick={() => setMode("day")}>Gün</button>
+              <button className={mode === "week" ? "on" : ""} onClick={() => setMode("week")}>Hafta</button>
             </div>
-            <button className="btn sm" onClick={() => setReview(true)}>Week review</button>
+            <button className="btn sm" onClick={() => setReview(true)}>Hafta özeti</button>
           </div>}
           <div className="chead">
             <span className="gut" />
@@ -259,13 +274,27 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
               </button>
             ))}
           </div>
-          {/* The all-day row shows only when there is something to show (a deadline). */}
-          {!embedded && days.some((d) => tasks.some((x) => x.deadline === d && x.status !== "done") || s.projects.filter(inLens(lens)).some((p) => p.deadline === d && p.status !== "done")) && <div className="allday">
-            <span className="gut">day</span>
+          {/* Gün satırı yalnız gösterilecek bir şey varsa (deadline, gönderi, saatsiz otomasyon) görünür. */}
+          {!embedded && days.some((d) => tasks.some((x) => x.deadline === d && x.status !== "done") || s.projects.filter(inLens(lens)).some((p) => p.deadline === d && p.status !== "done") || posts.some((r) => r.on === d) || ghostList.some((g) => g.day === d && !g.slot)) && <div className="allday">
+            <span className="gut">gün</span>
             {days.map((d) => (
               <DropZone key={d} className="adcell" onDrop={(id) => dropTask(id, d, null)}>
                 {[...tasks.filter((x) => x.deadline === d && x.status !== "done"), ...s.projects.filter(inLens(lens)).filter((p) => p.deadline === d && p.status !== "done")].map((x) => (
                   <span key={x.id} className="flag">⚑ {"title" in x ? x.title : x.name}</span>
+                ))}
+                {posts.filter((r) => r.on === d).map((r) => {
+                  const wid = runWorld(r)!;
+                  return (
+                    <button key={r.id} className="post" style={{ ["--w" as string]: worldOf(s, wid).color }} title={r.title} onClick={() => r.taskId ? ctx.open(r.taskId) : undefined}>
+                      {r.images?.[0] ? <img src={`/${r.images[0]}`} alt="" /> : <Send size={11} />}
+                      <span>{r.title}</span>
+                    </button>
+                  );
+                })}
+                {ghostList.filter((g) => g.day === d && !g.slot).map((g) => (
+                  <button key={g.a.id} className="chip ghost" style={{ ["--w" as string]: worldOf(s, g.a.worldId).color }} title={`Otomasyon: ${g.a.title}`} onClick={() => openGhost(g.a)}>
+                    <Repeat size={12} />{g.a.title}
+                  </button>
                 ))}
                 {embedded && visible(d).map((x) => <Chip key={x.id} task={x} ctx={ctx} />)}
               </DropZone>
@@ -296,16 +325,23 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
               >
 
                 {(() => {
-                  // The dragged block counts in the lane layout too: blocks standing side by side do not widen while dragging.
+                  // Sürüklenen blok da şerit hesabına girer: yan yana duran bloklar sürüklerken genişlemez.
                   const live = drag && "id" in drag ? drag : null;
                   const isCopy = !!live && live.kind === "move" && !!live.copy && live.moved;
                   const orig = live ? s.blocks.find((x) => x.id === live.id) : undefined;
-                  // The layout freezes while dragging: other blocks stay in place, the dragged one keeps its starting width.
+                  // Sürükleme boyunca yerleşim donar: diğer bloklar yerinde kalır, sürüklenen başladığı genişliği korur.
                   const list = blocks.filter((b) => tsDay(b.start) === d && !(live && b.id === live.id && !isCopy && live.col0 !== ci));
-                  const laid = lanes(list).filter((x) => !(live && x.b.id === live.id && !isCopy));
+                  // Henüz açılmamış otomasyon saatleri de şeride girer: gerçek işlerin üstüne binmez, yanına dizilir.
+                  const gs = ghostList.filter((g) => g.day === d && g.slot).map((g) => {
+                    const m = tsMin(`${d}T${g.slot}`);
+                    return { id: `g:${g.a.id}:${g.slot}`, taskId: null, worldId: g.a.worldId, title: g.a.title, start: `${d}T${g.slot}`, end: `${d}T${fromMin(Math.min(1440, m + (g.a.minutes || 30)))}`, kind: "plan" as const, g };
+                  });
+                  const laid = lanes([...list, ...gs]).filter((x) => !(live && x.b.id === live.id && !isCopy));
                   return (
                     <>
-                      {laid.map(({ b, lane, of }) => (
+                      {laid.map(({ b, lane, of }) => "g" in b ? (
+                        <GhostView key={b.id} g={(b as (typeof gs)[number]).g} ctx={ctx} a={tsMin(b.start)} e={tsMin(b.end) || 1440} lane={lane} of={of} onOpen={openGhost} />
+                      ) : (
                         <BlockView key={b.id} b={b} ctx={ctx} a={tsMin(b.start)} e={tsMin(b.end) || 24 * 60} lane={lane} of={of} sel={sel === b.id} onDown={(e, kind) => startBlockDrag(e, b, kind, ci, lane, of)} />
                       ))}
                       {live && orig && live.col === ci && (
@@ -347,8 +383,8 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     <div className={`calendar ${mode}`}>
       <PageHead
         ctx={ctx}
-        title={mode === "week" ? range(days[0]) : `${dayShort(anchor)}, ${dayLong(anchor)}`}
-        sub={weekMin ? `${dur(weekMin)} planned` : "Nothing planned yet. Drag a task onto an hour."}
+        title={mode === "week" ? range(days[0]) : `${dayShort(anchor)} ${dayLong(anchor)}`}
+        sub={weekMin ? `${dur(weekMin)} planlı` : "Henüz plan yok, görevi saate sürükle."}
       />
 
       <AnimatePresence>{review && <WeekReview ctx={ctx} start={weekStart(anchor)} onClose={() => setReview(false)} />}</AnimatePresence>
@@ -359,14 +395,14 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
           {(() => {
             const todayList = visible(t);
             const weekList = days.flatMap((d) => visible(d));
-            const tabs = [["today", "Today", todayList], ["week", mode === "week" ? "This week" : "This day", weekList], ["none", "Someday", unplanned]] as const;
+            const tabs = [["today", "Bugün", todayList], ["week", mode === "week" ? "Bu hafta" : "Bu gün", weekList], ["none", "Tarihsiz", unplanned]] as const;
             const cur = tabs.find((x) => x[0] === trayTab) ?? tabs[0];
             return <>
-              <div className="sechead"><h3>Tasks without a time</h3></div>
-              <div className="seg sm traytabs" role="tablist" aria-label="Tasks without a time">
+              <div className="sechead"><h3>Saatsiz görevler</h3></div>
+              <div className="seg sm traytabs" role="tablist" aria-label="Saatsiz görevler">
                 {tabs.map(([k, l, list]) => <button key={k} role="tab" aria-selected={trayTab === k} className={trayTab === k ? "on" : ""} onClick={() => pickTray(k)}>{l}<span className="tabn">{list.length}</span></button>)}
               </div>
-              <p className="hint">Drag to an hour to put it on the calendar.{cur[0] === "none" ? " Drag a calendar task here to clear its block and its day." : " Drag a calendar task here to clear its block and keep its day."}</p>
+              <p className="hint">Saate sürükle: takvime girer.{cur[0] === "none" ? " Takvimdeki bir görevi buraya sürükle: takvimden ve günden çıkar." : " Takvimdeki bir görevi buraya sürükle: saati kalkar, günü kalır."}</p>
               <DropZone className="traydrop" onDrop={(id) => mutate((st) => {
                 const x = st.tasks.find((y) => y.id === id);
                 const was = st.blocks.find((b) => b.taskId === id && days.includes(tsDay(b.start)));
@@ -376,7 +412,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
                 else if (cur[0] === "today") x.day = t;
                 else if (!x.day && was) x.day = tsDay(was.start);
               })}>
-                <TaskList tasks={[...cur[2]]} ctx={ctx} o={{ world: lens === ALL, day: cur[0] !== "today", grip: true }} empty={cur[0] === "today" ? "No tasks without a time today." : cur[0] === "week" ? "No tasks without a time this week." : "No someday tasks."} />
+                <TaskList tasks={[...cur[2]]} ctx={ctx} o={{ world: lens === ALL, day: cur[0] !== "today", grip: true }} empty={cur[0] === "today" ? "Bugün saatsiz görev yok." : cur[0] === "week" ? "Bu hafta saatsiz görev yok." : "Tarihsiz görev yok."} />
               </DropZone>
             </>;
           })()}
@@ -386,7 +422,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   );
 }
 
-// Overlapping blocks are laid out side by side: as many columns as lanes in each cluster.
+// Çakışan bloklar yan yana dizilir: her kümede şerit sayısı kadar sütun.
 function lanes(list: Block[]) {
   const sorted = [...list].sort((x, y) => x.start.localeCompare(y.start));
   const out: { b: Block; lane: number; of: number }[] = [];
@@ -405,40 +441,63 @@ function lanes(list: Block[]) {
   return out;
 }
 
+// Otomasyonun henüz açılmamış saati: o gün iş olarak açılacak. Gerçek blok gibi durur, soluk ve tekrar simgeli.
+function GhostView({ g, ctx, a, e, lane, of, onOpen }: { g: { a: Automation }; ctx: Ctx; a: number; e: number; lane: number; of: number; onOpen: (a: Automation) => void }) {
+  const len = e - a;
+  const tall = (len / 60) * HOUR - 2 >= 48;
+  const by = g.a.who === "me" ? "Sen yaparsın" : "Rou hazırlar";
+  return (
+    <button
+      className={`blk ghost ${of > 1 ? "is-split" : ""} ${!tall ? "short" : ""}`}
+      style={{ ["--w" as string]: worldOf(ctx.state, g.a.worldId).color, top: ((a - START * 60) / 60) * HOUR + 1, height: Math.max(MIN_BLK, (len / 60) * HOUR - 2), ...(of > 1 ? { left: `calc(5px + (100% - 7px) * ${lane / of})`, right: "auto", width: `calc((100% - 7px) / ${of} - 3px)` } : {}) }}
+      title={`Otomasyon: ${g.a.title} · ${fromMin(a)} · ${by}`}
+      onPointerDown={(ev) => ev.stopPropagation()}
+      onClick={() => onOpen(g.a)}
+    >
+      <span className="bt"><Repeat size={12} className="rep" /><span className="btx">{g.a.title}</span></span>
+      {tall && <span className="bm">{fromMin(a)}–{fromMin(e)}</span>}
+    </button>
+  );
+}
+
 function BlockView({ b, ctx, a, e, lane = 0, of = 1, sel, dragging, copy, onDown }: { b: Block; ctx: Ctx; a: number; e: number; lane?: number; of?: number; sel?: boolean; dragging?: boolean; copy?: boolean; onDown: (ev: React.PointerEvent, kind: "move" | "top" | "bottom") => void }) {
   const s = ctx.state;
   const task = b.taskId ? s.tasks.find((x) => x.id === b.taskId) : undefined;
   const w = worldOf(s, b.worldId);
   const len = e - a;
 
-  // A task whose day has passed and is not done looks late on the calendar too.
-  const late = !!task && task.status !== "done" && tsDay(b.start) < today();
-  // Today, its time is over but it is not done (and not being worked on): time is up.
+  // Günü geçmiş ve bitmemiş iş: takvimde de gecikmiş görünür.
+  // Rou'nun otomasyon işi senin zamanın değil: gecikti/saati geçti yazmaz, hangi adımda olduğunu yazar.
+  const auto = task ? autoOf(s, task) : undefined;
+  const bot = !!auto && auto.who !== "me";
+  const stage = bot && task ? whereText(stagesOf(s, auto!, task, runOfTask(s.runs, task.id)), runOfTask(s.runs, task.id)) : "";
+  const late = !bot && !!task && task.status !== "done" && tsDay(b.start) < today();
+  // Bugün saati geçmiş ama bitmemiş (ve şu an üzerinde çalışılmıyor): süresi doldu.
   const n = new Date();
-  const ended = !late && !!task && task.status !== "done" && s.timer?.taskId !== task.id && tsDay(b.start) === today() && e <= n.getHours() * 60 + n.getMinutes();
-  // Lower lines: the time (30 min and longer), the state (1 hour and longer, on its own line).
-  const tag = late ? "Late" : ended ? "Time is up" : "";
+  const ended = !bot && !late && !!task && task.status !== "done" && s.timer?.taskId !== task.id && tsDay(b.start) === today() && e <= n.getHours() * 60 + n.getMinutes();
+  // Alt satırlar: saat (30 dk ve üstü), durum (1 saat ve üstü, kendi satırında; kesilmez).
+  const tag = late ? "Gecikti" : ended ? "Saati geçti" : bot ? stage : "";
   const showTag = !!tag && len >= 60 && of === 1;
-  // The time line only when it fits (48px and up); otherwise one line with the title.
+  // Saat satırı yalnız sığdığında (48px ve üstü); sığmıyorsa blok tek satır, başlık ortada.
   const tall = (len / 60) * HOUR - 2 >= 48;
   const lines = Math.max(1, Math.floor(((len / 60) * HOUR - (tall ? 24 : 8) - (showTag ? 18 : 0)) / 16));
   return (
     <div
-      className={`blk s-${task?.status ?? "todo"} ${task?.status === "done" ? "done" : ""} ${s.timer?.taskId === b.taskId ? "running" : ""} ${sel ? "sel" : ""} ${dragging ? "dragging" : ""} ${copy ? "is-copy" : ""} ${of > 1 ? "is-split" : ""} ${!tall ? "short" : ""} ${late ? "is-late" : ""} ${ended ? "is-ended" : ""}`}
+      className={`blk s-${task?.status ?? "todo"} ${task?.status === "done" ? "done" : ""} ${s.timer?.taskId === b.taskId ? "running" : ""} ${sel ? "sel" : ""} ${dragging ? "dragging" : ""} ${copy ? "is-copy" : ""} ${of > 1 ? "is-split" : ""} ${!tall ? "short" : ""} ${late ? "is-late" : ""} ${ended ? "is-ended" : ""} ${bot ? "is-auto" : ""}`}
       style={{ ["--w" as string]: w.color, ["--lines" as string]: lines, top: ((a - START * 60) / 60) * HOUR + 1, height: Math.max(MIN_BLK, (len / 60) * HOUR - 2), ...(of > 1 ? { left: `calc(5px + (100% - 7px) * ${lane / of})`, right: "auto", width: `calc((100% - 7px) / ${of} - 3px)` } : {}) }}
-      title={`${blockTitle(s, b)} · ${fromMin(a)}–${fromMin(e)}${late ? " · Late, not done" : ended ? " · Time is up, not done" : ""}`}
+      title={`${blockTitle(s, b)} · ${fromMin(a)}–${fromMin(e)}${late ? " · Gecikti, bitmedi" : ended ? " · Saati geçti, bitmedi" : bot ? ` · Otomasyon: ${stage}` : ""}`}
       data-blk={b.id}
       onPointerDown={(ev) => onDown(ev, "move")}
     >
       {len >= 45 && <span className="h top" onPointerDown={(ev) => onDown(ev, "top")} />}
       {task && (
-        <button className="bopen" title="Open task" aria-label="Open task" onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => (ev.stopPropagation(), ctx.open(task.id))}>
+        <button className="bopen" title="Görevi aç" aria-label="Görevi aç" onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => (ev.stopPropagation(), ctx.open(task.id))}>
           <ArrowUpRight size={14} />
         </button>
       )}
-      <span className="bt"><StatusMark status={task?.status ?? "todo"} size={16} /><span className="btx">{blockTitle(s, b)}</span></span>
+      <span className="bt"><StatusMark status={task?.status ?? "todo"} size={16} /><span className="btx">{blockTitle(s, b)}</span>{task?.autoId && <Repeat size={12} className="rep" />}</span>
       {tall && <span className="bm">{fromMin(a)}–{fromMin(e)}</span>}
-      {showTag && <span className={`btag ${late ? "is-late" : "is-ended"}`}>{tag}</span>}
+      {showTag && <span className={`btag ${late ? "is-late" : ended ? "is-ended" : "is-auto"}`}>{tag}</span>}
       <span className="h bottom" onPointerDown={(ev) => onDown(ev, "bottom")} />
     </div>
   );
@@ -459,7 +518,7 @@ function Draft({ top, height, label, onSave, onCancel }: { top: number; height: 
           if (e.key === "Enter") (e.preventDefault(), v.trim() ? onSave(v.trim()) : onCancel());
         }}
         onBlur={() => (v.trim() ? onSave(v.trim()) : onCancel())}
-        placeholder="What will you do?"
+        placeholder="Ne yapacaksın?"
       />
     </form>
   );
@@ -495,7 +554,7 @@ function DropZone({ className, onDrop, children }: { className: string; onDrop: 
 }
 
 
-// Clicking a calendar block: what to do with that block. "Remove from calendar" does not delete the task, only this block.
+// Takvimdeki bloğa tıklayınca: o saat için ne yapılacağı. "Takvimden kaldır" işi silmez, sadece bu saati.
 function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx: Ctx; ask: boolean; onAsk: (x: boolean) => void; onClose: () => void; onRemove: () => void }) {
   const s = ctx.state;
   const b = s.blocks.find((x) => x.id === id);
@@ -507,7 +566,7 @@ function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx
       const el = document.querySelector(`[data-blk="${id}"]`);
       const m = ref.current;
       if (!el || !m) return onClose();
-      // On mobile there is a world bar at the bottom: the menu stays above it.
+      // Mobilde alttaki dünya çubuğu: menü onun üstünde kalır.
       const floor = matchMedia("(max-width: 720px)").matches ? (document.querySelector(".topbar")?.getBoundingClientRect().top ?? innerHeight) : innerHeight;
       const r = el.getBoundingClientRect(), W = m.offsetWidth, H = m.offsetHeight, G = 8;
       const x = r.right + G + W <= innerWidth - 12 ? r.right + G : r.left - G - W >= 12 ? r.left - G - W : Math.max(12, Math.min(innerWidth - W - 12, r.left));
@@ -532,7 +591,7 @@ function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx
   const w = worldOf(s, b.worldId);
   const running = s.timer?.taskId === task?.id;
   return createPortal(
-    <div ref={ref} className="blkmenu" role="dialog" aria-label="Calendar block" style={{ ["--w" as string]: w.color, left: pos?.x ?? -9999, top: pos?.y ?? -9999 }}>
+    <div ref={ref} className="blkmenu" role="dialog" aria-label="Takvim saati" style={{ ["--w" as string]: w.color, left: pos?.x ?? -9999, top: pos?.y ?? -9999 }}>
       <div className="bmhead">
         <StatusMark status={task?.status ?? "todo"} size={16} />
         <div>
@@ -541,22 +600,24 @@ function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx
         </div>
       </div>
       {task && (
-        <button onClick={() => (ctx.open(task.id), onClose())}><ArrowUpRight size={16} />Open task</button>
+        <button onClick={() => (ctx.open(task.id), onClose())}><ArrowUpRight size={16} />Görevi aç</button>
       )}
       {task && task.status !== "done" && !running && (
-        <button onClick={() => (startTask(ctx.mutate, task.id), onClose())}><Play size={15} />Start</button>
+        whoOf(ctx.state, task) === "me"
+          ? <button onClick={() => (startTask(ctx.mutate, task.id), onClose())}><Play size={15} />Başlat</button>
+          : <button onClick={() => (doNow(ctx, task), onClose())}><Play size={15} />Rou şimdi yapsın</button>
       )}
       {ask ? (
         <div className="bmconfirm">
-          <b>Remove this block from the calendar?</b>
-          <p>The block on {dayLong(tsDay(b.start))}, {fromMin(tsMin(b.start))}–{fromMin(tsMin(b.end) || 24 * 60)} is removed from the calendar. {task ? `“${task.title}” stays in your list.` : ""}</p>
+          <b>Bu saat takvimden kaldırılsın mı?</b>
+          <p>{dayLong(tsDay(b.start))} {fromMin(tsMin(b.start))}–{fromMin(tsMin(b.end) || 24 * 60)} saati takvimden silinir. {task ? `“${task.title}” görevi listede kalır.` : ""}</p>
           <div className="bmbtns">
-            <button className="btn sm ghost" onClick={() => onAsk(false)}>Cancel</button>
-            <button className="btn sm dangerfill" onClick={onRemove}>Remove</button>
+            <button className="btn sm ghost" onClick={() => onAsk(false)}>Vazgeç</button>
+            <button className="btn sm dangerfill" onClick={onRemove}>Kaldır</button>
           </div>
         </div>
       ) : (
-        <button className="is-danger" onClick={() => onAsk(true)}><CalendarX2 size={16} />Remove from calendar<em>Task stays</em></button>
+        <button className="is-danger" onClick={() => onAsk(true)}><CalendarX2 size={16} />Takvimden kaldır<em>Görev kalır</em></button>
       )}
     </div>,
     document.body,

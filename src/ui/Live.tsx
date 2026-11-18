@@ -1,0 +1,76 @@
+import { useEffect, useState } from "react";
+import { ArrowUpRight, Globe, MonitorUp, Play, RefreshCw, Send } from "lucide-react";
+import type { Live, Run, Task } from "../types";
+import type { Ctx } from "../lib";
+import { toast } from "./Toast";
+
+const host = (u: string) => { try { const x = new URL(u); return (x.host + x.pathname).replace(/\/$/, ""); } catch { return u; } };
+const post = (url: string, body: unknown) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
+// Rou'nun çalıştığı sekmeyi öne getirir: Playgrounds'un Tarayıcı sayfası, işin dünyası (yedek yol: Chrome).
+export const focusTab = (runId?: string) => void post("/api/focus-chrome", { runId });
+
+// Rou tarayıcıda çalışırken: hangi sayfa, şu an ne yapıyor, son adımlar (server/live.mjs).
+// Yedek Chrome yolunda Claude eklentisi izin beklerken kutu bunu öne çıkarır.
+export function LiveBox({ live, busy, runId }: { live?: Live; busy: boolean; runId?: string }) {
+  if (!live) return busy ? <div className="livebox"><p className="livenow"><RefreshCw size={13} className="spin" />Tarayıcı açılıyor…</p></div> : null;
+  const past = live.log.slice(0, -1).slice(-4);
+  return (
+    <div className={`livebox ${live.waiting ? "is-waiting" : ""}`}>
+      <div className="livehead">
+        <span className="livewhere"><Globe size={13} />{live.url ? <a href={live.url} target="_blank" rel="noreferrer">{host(live.url)}</a> : live.browser || "Tarayıcı"}</span>
+        <button className={`btn sm ${live.waiting ? "primary" : "ghost"}`} onClick={() => focusTab(runId)}><MonitorUp size={13} />Sekmeyi göster</button>
+      </div>
+      <p className="livenow">{busy && !live.waiting && <RefreshCw size={13} className="spin" />}{live.step}</p>
+      {live.waiting && <p className="livewait">Tarayıcı bir izin istiyor. Sekmeye geçip onayla, Rou kaldığı yerden sürer.</p>}
+      {past.length > 0 && <ol className="livelog">{past.map((x, i) => <li key={i}>{x}</li>)}</ol>}
+    </div>
+  );
+}
+
+// Onaydan ya da çekmecedeki Kaydet'ten sonra Rou'nun tarayıcı işini başlatma isteği; panel açılınca alır.
+const pending = new Set<string>();
+export function requestDo(runId: string) { pending.add(runId); window.dispatchEvent(new Event("pg-do")); }
+
+// Tek iş (otomasyon değil), Rou'nun: onaylanan planı Rou Playgrounds'un tarayıcısında, işin dünyasının oturumunda yapar (POST /api/do).
+// Soru gelirse burada cevaplanır.
+export function DoPanel({ r }: { r: Run; task?: Task; ctx?: Ctx }) {
+  const [answer, setAnswer] = useState("");
+  const [busy, setBusy] = useState(false);
+  const act = r.act;
+  const working = !!act?.phase && Date.now() - new Date(act.at).getTime() < 45 * 60 * 1000;
+  const start = async (ans?: string) => {
+    setBusy(true);
+    const res = await post("/api/do", { runId: r.id, ...(ans ? { answer: ans } : {}) });
+    setBusy(false);
+    dispatchEvent(new Event("pg-do-ready"));
+    if (!res.ok) return toast(res.error ?? "Başlatılamadı");
+    setAnswer("");
+    toast("Rou tarayıcıda başladı");
+  };
+  useEffect(() => {
+    const take = () => { if (pending.has(r.id) && r.status === "approved" && !working && !act?.question) { pending.delete(r.id); void start(); } };
+    take();
+    window.addEventListener("pg-do", take);
+    return () => window.removeEventListener("pg-do", take);
+  });
+  if (working) return <div className="dopanel"><LiveBox live={act?.live} busy runId={r.id} /></div>;
+  return (
+    <div className="dopanel">
+      {act?.note && <p className="donote">{act.note}{act.url && <> <a className="link" href={act.url} target="_blank" rel="noreferrer">Sayfayı aç <ArrowUpRight size={12} /></a></>}</p>}
+      {act?.error && <p className="pvissues">Rou yapamadı: {act.error}</p>}
+      {act?.question ? (
+        <form className="doask" onSubmit={(e) => (e.preventDefault(), answer.trim() && start(answer.trim()))}>
+          {/* Uzun listeler (ör. abonelikler "1 … | 2 …") madde madde; soru ve açıklama ayrı satırda. */}
+          {(() => { const parts = act.question.split(/\s+\|\s+|\n+/).map((x) => x.trim()).filter(Boolean); return parts.length > 3
+            ? <div className="doq"><b>Rou soruyor</b><ul>{parts.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            : <p><b>Rou soruyor</b>{act.question}</p>; })()}
+          <textarea rows={2} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Cevabın" aria-label="Rou'nun sorusuna cevap" />
+          <button className="btn sm primary" disabled={!answer.trim()}><Send size={13} />Cevapla, devam etsin</button>
+        </form>
+      ) : r.status === "approved" && (
+        <button className="btn sm primary" disabled={busy} onClick={() => start()}>{busy ? <RefreshCw size={13} className="spin" /> : <Play size={13} />}{act?.error || act?.note ? "Rou yeniden denesin" : "Rou yapsın"}</button>
+      )}
+      {act?.live && !working && <details className="dolast"><summary>Son çalışma: {act.live.step}</summary><LiveBox live={act.live} busy={false} runId={r.id} /></details>}
+    </div>
+  );
+}

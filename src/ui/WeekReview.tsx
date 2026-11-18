@@ -5,12 +5,13 @@ import type { Ctx, Lens } from "../lib";
 import { inLens } from "../lib";
 import type { State, Task } from "../types";
 import { addDays, dayLong, dur, range, relDay, spanMin, today, tsDay } from "../date";
+import { setDay } from "../../shared/repeat.mjs";
 import { Orb } from "./Orb";
 import { StatusMark } from "./StatusMark";
 import { toast } from "./Toast";
 
-// Weekly review (docs/PLAN.md flow E): planned and worked time per world,
-// finished tasks, missed deadlines, moving the rest to next week.
+// Haftalık gözden geçirme (docs/PLAN.md akış E): dünya başına planlanan ve çalışılan süre,
+// biten işler, kaçan deadline'lar, kalanları gelecek haftaya taşıma.
 export function weekReview(s: State, lens: Lens, start: string, now = today()) {
   const end = addDays(start, 6);
   const inWeek = (d: string | null | undefined) => !!d && d >= start && d <= end;
@@ -23,8 +24,8 @@ export function weekReview(s: State, lens: Lens, start: string, now = today()) {
   }).filter((x) => x.planned || x.worked);
   const done = tasks.filter((t) => t.status === "done" && t.doneAt && inWeek(localDay(t.doneAt)));
   const missed = tasks.filter((t) => t.status !== "done" && inWeek(t.deadline) && t.deadline! < now);
-  // To carry over: tasks planned for this week that are not done.
-  const left = tasks.filter((t) => t.status !== "done" && inWeek(t.day));
+  // Taşınacaklar: bu haftaya planlanmış, bitmemiş, kendi kendine tekrar açılmayan işler.
+  const left = tasks.filter((t) => t.status !== "done" && !t.autoId && inWeek(t.day));
   return { start, end, worlds, done, missed, left };
 }
 const localDay = (isoTime: string) => {
@@ -32,11 +33,11 @@ const localDay = (isoTime: string) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-// What is left goes to next week's Monday, and its later blocks go with it. Undo puts everything back on its old day.
+// Kalanlar gelecek haftanın pazartesisine; ileri saatleri de onlarla gider. Geri al hepsini eski gününe döndürür.
 export function moveLeft(s: State, ids: string[], to: string) {
   for (const id of ids) {
     const t = s.tasks.find((x) => x.id === id);
-    if (t && t.status !== "done") t.day = to;
+    if (t && t.status !== "done") setDay(s, t, to);
   }
 }
 
@@ -58,7 +59,7 @@ export function WeekReview({ ctx, start, onClose }: { ctx: Ctx; start: string; o
     const was = r.left.map((t) => ({ id: t.id, day: t.day }));
     const blocks = s.blocks.filter((b) => b.taskId && ids.includes(b.taskId));
     ctx.mutate((st) => moveLeft(st, ids, next));
-    toast(`${ids.length} ${ids.length === 1 ? "task" : "tasks"} moved to ${dayLong(next)}`, () => ctx.mutate((st) => {
+    toast(`${ids.length} görev ${dayLong(next)} gününe taşındı`, () => ctx.mutate((st) => {
       for (const w of was) { const t = st.tasks.find((x) => x.id === w.id); if (t) t.day = w.day; }
       st.blocks = [...st.blocks.filter((b) => !(b.taskId && ids.includes(b.taskId))), ...blocks];
     }));
@@ -66,18 +67,18 @@ export function WeekReview({ ctx, start, onClose }: { ctx: Ctx; start: string; o
 
   return (
     <div className="scrim center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div className="modal review" role="dialog" aria-label="Week review" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
+      <motion.div className="modal review" role="dialog" aria-label="Hafta özeti" initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}>
         <header className="bkhead">
           <div>
-            <h2>Week review</h2>
-            <p>{range(start)} · {totalWork ? `${dur(totalWork)} worked` : "No work recorded"}{totalPlan ? `, ${dur(totalPlan)} planned` : ""}</p>
+            <h2>Hafta özeti</h2>
+            <p>{range(start)} · {totalWork ? `${dur(totalWork)} çalışıldı` : "Çalışma kaydı yok"}{totalPlan ? `, ${dur(totalPlan)} planlıydı` : ""}</p>
           </div>
-          <button className="iconbtn" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="iconbtn" onClick={onClose} aria-label="Kapat"><X size={18} /></button>
         </header>
 
         <section className="rvsec">
-          <h3>Worlds</h3>
-          {!r.worlds.length ? <p className="muted">No planned or worked time this week.</p> : (
+          <h3>Dünyalar</h3>
+          {!r.worlds.length ? <p className="muted">Bu hafta planlanan ya da çalışılan süre yok.</p> : (
             <ul className="rvworlds">
               {r.worlds.map(({ w, planned, worked }) => (
                 <li key={w.id} style={{ ["--w" as string]: w.color }}>
@@ -91,22 +92,22 @@ export function WeekReview({ ctx, start, onClose }: { ctx: Ctx; start: string; o
               ))}
             </ul>
           )}
-          {r.worlds.length > 0 && <p className="rvkey"><i className="work" />worked <i className="plan" />planned</p>}
+          {r.worlds.length > 0 && <p className="rvkey"><i className="work" />çalışılan <i className="plan" />planlanan</p>}
         </section>
 
         <div className="rvcols">
-          <TaskList ctx={ctx} title="Done" items={r.done} empty="No tasks done this week." />
-          <TaskList ctx={ctx} title="Missed deadlines" items={r.missed} empty="No missed deadlines." danger />
+          <TaskList ctx={ctx} title="Biten" items={r.done} empty="Bu hafta biten görev yok." />
+          <TaskList ctx={ctx} title="Kaçan deadline" items={r.missed} empty="Kaçan deadline yok." danger />
         </div>
 
         <section className="rvsec rvleft">
-          <h3>Left over <span className="n">{r.left.length}</span></h3>
+          <h3>Kalanlar <span className="n">{r.left.length}</span></h3>
           {r.left.length ? (
             <>
               <TaskList ctx={ctx} items={r.left} />
-              <button className="btn primary" onClick={carry}>Move {r.left.length} {r.left.length === 1 ? "task" : "tasks"} to next week</button>
+              <button className="btn primary" onClick={carry}>Kalan {r.left.length} görevi gelecek haftaya taşı</button>
             </>
-          ) : <p className="muted">No open tasks planned for this week.</p>}
+          ) : <p className="muted">Bu haftaya planlı açık görev kalmadı.</p>}
         </section>
       </motion.div>
     </div>
@@ -126,7 +127,7 @@ function TaskList({ ctx, title, items, empty, danger }: { ctx: Ctx; title?: stri
           </button>
         </li>
       ))}
-      {items.length > list.length && <li className="more">and {items.length - list.length} more</li>}
+      {items.length > list.length && <li className="more">ve {items.length - list.length} görev daha</li>}
     </ul>
   );
   if (!title) return body;

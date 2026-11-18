@@ -1,6 +1,6 @@
 import type { Task } from "../types";
 
-// The status mark, the same everywhere: empty ring = to do, half filled = doing, pause bars = waiting, tick = done.
+// Durum işareti, her yerde aynı: boş halka = yapılacak, yarım dolu = yapılıyor, ara çizgileri = beklemede, tik = bitti.
 export function StatusMark({ status, size = 14 }: { status: Task["status"]; size?: number }) {
   return (
     <svg className={`smark s-${status}`} width={size} height={size} viewBox="0 0 16 16" aria-hidden>

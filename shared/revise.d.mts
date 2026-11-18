@@ -1,0 +1,23 @@
+import type { Run, Task } from "../src/types";
+import type { State } from "../src/types";
+export type Clarity = { ask: string; keep: string[]; ban: string[]; media: "keep" | "new" | "none" | "any"; text: boolean; visual: boolean; v?: number; raw?: true; need?: string[]; general?: string; rule?: { text: string; autos: string[]; kind: "visual" | "text" } };
+export type Revision = { at: string; note: string; runId?: string; prev: string; moved?: Moved; clear?: Clarity; saved?: string[] };
+export type Moved = { worldId: string; projectId: string | null; accountId: string | null; autoId: string | null };
+export const MAX_REVISIONS: number;
+export function addRevision(task: Task, r: { note: string; prev?: string; runId?: string; pending?: boolean; moved?: Moved }): Revision | null;
+export function movePost(s: State, task: Task | undefined, to: { worldId?: string; projectId?: string; accountId?: string }): { from: Moved; to: { worldId: string; projectId: string | null; accountId: string | null } } | { error: string } | null;
+export function copyPost(s: State, runId: string, accountId: string, o: { day?: string; at?: string; ids: { taskId: string; runId: string }; now?: string }): { task: Task; run: Run } | { error: string };
+export function revisionsOf(task: Task | undefined): Revision[];
+export function reviseBlock(task: Task): string;
+export function splitGaps(out: string): { text: string; gaps: { ask: string; why: string }[] };
+export type Missed = { what: string; part: "text" | "media" };
+export function parseMissed(out: string | undefined): Missed[];
+export function redoTask(task: Task, missed: Missed[]): Task;
+export function redoScope(missed: Missed[]): { text: boolean; visual: boolean };
+export function bansOf(task: Task | undefined): string[];
+export function mediaRequired(task: Task | undefined): boolean;
+export function visualRules(s: { automations?: unknown[]; worlds?: unknown[] }, task: Task | undefined): string;
+export function alwaysMedia(rules: string | undefined): boolean;
+export function rawRule(rules: string | undefined): boolean;
+
+export function saveRule(state: unknown, worldId: string, rule: Clarity["rule"]): string[];

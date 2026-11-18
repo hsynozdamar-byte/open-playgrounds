@@ -1,8 +1,8 @@
 import type { State } from "./types";
 import { addDays, daysBetween, spanMin, today } from "./date";
 
-// Numbers for the Profile page: focus time over the last N days, finished tasks, streak, on-time finishes,
-// day and hour distribution, world and project breakdown, plus a count of everything we have. Pure function, tested.
+// Profil sayfasının sayıları: son N günde odak süresi, biten işler, seri, zamanında bitirme,
+// gün ve saat dağılımı, dünya ve proje kırılımı, ayrıca elimizdeki her şeyin sayımı. Saf fonksiyon, test edilir.
 const localDay = (isoTime: string) => {
   const d = new Date(isoTime);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -41,7 +41,7 @@ export function profileStats(s: State, days: number, now = today()) {
   const withDeadline = done.filter((t) => t.deadline);
   const onTime = withDeadline.filter((t) => localDay(t.doneAt!) <= t.deadline!).length;
 
-  // Streak: counting back from today (from yesterday if today is empty), the consecutive days with work done or a task finished.
+  // Seri: bugünden (bugün boşsa dünden) geriye, çalışılan ya da iş bitirilen ardışık gün sayısı.
   const active = new Set<string>([...s.sessions.map((x) => localDay(x.start)), ...s.tasks.filter((t) => t.doneAt).map((t) => localDay(t.doneAt!))]);
   let streak = 0;
   for (let d = active.has(now) ? now : addDays(now, -1); active.has(d); d = addDays(d, -1)) streak++;
@@ -67,6 +67,8 @@ export function profileStats(s: State, days: number, now = today()) {
       projects: s.projects.filter((p) => p.status !== "done").length,
       open: s.tasks.filter((t) => t.status !== "done").length,
       notes: s.inbox.filter((n) => n.state === "new").length,
+      autos: s.automations.length,
+      accounts: s.worlds.reduce((n, w) => n + (w.accounts?.length ?? 0), 0),
     },
   };
 }

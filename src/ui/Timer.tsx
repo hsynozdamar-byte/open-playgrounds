@@ -5,7 +5,7 @@ import { chime, clock, elapsed, notify, pause, resume, saveMode, setMode, spent,
 import { useNow } from "./useNow";
 import { Check as CheckIcon } from "lucide-react";
 
-// Pomodoro / break transitions: works whichever screen you are on.
+// Pomodoro/mola geçişleri: hangi ekranda olursan ol çalışır.
 export function useTimerEngine(ctx: Ctx) {
   const t = ctx.state.timer;
   const now = useNow(!!t);
@@ -18,16 +18,16 @@ export function useTimerEngine(ctx: Ctx) {
     fired.current = t.startedAt;
     chime();
     if (t.phase === "focus") {
-      notify("Pomodoro finished", `${task?.title ?? ""}. 5 min break.`);
+      notify("Pomodoro bitti", `${task?.title ?? ""}. 5 dk mola.`);
       toBreak(ctx.mutate);
-    } else notify("Break over", "Start again when you are ready.");
+    } else notify("Mola bitti", "Devam etmeye hazır olduğunda başlat.");
   }, [over, t, task, ctx.mutate]);
   useEffect(() => {
     if (!t || !task) return void (document.title = "Playgrounds");
-    // Show it in the tab title when time is up, so it is noticed from another tab.
-    if (t.length && sec >= t.length * 60) return void (document.title = `${t.phase === "break" ? "Break over" : "Time is up"} · ${task.title}`);
+    // Süre dolunca sekmede de görünsün: başka sekmedeyken fark edilir.
+    if (t.length && sec >= t.length * 60) return void (document.title = `${t.phase === "break" ? "Mola bitti" : "Süre doldu"} · ${task.title}`);
     const left = !t.length ? clock(sec) : clock(t.length * 60 - sec);
-    document.title = `${left} · ${t.phase === "break" ? "Break" : task.title}`;
+    document.title = `${left} · ${t.phase === "break" ? "Mola" : task.title}`;
   }, [t, task, sec]);
 }
 
@@ -40,7 +40,7 @@ function useTimerView(ctx: Ctx) {
   const over = !!total && sec >= total;
   const shown = over ? sec - total : total ? total - sec : sec;
   const pct = total ? Math.min(1, sec / total) : (sec % 3600) / 3600;
-  const label = !t ? "" : t.pausedAt ? "Paused" : t.phase === "break" ? (over ? "Break over" : "Break") : over ? "Time is up" : t.mode === "pomo" ? `Pomodoro ${t.round}` : "Focus";
+  const label = !t ? "" : t.pausedAt ? "Duraklatıldı" : t.phase === "break" ? (over ? "Mola bitti" : "Mola") : over ? "Süre doldu" : t.mode === "pomo" ? `Pomodoro ${t.round}` : "Odak";
   return { t, task, sec, shown, pct, over, label };
 }
 
@@ -64,27 +64,27 @@ function Controls({ ctx, compact }: { ctx: Ctx; compact?: boolean }) {
         <div className="seg sm">
           {(["free", "pomo"] as const).map((m) => (
             <button key={m} className={t.mode === m ? "on" : ""} onClick={() => (saveMode(m), setMode(ctx.mutate, m))}>
-              {m === "free" ? "Free" : "Pomodoro"}
+              {m === "free" ? "Serbest" : "Pomodoro"}
             </button>
           ))}
         </div>
       )}
       {t.phase === "break" ? (
-        <button className="btn" onClick={() => start(ctx.mutate, task.id, "pomo", t.round + 1)}>{over ? "Continue" : "Skip break"}</button>
+        <button className="btn" onClick={() => start(ctx.mutate, task.id, "pomo", t.round + 1)}>{over ? "Devam et" : "Molayı atla"}</button>
       ) : (
         <>
           {t.pausedAt
-            ? <button className="btn wfill" onClick={() => resume(ctx.mutate)}>Resume</button>
-            : <button className="btn wfill" onClick={() => pause(ctx.mutate)}>Pause</button>}
-          <button className="btn ghost sm" onClick={() => stop(ctx.mutate)}>Stop and save</button>
+            ? <button className="btn wfill" onClick={() => resume(ctx.mutate)}>Devam et</button>
+            : <button className="btn wfill" onClick={() => pause(ctx.mutate)}>Duraklat</button>}
+          <button className="btn ghost sm" onClick={() => stop(ctx.mutate)}>Bitir, kaydet</button>
         </>
       )}
-      <button className="btn ghost sm" onClick={() => finish(ctx.mutate, ctx.state)}>Finish task</button>
+      <button className="btn ghost sm" onClick={() => finish(ctx.mutate, ctx.state)}>Görevi bitir</button>
     </div>
   );
 }
 
-// The bar at the bottom on other screens.
+// Diğer ekranlarda alttaki çubuk.
 export function TimerBar({ ctx, hidden }: { ctx: Ctx; hidden: boolean }) {
   const { t, task, shown, pct, label, over } = useTimerView(ctx);
   const w = task ? worldOf(ctx.state, task.worldId) : undefined;
@@ -99,7 +99,7 @@ export function TimerBar({ ctx, hidden }: { ctx: Ctx; hidden: boolean }) {
           exit={{ y: 90, opacity: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 32 }}
         >
-          <button className="nowring sm" onClick={() => ctx.open(task.id)} aria-label="Open task">
+          <button className="nowring sm" onClick={() => ctx.open(task.id)} aria-label="Görevi aç">
             <Ring pct={pct} size={40} />
             <span className="pulse" />
           </button>

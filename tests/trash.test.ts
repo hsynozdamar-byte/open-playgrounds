@@ -3,8 +3,8 @@ import { state as fixture } from "./fixture";
 import { blocker, purgeTrash, restoreTrash, toTrash, trashOrigin, trashSummary } from "../shared/trash.mjs";
 import { removeProject, takeProject } from "../src/projectOps";
 
-describe("Trash", () => {
-  it("a deleted project goes to the trash with its records and comes back", () => {
+describe("Çöp Kutusu", () => {
+  it("silinen proje bağlı kayıtlarıyla çöpe gider ve geri gelir", () => {
     const s = fixture();
     const p = s.projects[0];
     const { index: _i, project, ...rest } = takeProject(s, p.id);
@@ -13,14 +13,14 @@ describe("Trash", () => {
     toTrash(s, "b1", "project", p.name, { projects: [project], ...rest });
     removeProject(s, p.id);
     expect(s.tasks.length).toBe(n - gone);
-    expect(trashSummary(s.trash![0])).not.toContain("project");
+    expect(trashSummary(s.trash![0])).not.toContain("proje");
     expect(restoreTrash(s, "b1")).toBe(true);
     expect(s.projects.some((x) => x.id === p.id)).toBe(true);
     expect(s.tasks.length).toBe(n);
     expect(s.trash).toHaveLength(0);
   });
 
-  it("a task whose world was deleted waits until the world is restored", () => {
+  it("dünyası silinmiş iş, dünya geri gelmeden geri alınamaz", () => {
     const s = fixture();
     const t = s.tasks[0];
     const w = s.worlds.find((x) => x.id === t.worldId)!;
@@ -34,10 +34,10 @@ describe("Trash", () => {
     expect(restoreTrash(s, "t")).toBe(true);
   });
 
-  it("items older than 30 days drop out, delete forever removes one", () => {
+  it("30 günden eski kayıtlar düşer, kalıcı sil kaldırır", () => {
     const s = fixture();
-    s.trash = [{ id: "old", kind: "note", title: "old", at: new Date(Date.now() - 31 * 864e5).toISOString(), recs: {} }];
-    toTrash(s, "new", "note", "new", {});
+    s.trash = [{ id: "old", kind: "note", title: "eski", at: new Date(Date.now() - 31 * 864e5).toISOString(), recs: {} }];
+    toTrash(s, "new", "note", "yeni", {});
     expect(s.trash.map((b) => b.id)).toEqual(["new"]);
     purgeTrash(s, "new");
     expect(s.trash).toHaveLength(0);

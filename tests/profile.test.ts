@@ -11,7 +11,7 @@ describe("profileStats", () => {
     expect(r.done).toBe(1);
     expect(r.onTime).toBe(100);
     expect(r.streak).toBe(1);
-    expect(r.worlds[0].w.id).toBe("work");
+    expect(r.worlds[0].w.id).toBe("w1");
     expect(r.worlds[0].min).toBe(30);
     expect(r.projects[0].p.id).toBe("p1");
     expect(r.chart).toHaveLength(7);

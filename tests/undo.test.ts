@@ -6,13 +6,13 @@ describe("revert (undo)", () => {
   it("undoes only what the step changed and keeps writes made in between", () => {
     const before = state();
     const after = structuredClone(before);
-    after.tasks[0].title = "New title";
-    // Meanwhile pg added a task and changed another one.
+    after.tasks[0].title = "Yeni başlık";
+    // Arada pg bir iş ekledi ve başka bir işi değiştirdi.
     const now = structuredClone(after);
-    now.tasks.push(task("t9", { by: "Claude Code" }));
+    now.tasks.push(task("t9", { by: "claude" }));
     now.tasks[1].status = "done";
     revert(now, after, before);
-    expect(now.tasks.find((t) => t.id === "t1")!.title).toBe("Café photos");
+    expect(now.tasks.find((t) => t.id === "t1")!.title).toBe("Mağaza görselleri");
     expect(now.tasks.some((t) => t.id === "t9")).toBe(true);
     expect(now.tasks.find((t) => t.id === "t2")!.status).toBe("done");
   });
@@ -20,13 +20,26 @@ describe("revert (undo)", () => {
   it("keeps another writer's change to a different field of the same record", () => {
     const before = state();
     const after = structuredClone(before);
-    after.tasks[0].title = "New title";
-    // Meanwhile an AI tool changed the status of the same task.
+    after.tasks[0].title = "Yeni başlık";
+    // Arada Rou aynı işin durumunu değiştirdi.
     const now = structuredClone(after);
     now.tasks[0].status = "done";
     revert(now, after, before);
-    expect(now.tasks[0].title).toBe("Café photos");
+    expect(now.tasks[0].title).toBe("Mağaza görselleri");
     expect(now.tasks[0].status).toBe("done");
+  });
+
+  it("never turns a posted run back into one waiting for approval", () => {
+    const before = state();
+    before.runs = [{ id: "r1", taskId: "t1", at: "2026-11-10T08:00:00.000Z", title: "Gönderi", body: "", status: "ready", by: "claude" }];
+    const after = structuredClone(before);
+    Object.assign(after.runs![0], { status: "approved", approvedAt: "2026-11-10T09:00:00.000Z" });
+    // Onaydan sonra paylaşıldı.
+    const now = structuredClone(after);
+    Object.assign(now.runs![0], { status: "posted", postUrl: "https://x.com/a/1" });
+    revert(now, after, before);
+    expect(now.runs![0].status).toBe("posted");
+    expect(now.runs![0].postUrl).toBe("https://x.com/a/1");
   });
 
   it("brings a deleted record back and removes an added one", () => {
@@ -45,9 +58,9 @@ describe("revert (undo)", () => {
     const after = structuredClone(before);
     after.worlds.reverse();
     const now = structuredClone(after);
-    now.worlds.push({ id: "new", name: "New", color: "#000", description: "" });
+    now.worlds.push({ id: "yeni", name: "Yeni", color: "#000", description: "" });
     revert(now, after, before);
-    expect(now.worlds.map((w) => w.id)).toEqual(["work", "home", "new"]);
+    expect(now.worlds.map((w) => w.id)).toEqual(["w1", "w2", "yeni"]);
   });
 
   it("clears the timer when its task no longer exists", () => {
@@ -68,9 +81,9 @@ describe("stable ids", () => {
     const a = state(), b = state();
     add(a); add(b);
     expect(a.inbox.at(-1)!.id).toBe(b.inbox.at(-1)!.id);
-    // An unwrapped call makes a new id every time.
+    // Sarmalanmamış çağrı her seferinde yeni kimlik üretir.
     expect(uid()).not.toBe(uid());
-    // Undo: the record added on the copy is found in the data by the same id and removed.
+    // Geri al: kopyada eklenen kayıt veride aynı kimlikle bulunur ve kalkar.
     const before = state(), after = state(), live = state();
     add(after); add(live);
     revert(live, after, before);

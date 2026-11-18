@@ -1,13 +1,22 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { Task } from "../types";
+import { runOfTask } from "../runs";
 import { type Ctx, type Mutate, blocksOf, lateKind, projectOf, secsOf, sessionsOf, setStatus, worldOf } from "../lib";
 import { useState } from "react";
 import { daysBetween, dur, hm, iso, localTs, relDay, today } from "../date";
 
-const lateLabel = (day: string, t: string) => { const n = daysBetween(day, t); return n === 1 ? "1 day" : `${n} days`; };
+const lateLabel = (day: string, t: string) => { const n = daysBetween(day, t); return n === 1 ? "dün" : `${n} gün`; };
 import { clock, elapsed, pause, resume, spent, startTask, stop } from "../timer";
 import { useNow } from "./useNow";
-import { Check as CheckIcon, ChevronDown, ChevronRight, GripVertical, Pause, Play as PlayIcon, Square } from "lucide-react";
+import { Check as CheckIcon, ChevronDown, ChevronRight, GripVertical, Pause, Play as PlayIcon, Repeat, Sparkles, Square } from "lucide-react";
+import { autoOf, doNow, isStale, whoOf } from "./Auto";
+import { whereText } from "./Board";
+import { BrandIcon } from "./BrandIcon";
+import { OUTPUT_LABEL, outputOf, platformsOf, stagesOf } from "../../shared/stages.mjs";
+import { FORMATS, formatOf } from "../../shared/social.mjs";
+import { Clapperboard, ClipboardList, FileText, Image as ImageIcon } from "lucide-react";
+const OUT_ICON = { text: FileText, post: ImageIcon, video: Clapperboard, report: ClipboardList } as const;
+import { scheduleText } from "../../shared/repeat.mjs";
 import { toast } from "./Toast";
 
 export function Check({ task, mutate, size = 19, running }: { task: Task; mutate: Mutate; size?: number; running?: boolean }) {
@@ -16,22 +25,22 @@ export function Check({ task, mutate, size = 19, running }: { task: Task; mutate
     <motion.button
       className={`check ${done ? "on" : ""} ${task.status === "doing" ? "doing" : ""} ${task.status === "waiting" ? "waiting" : ""}`}
       style={{ width: size, height: size }}
-      aria-label={done ? "Mark not done" : "Mark done"}
+      aria-label={done ? "Geri al" : "Bitti"}
       whileTap={{ scale: 0.8 }}
       onClick={(e) => {
         e.stopPropagation();
-        // Finishing the running task saves its time as a session.
+        // Çalışan iş bitirilirse süresi oturum olarak kaydedilir.
         const prev = task.status;
         const undo = () => mutate((s) => { const x = s.tasks.find((y) => y.id === task.id); if (x) setStatus(x, prev === "done" ? "todo" : prev); });
         if (!done && running) {
           stop(mutate, true);
-          return toast("Task done", undo);
+          return toast("Görev tamamlandı", undo);
         }
         mutate((s) => {
           const x = s.tasks.find((y) => y.id === task.id);
           if (x) setStatus(x, done ? "todo" : "done");
         });
-        if (!done) toast("Task done", undo);
+        if (!done) toast("Görev tamamlandı", undo);
       }}
     >
       {task.status === "waiting" && <svg viewBox="0 0 16 16" className="cwait"><path d="M6.2 5.2v5.6M9.8 5.2v5.6" stroke="var(--w, var(--ink-3))" strokeWidth="1.8" strokeLinecap="round" /></svg>}
@@ -42,6 +51,20 @@ export function Check({ task, mutate, size = 19, running }: { task: Task; mutate
           </motion.svg>
         )}
       </AnimatePresence>
+    </motion.button>
+  );
+}
+
+// Rou'nun görevi: odak sayacı yok (işi sen yapmıyorsun). Henüz çıktı yoksa ya da hazırlanamadıysa "şimdi yap" düğmesi.
+function BotGo({ task, ctx }: { task: Task; ctx: Ctx }) {
+  const last = runOfTask(ctx.state.runs, task.id);
+  const idle = !last || last.status === "failed" || isStale(last);
+  if (task.status === "done" || !idle) return null;
+  const who = "Rou";
+  return (
+    <motion.button className="play botgo" whileTap={{ scale: 0.92 }} title={`${who} şimdi yapsın`} aria-label={`${who} şimdi yapsın`}
+      onClick={(e) => { e.stopPropagation(); doNow(ctx, task); }}>
+      <Sparkles size={14} />
     </motion.button>
   );
 }
@@ -57,7 +80,7 @@ export function Play({ task, ctx, label }: { task: Task; ctx: Ctx; label?: boole
     <motion.button
       className={`play ${running ? "on" : ""} ${paused ? "is-paused" : ""} ${over ? "is-over" : ""} ${label ? "labeled" : ""}`}
       whileTap={{ scale: 0.92 }}
-      title={paused ? "Resume" : running ? "Pause" : "Start"}
+      title={paused ? "Devam et" : running ? "Duraklat" : "Başla"}
       onClick={(e) => {
         e.stopPropagation();
         if (paused) resume(ctx.mutate);
@@ -72,33 +95,33 @@ export function Play({ task, ctx, label }: { task: Task; ctx: Ctx; label?: boole
             const sec = elapsed(t!, now), total = t!.length * 60;
             return !total ? clock(sec) : sec >= total ? `+${clock(sec - total)}` : clock(total - sec);
           })()}</span>
-          {label && (paused ? <span>Resume</span> : <><Pause size={14} fill="currentColor" strokeWidth={0} /><span>Pause</span></>)}
+          {label && (paused ? <span>Devam et</span> : <><Pause size={14} fill="currentColor" strokeWidth={0} /><span>Duraklat</span></>)}
         </>
       ) : (
         <>
           <PlayIcon size={label ? 15 : 14} fill="currentColor" strokeWidth={0} />
-          {label && <span>Start</span>}
+          {label && <span>Başla</span>}
         </>
       )}
     </motion.button>
   );
   if (!running) return btn;
-  // While running: the pill pauses or resumes, the square button stops and saves.
+  // Çalışırken iki seçenek: hap duraklatır/devam ettirir, kare düğme "Bitir, kaydet".
   return (
     <span className="playgrp">
       {btn}
       <motion.button
         className={`play stopbtn ${label ? "labeled" : ""}`}
         whileTap={{ scale: 0.92 }}
-        title="Stop and save"
-        aria-label="Stop and save"
+        title="Bitir, kaydet"
+        aria-label="Bitir, kaydet"
         onClick={(e) => {
           e.stopPropagation();
           stop(ctx.mutate);
         }}
       >
         <Square size={12} fill="currentColor" strokeWidth={0} />
-        {label && <span>Stop and save</span>}
+        {label && <span>Bitir, kaydet</span>}
       </motion.button>
     </span>
   );
@@ -117,6 +140,8 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
   const checks = task.checklist.length;
   const sessions = sessionsOf(s, task.id);
   const [open, setOpen] = useState(task.status === "doing");
+  // Rou'nun yürüttüğü otomasyon işi: tik yerine çıktı türünün ikonu; sen bitirmezsin, adımlar biter.
+  const botAuto = (() => { const a = autoOf(ctx.state, task); return a && a.who !== "me" ? a : undefined; })();
   const hasSub = checks > 0 || sessions.length > 0;
   return (
     <motion.li
@@ -138,17 +163,19 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
       onDragEnd={(e) => (e as unknown as React.DragEvent<HTMLElement>).currentTarget.classList.remove("dragging")}
       onClick={() => ctx.open(task.id)}
     >
-      {o.grip ? <span className="grip" title="Drag"><GripVertical size={16} /></span>
+      {o.grip ? <span className="grip" title="Sürükle"><GripVertical size={16} /></span>
+        : botAuto ? <span className="autotile" title="Otomasyon: Rou hazırlar">{(() => { const I = OUT_ICON[outputOf(ctx.state, botAuto)]; return <I size={15} />; })()}</span>
         : <Check task={task} mutate={ctx.mutate} running={ctx.state.timer?.taskId === task.id} />}
       <div className="rbody">
         <span className="rtitle">{task.title}</span>
         <span className="meta">
-          {o.card && task.status === "todo" && lateKind(task, t) !== "day" && <span className="st todo">To do</span>}
-          {task.status === "doing" && <span className="st doing">Doing</span>}
-          {task.status === "waiting" && <span className="st waiting">Waiting</span>}
-          {lateKind(task, t) === "day" && <span className="st late" title={`Planned for ${relDay(task.day!)}`}>Late · {lateLabel(task.day!, t)}</span>}
+          {o.card && !botAuto && task.status === "todo" && lateKind(task, t) !== "day" && <span className="st todo">Yapılacak</span>}
+          {task.status === "doing" && <span className="st doing">Yapılıyor</span>}
+          {task.status === "waiting" && <span className="st waiting">Beklemede</span>}
+          {!o.card && !task.autoId && task.who && task.who !== "me" && <span className="st who">Rou yapar</span>}
+          {!botAuto && lateKind(task, t) === "day" && <span className="st late" title={`Planlanan gün: ${relDay(task.day!)}`}>Gecikti · {lateLabel(task.day!, t)}</span>}
           {blocks.map((b) => <span key={b.id} className="tm">{hm(b.start)}–{hm(b.end)}</span>)}
-          {task.day && o.day && lateKind(task, t) !== "day" && <span>{relDay(task.day)}</span>}
+          {task.day && ((o.day && lateKind(task, t) !== "day") || (botAuto && task.day < t)) && <span>{relDay(task.day)}</span>}
           {o.card ? (o.world || p) && <span className="wdp"><i />{o.world && <span>{w.name}</span>}{o.world && p && <em>›</em>}{p && <b>{p.name}</b>}</span> : <>
             {o.world && <span className="wd"><i />{w.name}</span>}
             {p && <span>{p.name}</span>}
@@ -157,13 +184,15 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
             <button className={`subtoggle ${open ? "is-open" : ""}`} onClick={(e) => (e.stopPropagation(), setOpen(!open))} aria-expanded={open}>
               {checks > 0 && <span>☑ {task.checklist.filter((c) => c.done).length}/{checks}</span>}
               {sec > 0 && <span>⏱ {spent(sec)}{task.estimate ? ` / ${dur(task.estimate)}` : ""}</span>}
-              {sessions.length > 0 && <b>{sessions.length} {sessions.length === 1 ? "session" : "sessions"}</b>}
+              {sessions.length > 0 && <b>{sessions.length} kayıt</b>}
               <ChevronDown size={13} />
             </button>
           ) : (
             task.estimate && <span>⏱ {dur(task.estimate)}</span>
           )}
-          {task.deadline && <span className={late ? "st late" : "dlm"}>⚑ {late ? `Deadline passed · ${relDay(task.deadline)}` : relDay(task.deadline)}</span>}
+          {task.deadline && <span className={late ? "st late" : "dlm"}>⚑ {late ? `Deadline geçti · ${relDay(task.deadline)}` : relDay(task.deadline)}</span>}
+          {botAuto && platformsOf(s, botAuto).length > 0 && (() => { const fmt = formatOf(s, botAuto); return <span className="autoplat">{platformsOf(s, botAuto).map((pl) => <BrandIcon key={pl} platform={pl} size={13} />)}{fmt ? FORMATS[fmt]?.short : OUTPUT_LABEL[outputOf(s, botAuto)]}</span>; })()}
+          {(() => { const a = autoOf(s, task); return a && a.who === "me" ? <span className="rp" title={`Otomasyon: ${scheduleText(a)}`}><Repeat size={12} />Otomasyon</span> : null; })()}
         </span>
         <AnimatePresence initial={false}>
           {open && hasSub && (
@@ -172,7 +201,7 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
                 <ul className="subchecks">
                   {task.checklist.map((c) => (
                     <li key={c.id} className={c.done ? "done" : ""}>
-                      <button className="box" onClick={() => ctx.mutate((st) => { const y = st.tasks.find((z) => z.id === task.id)?.checklist.find((z) => z.id === c.id); if (y) y.done = !y.done; })} aria-label={c.done ? "Mark not done" : "Mark done"}>
+                      <button className="box" onClick={() => ctx.mutate((st) => { const y = st.tasks.find((z) => z.id === task.id)?.checklist.find((z) => z.id === c.id); if (y) y.done = !y.done; })} aria-label={c.done ? "Geri al" : "Tamamla"}>
                         {c.done && <CheckIcon size={10} strokeWidth={3} />}
                       </button>
                       <span>{c.text}</span>
@@ -186,17 +215,29 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
                     <li key={x.id}>
                       <span>{relDay(iso(new Date(x.start)))}</span>
                       <b>{hm(localTs(new Date(x.start)))}–{hm(localTs(new Date(x.end)))}</b>
-                      <em>{x.mode === "pomo" ? "pomodoro · " : x.mode === "manual" ? "manual · " : ""}{spent((new Date(x.end).getTime() - new Date(x.start).getTime()) / 1000)}</em>
+                      <em>{x.mode === "pomo" ? "pomodoro · " : x.mode === "manual" ? "elle · " : ""}{spent((new Date(x.end).getTime() - new Date(x.start).getTime()) / 1000)}</em>
                     </li>
                   ))}
-                  {sessions.length > 5 && <li className="more"><button onClick={() => ctx.open(task.id)}>+{sessions.length - 5} more</button></li>}
+                  {sessions.length > 5 && <li className="more"><button onClick={() => ctx.open(task.id)}>+{sessions.length - 5} kayıt daha</button></li>}
                 </ul>
               )}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-      <Play task={task} ctx={ctx} />
+      {botAuto && (() => {
+        // Otomasyon işi: hangi adımda, kimi bekliyor. Satırın sağında, başlık hizasında; açma oku yanında.
+        const run = s.runs.filter((r) => r.taskId === task.id).sort((x, y) => (x.at < y.at ? 1 : -1))[0];
+        const st = stagesOf(s, botAuto, task, run);
+        const mine = !st.busy && st.steps.find((x) => x.key === st.current)?.who === "Sen";
+        const act = st.current === "approve" && mine;
+        return (
+          <button className={`autochip rtailchip ${st.finished ? "is-done" : mine ? "is-you" : st.busy ? "is-busy" : ""} ${act ? "is-act" : ""}`} onClick={(e) => (e.stopPropagation(), ctx.open(task.id))} title={`Otomasyon: ${scheduleText(botAuto)}`}>
+            {act ? "Onayını bekliyor · İncele" : whereText(st, run)}
+          </button>
+        );
+      })()}
+      {botAuto ? null : whoOf(s, task) !== "me" && ctx.state.timer?.taskId !== task.id ? <BotGo task={task} ctx={ctx} /> : <Play task={task} ctx={ctx} />}
       {o.grip && <span className="ropen" aria-hidden><ChevronRight size={16} /></span>}
     </motion.li>
   );

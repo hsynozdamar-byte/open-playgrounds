@@ -7,13 +7,13 @@ export default defineConfig({
   plugins: [
     react(),
     {
-      // The same API as server/app.mjs, mounted on the dev server.
       name: "playground-api",
       configureServer(server) {
         server.middlewares.use(handle);
       },
     },
   ],
-  // The data file changes all the time; the app follows it through /api/events, not through a reload.
-  server: { watch: { ignored: ["**/data/**"] } },
+  server: { watch: { ignored: ["**/data/**", "**/render/**"] } },
+  // fluid.html: Soft Fluid görsel sistemi değerlendirme ekranı (uygulamadan ayrı sayfa)
+  build: { rollupOptions: { input: { main: "index.html", fluid: "fluid.html" } } },
 });

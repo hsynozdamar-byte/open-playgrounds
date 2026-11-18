@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-// Tooltip: the app's own bubble instead of the system's yellow title box. Code keeps writing title;
-// when the pointer reaches a title it is moved to data-tip (so the system box never appears) and the bubble opens after a short delay.
+// İpucu: sistemin sarı title kutusu yerine uygulamanın kendi baloncuğu. Kodda title yazmaya devam edilir;
+// fare bir title'ın üstüne gelince title data-tip'e taşınır (sistem kutusu çıkmaz) ve kısa bir beklemeyle baloncuk açılır.
 export function Tip() {
   const [tip, setTip] = useState<{ text: string; el: Element } | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ export function Tip() {
       removeEventListener("blur", hide);
     };
   }, []);
-  // Centred below the element; above it if there is no room below. Stays 8px inside the screen edge.
+  // Öğenin altına ortalı; altta yer yoksa üstüne. Ekran kenarından 8px içeride kalır.
   useLayoutEffect(() => {
     if (!tip || !box.current) return setPos(null);
     const a = tip.el.getBoundingClientRect();

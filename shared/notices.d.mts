@@ -1,0 +1,11 @@
+import type { Notice, State } from "../src/types";
+export const MAX: number;
+export function addNotice(st: State, n: Partial<Notice> & { kind: Notice["kind"] }): Notice;
+export const KIND_LINE: Record<Notice["kind"], string>;
+export type NoticeCta = { id: "view" | "card" | "retry" | "folder" | "redo" | "busy"; label: string; primary?: boolean; busy?: boolean };
+export function noticeCtas(s: State, n: Notice): NoticeCta[];
+export function noticeNow(s: State, n: Notice): string;
+export function unreadNotices(s: State): number;
+export const KEEP_MS: number;
+export function freshNotices<T extends { at: string }>(list: T[] | undefined, now?: number): T[];
+export function pruneNotices(st: State, now?: number): boolean;

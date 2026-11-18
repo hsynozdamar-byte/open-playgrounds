@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 
-// The note text: ``` code block, > quote, plain lines, "## " heading, "- " list, "- [ ] " to do (checks when clicked), **bold**.
+// Notun metni: ``` kod bloğu, > alıntı, düz satırlar, "## " ara başlık, "- " liste, "- [ ] " yapılacak (tıklayınca işaretlenir), **kalın**.
 export function NoteBody({ text, onToggle }: { text: string; onToggle?: (body: string) => void }) {
   const lines = text.split("\n");
   const out: React.ReactNode[] = [];

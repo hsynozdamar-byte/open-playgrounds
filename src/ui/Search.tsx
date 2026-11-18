@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
+import { openAutoView } from "./openAuto";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CornerDownLeft, FolderKanban, History, NotebookPen, Plus, Search as SearchIcon } from "lucide-react";
+import { CornerDownLeft, FolderKanban, History, NotebookPen, Plus, Repeat, Search as SearchIcon } from "lucide-react";
 import { openBackups } from "./Backups";
 import { openNewWorld } from "./Rail";
 import type { Ctx } from "../lib";
@@ -13,21 +14,22 @@ import { reveal } from "./reveal";
 
 export const openSearch = () => dispatchEvent(new Event("pg-search"));
 
-// Accents are folded away: typing "cafe" also finds "café".
-const fold = (x: string) => x.toLocaleLowerCase("en").normalize("NFD").replace(/[̀-ͯ]/g, "");
+// Türkçe harfler sadeleşir: "gorsel" yazınca "görsel" de bulunur.
+const fold = (x: string) => x.toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i");
 
-type Kind = "task" | "project" | "note" | "world" | "cmd";
+type Kind = "task" | "project" | "note" | "auto" | "world" | "cmd";
 type Hit = { kind: Kind; id: string; title: string; meta: string; worldId: string | null; score: number; done?: boolean; status?: State["tasks"][number]["status"] };
 
-const GROUP: Record<Kind, string> = { cmd: "Commands", task: "Tasks", project: "Projects", note: "Notebook", world: "Worlds" };
-const ORDER: Kind[] = ["world", "project", "task", "note", "cmd"];
-// Commands that run from search: id → title and search words.
+const GROUP: Record<Kind, string> = { cmd: "Komutlar", task: "Görevler", project: "Projeler", note: "Defter", auto: "Otomasyonlar", world: "Dünyalar" };
+const ORDER: Kind[] = ["world", "project", "task", "auto", "note", "cmd"];
+// Aramadan çalışan komutlar: id → başlık ve arama kelimeleri.
 const CMDS: { id: string; title: string; meta: string; words: string }[] = [
-  { id: "backups", title: "Restore from backup", meta: "Daily backups", words: "backup restore recover undo" },
-  { id: "world", title: "New world", meta: "Add a world", words: "new world add create" },
+  { id: "backups", title: "Yedekten geri dön", meta: "Günlük yedekler", words: "yedek geri dön backup kurtar" },
+  { id: "world", title: "Yeni dünya", meta: "Dünya ekle", words: "yeni dünya ekle oluştur" },
 ];
+const DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
 
-// A match at the start of the title ranks first, then the start of a word, then anywhere in it; a match only in the description ranks last.
+// Başlıkta baştan eşleşme en üstte, sonra kelime başı, sonra içinde; yalnız açıklamada geçen en altta.
 function score(q: string, title: string, rest: string[]) {
   const t = fold(title);
   if (t.startsWith(q)) return 100;
@@ -42,13 +44,13 @@ export function find(s: State, raw: string): Hit[] {
   const wname = (id: string | null) => (id ? s.worlds.find((w) => w.id === id)?.name ?? "" : "");
   const out: Hit[] = [];
   if (!q) {
-    // When empty: today's and late open tasks.
+    // Boşken: bugünün ve geciken açık işler.
     const t = today();
     return s.tasks
       .filter((x) => x.status !== "done" && x.day && x.day <= t)
       .sort((a, b) => (a.day! < b.day! ? -1 : a.day! > b.day! ? 1 : (a.order ?? 0) - (b.order ?? 0)))
       .slice(0, 8)
-      .map((x) => ({ kind: "task", id: x.id, title: x.title, meta: [wname(x.worldId), x.projectId ? proj.get(x.projectId)?.name : "", x.day === t ? "today" : relDay(x.day!)].filter(Boolean).join(" · "), worldId: x.worldId, score: 1, status: x.status }));
+      .map((x) => ({ kind: "task", id: x.id, title: x.title, meta: [wname(x.worldId), x.projectId ? proj.get(x.projectId)?.name : "", x.day === t ? "bugün" : relDay(x.day!)].filter(Boolean).join(" · "), worldId: x.worldId, score: 1, status: x.status }));
   }
   for (const w of s.worlds) {
     const n = score(q, w.name, [w.description]);
@@ -61,26 +63,31 @@ export function find(s: State, raw: string): Hit[] {
   for (const x of s.tasks) {
     const n = score(q, x.title, [x.notes, ...x.checklist.map((c) => c.text)]);
     if (!n) continue;
-    const when = x.status === "done" ? "done" : x.day ? relDay(x.day) : "someday";
+    const when = x.status === "done" ? "bitti" : x.day ? relDay(x.day) : "tarihsiz";
     out.push({ kind: "task", id: x.id, title: x.title, meta: [wname(x.worldId), x.projectId ? proj.get(x.projectId)?.name : "", when].filter(Boolean).join(" · "), worldId: x.worldId, score: n - (x.status === "done" ? 25 : 0), done: x.status === "done", status: x.status });
+  }
+  for (const a of s.automations) {
+    const n = score(q, a.title, [a.action]);
+    const days = a.days.length === 7 ? "Her gün" : a.days.map((d) => DAYS[d]).join(", ");
+    if (n) out.push({ kind: "auto", id: a.id, title: a.title, meta: [wname(a.worldId), days, a.times.join(", ")].filter(Boolean).join(" · "), worldId: a.worldId, score: n - (a.status === "paused" ? 10 : 0) });
   }
   for (const i of s.inbox) {
     const n = score(q, i.title, [i.body, i.from]);
-    if (n) out.push({ kind: "note", id: i.id, title: i.title, meta: [wname(i.worldId), i.state === "done" ? "archived" : ""].filter(Boolean).join(" · ") || "Notebook", worldId: i.worldId, score: n - (i.state === "done" ? 20 : 0), done: i.state === "done" });
+    if (n) out.push({ kind: "note", id: i.id, title: i.title, meta: [wname(i.worldId), i.state === "done" ? "arşivde" : ""].filter(Boolean).join(" · ") || "Defter", worldId: i.worldId, score: n - (i.state === "done" ? 20 : 0), done: i.state === "done" });
   }
   for (const c of CMDS) {
     const n = score(q, c.title, [c.words]);
     if (n) out.push({ kind: "cmd", id: c.id, title: c.title, meta: c.meta, worldId: null, score: n });
   }
-  // The best 6 in each group, groups in a fixed order.
-  return ORDER.flatMap((k) => out.filter((h) => h.kind === k).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "en")).slice(0, 6));
+  // Her grupta en iyi 6, gruplar sabit sırada.
+  return ORDER.flatMap((k) => out.filter((h) => h.kind === k).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "tr")).slice(0, 6));
 }
 
 export function SearchHost({ ctx }: { ctx: Ctx }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const o = () => setOpen(true);
-    // ⌘K works everywhere; "/" outside text fields.
+    // ⌘K her yerde; "/" yazı alanı dışında.
     const k = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement).closest("input,textarea,select,[contenteditable]");
       if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey)) {
@@ -112,13 +119,14 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
     if (h.kind === "cmd") return h.id === "backups" ? openBackups() : openNewWorld();
     if (h.kind === "world") return ctx.go({ lens: h.id });
     if (h.kind === "project") return ctx.go({ view: "projects", lens: h.worldId!, project: h.id });
-    // A note with no world also shows in the open world; otherwise we switch to its own world.
+    if (h.kind === "auto") return openAutoView(h.id);
+    // Not dünyasızsa açık dünyada da görünür; değilse kendi dünyasına geçilir.
     if (h.kind === "note") ctx.go({ view: "inbox", lens: h.worldId ?? ctx.route.lens, project: undefined });
     reveal(h.kind, h.id);
   };
 
   const key = (e: React.KeyboardEvent) => {
-    // Only the search closes; a task card underneath does not close with the same Esc.
+    // Yalnız arama kapanır; alttaki iş kartı ya da Rou sohbeti aynı Esc ile kapanmaz.
     if (e.key === "Escape") { e.stopPropagation(); return onClose(); }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -134,14 +142,14 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
   let last: Kind | null = null;
   return (
     <div className="scrim search-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div className="palette" role="dialog" aria-label="Search" initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.14 }}>
+      <motion.div className="palette" role="dialog" aria-label="Ara" initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.14 }}>
         <label className="pfield">
           <SearchIcon size={18} />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Search tasks, projects and notes" aria-label="Search" />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Görev, proje, not ya da otomasyon ara" aria-label="Ara" />
           <button type="button" className="pesc" onClick={onClose}>Esc</button>
         </label>
         <ul ref={list} className="presults">
-          {!q.trim() && hits.length > 0 && <li className="pgroup">Today and late</li>}
+          {!q.trim() && hits.length > 0 && <li className="pgroup">Bugün ve gecikenler</li>}
           {hits.map((h, i) => {
             const head = q.trim() && h.kind !== last ? GROUP[h.kind] : null;
             last = h.kind;
@@ -154,6 +162,7 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
                     {h.kind === "task" ? <StatusMark status={h.status!} size={16} />
                       : h.kind === "world" && w ? <Orb world={w} size={18} />
                       : h.kind === "project" ? <FolderKanban size={16} />
+                      : h.kind === "auto" ? <Repeat size={16} />
                       : h.kind === "cmd" ? (h.id === "backups" ? <History size={16} /> : <Plus size={16} />)
                       : <NotebookPen size={16} />}
                   </span>
@@ -166,8 +175,8 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
               </li>
             );
           })}
-          {q.trim() && !hits.length && <li className="pnone">Nothing found for “{q.trim()}”.</li>}
-          {!q.trim() && !hits.length && <li className="pnone">No open tasks for today. Type to search.</li>}
+          {q.trim() && !hits.length && <li className="pnone">“{q.trim()}” için bir şey bulunamadı.</li>}
+          {!q.trim() && !hits.length && <li className="pnone">Bugün için açık görev yok. Aramak için yaz.</li>}
         </ul>
       </motion.div>
     </div>

@@ -1,6 +1,8 @@
-node_modules/
-dist/
+node_modules
+dist
 data/
 *.tsbuildinfo
-.DS_Store
-.env*
+render/.cache
+
+# geçici betikler (Claude oturumları)
+scripts/.tmp-*

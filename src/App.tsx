@@ -13,39 +13,70 @@ import { Today } from "./views/Today";
 import { Calendar } from "./views/Calendar";
 import { Inbox } from "./views/Inbox";
 import { Projects } from "./views/Projects";
+import { Posts } from "./views/Studio";
+import { Browser } from "./views/Browser";
+import { inShell } from "./ui/LiveBrowser";
+import { AutoFormHost } from "./ui/AutoForm";
+import { AutoViewHost } from "./ui/AutoView";
+import { AccountFormHost } from "./ui/Social";
 import { ProjectFormHost } from "./ui/ProjectForm";
+import { RouChat } from "./ui/Rou";
 import { SearchHost } from "./ui/Search";
 import { BackupsHost } from "./ui/Backups";
 import { TrashHost } from "./ui/Trash";
+import { UpdateBar } from "./ui/Update";
 import { useReminders } from "./ui/useReminders";
+import { Gate, seenGate } from "./ui/Gate";
+import { LOGOUT } from "./views/Settings";
 import { Profile } from "./views/Profile";
+import { useNow } from "./ui/useNow";
+import { needsMaterialize, materialize } from "../shared/repeat.mjs";
 import { Tip } from "./ui/Tip";
 
-const VIEWS: Route["view"][] = ["focus", "calendar", "inbox", "projects", "profile"];
+const VIEWS: Route["view"][] = ["focus", "calendar", "inbox", "projects", "posts", "browser", "profile"];
 
-// Address: #view/world[/project]  (e.g. #projects/work/abc123)
+// Adres: #görünüm/dünya[/proje]  (ör. #projects/dunya/abc123)
 function fromHash(): Route {
-  const [v, l, p] = location.hash.slice(1).split("/");
+  const [v0, l, p] = location.hash.slice(1).split("/");
+  const v = v0 === "autos" ? "posts" : v0; // Otomasyonlar sayfası kalktı (2026-10-31); eski adresler Gönderiler'e düşer
   return { view: VIEWS.includes(v as Route["view"]) ? (v as Route["view"]) : "focus", lens: l || ALL, project: p || undefined };
 }
 const toHash = (r: Route) => `#${r.view}/${r.lens}${r.project ? `/${r.project}` : ""}`;
 
 export default function App() {
-  const { state, mutate, undo, redo } = useStore();
+  const { state, mutate, system, undo, redo } = useStore();
+  // Tekrarlayan işlerin bugünkü kopyası: uygulama açıkken gün dönünce de açılır.
+  const minute = useNow(true, 60000);
+  useEffect(() => {
+    if (!state) return;
+    if (needsMaterialize(state)) system((s) => void materialize(s));
+  }, [state, minute, system]);
   const [route, setRoute] = useState<Route>(fromHash);
-  // The browser must not restore the old scroll on back/forward; the page transition manages scrolling
+  // Tarayıcı geri/ileride eski kaydırmayı kendisi geri getirmesin; sayfa geçişi kaydırmayı yönetir
   useEffect(() => { history.scrollRestoration = "manual"; }, []);
   const [open, setOpen] = useState<string | null>(null);
 
-  // The address is fixed in place only when its spelling differs (first load, an old link, back/forward): a new history
-  // entry would make the Back button jump to the same page every time.
+  // Adres yalnız yazımı farklıysa (ilk açılış, eski bir bağlantı, geri/ileri) yerinde düzeltilir: yeni bir geçmiş kaydı
+  // açılsaydı Geri tuşu her seferinde aynı sayfaya geri atardı.
   const fixHash = useRef(true);
   useEffect(() => {
     if (location.hash !== toHash(route)) history[fixHash.current ? "replaceState" : "pushState"](null, "", toHash(route));
     fixHash.current = false;
   }, [route]);
-  // While a popup (task card, confirm) is on top, the wheel does not scroll the page behind it.
-  // The scrollbar is not hidden (hiding it widened the page); only scrolling that would pass through is blocked.
+  // Rou bir gönderiyi paylaşınca uygulamada da haber ver (ilk yüklemede eskiler sayılmaz).
+  const posted = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!state) return;
+    const now = new Set(state.runs.filter((r) => r.status === "posted").map((r) => r.id));
+    if (posted.current) for (const r of state.runs) {
+      if (r.status !== "posted" || posted.current.has(r.id) || !r.postedAt || Date.now() - new Date(r.postedAt).getTime() > 30 * 60 * 1000) continue;
+      const url = r.postUrl;
+      toast(`Paylaşıldı: ${r.title}`, url ? () => void window.open(url, "_blank") : undefined, "Gönderiyi aç");
+    }
+    posted.current = now;
+  }, [state?.runs]);
+  // Açılır pencere (iş kartı, onay) ya da Rou sohbeti üstündeyken tekerlek arkadaki sayfayı kaydırmaz.
+  // Kaydırma çubuğu gizlenmez (gizlemek sayfayı genişletiyordu); yalnız arkaya geçecek kaydırma engellenir.
   useEffect(() => {
     const scrollsMore = (el: Element | null, root: Element, dy: number) => {
       for (let x = el; x && x !== root.parentElement; x = x.parentElement) {
@@ -57,14 +88,14 @@ export default function App() {
     };
     const k = (e: WheelEvent) => {
       const t = e.target as Element;
-      const box = t.closest(".drawer, .leavebox, .modal, .spop");
+      const box = t.closest(".drawer, .leavebox, .rouchat, .modal, .spop");
       if (box) { if (!scrollsMore(t, box, e.deltaY)) e.preventDefault(); return; }
       if (t.closest(".scrim, .leavescrim")) e.preventDefault();
     };
     addEventListener("wheel", k, { passive: false });
     return () => removeEventListener("wheel", k);
   }, []);
-  // In the Mac app (WKWebView) Backspace outside a text field goes back a page; prevent that.
+  // Mac uygulamasında (WKWebView) yazı alanı dışında Backspace bir önceki sayfaya döner; bunu engelle.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === "Backspace" && !(e.target as HTMLElement).closest("input,textarea,select,[contenteditable]")) e.preventDefault();
@@ -72,7 +103,7 @@ export default function App() {
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
   }, []);
-  // ⌘Z undoes, ⇧⌘Z (or ⌘Y) redoes. Inside a text field the browser's own undo applies.
+  // ⌘Z geri al, ⇧⌘Z (ya da ⌘Y) yinele. Yazı alanındayken tarayıcının kendi geri alması çalışır.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || (e.target as HTMLElement).closest("input,textarea,select,[contenteditable]")) return;
@@ -80,7 +111,7 @@ export default function App() {
       const isRedo = (key === "z" && e.shiftKey) || key === "y";
       if (key !== "z" && key !== "y") return;
       e.preventDefault();
-      if (isRedo ? redo() : undo()) toast(isRedo ? "Redone" : "Undone");
+      if (isRedo ? redo() : undo()) toast(isRedo ? "Yinelendi" : "Geri alındı");
     };
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
@@ -91,7 +122,16 @@ export default function App() {
     return () => removeEventListener("popstate", h);
   }, []);
 
-  return state ? <Shell state={state} mutate={mutate} route={route} setRoute={setRoute} open={open} setOpen={setOpen} /> : <div className="boot" />;
+  // Karşılama ekranı oturumda bir kez; veri arkada yüklenir, giriş yapılınca uygulama altından çıkar.
+  const [inside, setInside] = useState(seenGate);
+  // Profil > Çıkış yap: karşılama ekranı yeniden açılır
+  useEffect(() => { const h = () => setInside(false); addEventListener(LOGOUT, h); return () => removeEventListener(LOGOUT, h); }, []);
+  return (
+    <>
+      {state ? <Shell state={state} mutate={mutate} route={route} setRoute={setRoute} open={open} setOpen={setOpen} /> : <div className="boot" />}
+      {!inside && <Gate onEnter={() => setInside(true)} />}
+    </>
+  );
 }
 
 type ShellProps = { state: Ctx["state"]; mutate: Ctx["mutate"]; route: Route; setRoute: (r: Route) => void; open: string | null; setOpen: (x: string | null) => void };
@@ -99,13 +139,13 @@ type ShellProps = { state: Ctx["state"]; mutate: Ctx["mutate"]; route: Route; se
 function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
   const lens = route.lens === ALL || state.worlds.some((w) => w.id === route.lens) ? route.lens : ALL;
   const r = { ...route, lens };
-  // Changing the world closes the open project (unless said otherwise).
+  // Dünya değişince açık proje kapanır (aksi belirtilmedikçe).
   const go = (p: Partial<Route>) => setRoute({ ...r, ...("lens" in p && !("project" in p) ? { project: undefined } : {}), ...p });
   const ctx: Ctx = { state, mutate, route: r, go, open: setOpen };
   useTimerEngine(ctx);
   useReminders(ctx);
   const world = lens === ALL ? null : worldOf(state, lens);
-  // On a world switch the background flow pauses briefly: the large moving layers made the transition frame stutter in WebKit
+  // Dünya geçişinde zeminin akışı kısa süre durur: hareketli dev katmanlar geçiş karesini WebKit'te takıltıyordu
   const [switching, setSwitching] = useState(false);
   const firstLens = useRef(true);
   useEffect(() => {
@@ -124,7 +164,7 @@ function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
       <div className="wash-grain" aria-hidden />
       <Rail {...ctx} />
       <div className="stage">
-        {/* A new page starts at the top: scroll resets after the old page fades out, before the new one arrives */}
+        {/* Yeni sayfa en üstten başlar: eski sayfa söndükten sonra, yenisi gelmeden kaydırma sıfırlanır */}
         <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo(0, 0)}>
           <motion.main key={`${r.view}-${lens}-${r.project ?? ""}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
             {state.worlds.length === 0 ? <Welcome ctx={ctx} /> : <>
@@ -132,25 +172,33 @@ function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
             {r.view === "focus" && <Today ctx={ctx} />}
             {r.view === "inbox" && <Inbox ctx={ctx} />}
             {r.view === "projects" && <Projects ctx={ctx} />}
+            {r.view === "posts" && <Posts ctx={ctx} />}
+            {r.view === "browser" && <Browser ctx={ctx} />}
             {r.view === "profile" && <Profile ctx={ctx} />}
             </>}
           </motion.main>
         </AnimatePresence>
       </div>
-      <TimerBar ctx={ctx} hidden={r.view === "focus"} />
+      {/* Uygulamadaki tarayıcıda sayaç çubuğu sekmenin üstüne binerdi; orada gizli (sayaç sürer). */}
+      <TimerBar ctx={ctx} hidden={r.view === "focus" || (r.view === "browser" && inShell)} />
       <PageThumb />
       <Toaster />
       <Tip />
+      <AutoViewHost ctx={ctx} />
+      <AutoFormHost ctx={ctx} />
+      <AccountFormHost ctx={ctx} />
       <ProjectFormHost ctx={ctx} />
+      <RouChat ctx={ctx} />
       <SearchHost ctx={ctx} />
       <BackupsHost />
       <TrashHost ctx={ctx} />
+      <UpdateBar />
       <AnimatePresence>{task && <Drawer key={task.id} task={task} ctx={ctx} onClose={() => setOpen(null)} />}</AnimatePresence>
     </div>
   );
 }
 
-// No worlds yet: how it works in three steps, then start empty or with an example.
+// Hiç dünya yokken: nasıl çalıştığı üç adımda, sonra örnek dünyayla ya da boş başlama.
 function Welcome({ ctx }: { ctx: Ctx }) {
   const sample = () => {
     const x = makeSample();
@@ -160,16 +208,16 @@ function Welcome({ ctx }: { ctx: Ctx }) {
   return (
     <section className="card welcome">
       <Logo size={44} />
-      <h1>Welcome to Playgrounds</h1>
-      <p>All your tasks in one place: each part of your life gets its own world, and they all share one calendar.</p>
+      <h1>Playgrounds'a hoş geldin</h1>
+      <p>Bütün görevlerin tek yerde: her alanın kendi dünyası, hepsi tek takvimde.</p>
       <ol className="wsteps">
-        <li><b>World</b><span>Open a world for each area: personal, work, side projects.</span></li>
-        <li><b>Projects and tasks</b><span>Put projects inside a world and tasks inside a project.</span></li>
-        <li><b>Calendar and focus</b><span>Drag a task onto an hour and start the timer when you begin.</span></li>
+        <li><b>Dünya</b><span>Kişisel, iş, hobi gibi her alan için bir dünya aç.</span></li>
+        <li><b>Proje ve görev</b><span>Dünyanın içine projelerini, projelere görevlerini koy.</span></li>
+        <li><b>Takvim ve odak</b><span>Görevi saate sürükle, başlayınca sayacı aç.</span></li>
       </ol>
       <div className="wbtns">
-        <button className="btn primary" onClick={openNewWorld}>Create your first world</button>
-        <button className="btn" onClick={sample}>Start with an example</button>
+        <button className="btn primary" onClick={openNewWorld}>İlk dünyanı oluştur</button>
+        <button className="btn" onClick={sample}>Örnekle başla</button>
       </div>
     </section>
   );
