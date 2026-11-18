@@ -3,7 +3,7 @@ import { ArrowUpRight, Check, FolderOpen, RefreshCw, Send } from "lucide-react";
 import type { Automation, Run } from "../types";
 import { toast } from "./Toast";
 
-// Chrome otomasyonunun önerileri: seç, gerekirse soruları cevapla, not ekle; "Seçilenleri yap" ile Claude yapar (server/browse.mjs act).
+// Suggestions of a Chrome automation: pick, answer questions if needed, add a note; "Do the selected" makes the assistant do them (server/browse.mjs act).
 export function RunItems({ r, auto }: { r: Run; auto?: Automation }) {
   const items = r.items ?? [];
   const [pick, setPick] = useState<Set<string>>(() => new Set(items.filter((x) => x.pick && !x.result?.done).map((x) => x.id)));

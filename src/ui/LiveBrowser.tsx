@@ -5,9 +5,9 @@ import type { World } from "../types";
 import { type Ctx, ALL } from "../lib";
 import { Orb } from "./Orb";
 
-// Playgrounds uygulamasının içindeki gerçek tarayıcı (browser/main.mjs, PG_SHELL=app). Sayfalar ana süreçte; bu bileşen her dünyanın
-// bölmesini çizer ve bölmenin sayfa alanını (.lb-body) her karede ölçüp bildirir: gerçek sekme tam oraya oturur. Alanın üstüne
-// arayüzden bir şey gelirse (pencere, menü, Rou) "covered" bildirilir; sekme çekilir, yerinde son görüntüsü durur.
+// The real browser inside the Playgrounds app (browser/main.mjs, PG_SHELL=app). Pages live in the main process; this component draws each world's
+// pane and measures and reports the pane's page area (.lb-body) every frame: the real tab sits exactly there. If anything from the interface covers the area
+// (window, menu, Rou) "covered" is reported; the tab is pulled out and its last image stays in its place.
 type Acc = { id: string; platform: string; name: string; handle?: string; on?: boolean | null };
 type PbWorld = { id: string; name: string; color: string; color2?: string; accounts: Acc[] };
 type Tab = { id: string; worldId: string; url: string; title: string; favicon: string; loading: boolean; who: string; canBack?: boolean; canFwd?: boolean; active: boolean };
@@ -21,7 +21,7 @@ type Bridge = {
 const pb = (window as unknown as { pb?: Bridge }).pb;
 export const inShell = !!pb?.shell;
 
-// Ana süreçten gelen durum ve görüntüler: tek abonelik, bileşenler useSyncExternalStore ile okur.
+// State and images from the main process: one subscription, components read it with useSyncExternalStore.
 let snap: Snap = { worlds: [], shown: [], focus: null, sites: {}, tabs: [] };
 const shots = new Map<string, string>();
 const subs = new Set<() => void>();
@@ -31,7 +31,7 @@ if (inShell) {
   pb!.onState((s) => { snap = s; emit(); });
   pb!.onShot(({ tab, src }) => { shots.set(tab, src); snap = { ...snap }; emit(); });
   pb!.onFocusAddress(() => addrFocus.forEach((f) => f()));
-  // Rou bir dünyayı öne getirdi: Tarayıcı sayfasına geç (o dünya gösterilir).
+  // Rou brought a world forward: switch to the Browser page (that world is shown).
   pb!.onRoute((r) => { if (r.view === "browser" && !location.hash.startsWith("#browser")) location.hash = `#browser/${ALL}`; });
 }
 const useSnap = () => useSyncExternalStore((f) => { subs.add(f); return () => void subs.delete(f); }, () => snap);
@@ -47,7 +47,7 @@ const PLAT: Record<string, [string, string, string]> = {
 export function LiveBrowser({ ctx }: { ctx: Ctx }) {
   const s = useSnap();
   const lens = ctx.route.lens;
-  // Üst çubukta bir dünya seçiliyse o dünya tek başına gösterilir.
+  // If a world is selected in the top bar that world is shown alone.
   useEffect(() => {
     if (lens !== ALL && !(s.shown.length === 1 && s.shown[0] === lens)) act({ type: "show", worlds: [lens], focus: lens });
   }, [lens]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -61,8 +61,8 @@ export function LiveBrowser({ ctx }: { ctx: Ctx }) {
   useRects(shown.map((x) => x.w.id));
   return (
     <div className={`lb ${lens === ALL ? "has-rail" : ""}`}>
-      {/* Üst çubukta dünya seçiliyse (tek dünya) şerit gerekmez. Playgrounds seçiliyken dünyalar solda dar, dikey bir şeritte
-          (yalnız simge; ad üzerine gelince): üst çubuktaki dünya satırını tekrar etmez (2026-11-01). Tık: yalnız o; ⌘-tık: yan yana. */}
+      {/* If a world is selected in the top bar (single world) no strip is needed. When Playgrounds is selected the worlds sit on the left in a narrow vertical strip
+          (icon only; the name on hover): it does not repeat the world row in the top bar (2026-11-01). Click: only that one; ⌘-click: side by side. */}
       {lens === ALL && <nav className="lb-worlds" aria-label="Worlds">
         {ctx.state.worlds.map((w) => {
           const ts = s.tabs.filter((t) => t.worldId === w.id);
@@ -86,7 +86,7 @@ export function LiveBrowser({ ctx }: { ctx: Ctx }) {
   );
 }
 
-// Her karede bölmelerin sayfa alanı ölçülür; yalnız değişince bildirilir. Sayfadan çıkınca alanlar boşalır, sekmeler çekilir.
+// Every frame the panes' page areas are measured; reported only on change. When leaving the page the areas are emptied and the tabs pulled out.
 function useRects(ids: string[]) {
   const key = ids.join(",");
   useEffect(() => {
@@ -108,7 +108,7 @@ function useRects(ids: string[]) {
     return () => { cancelAnimationFrame(raf); pb?.rects({}); };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 }
-// 5x5 noktada en üstteki öğe alanın kendisi (ya da içi) değilse alan örtülü.
+// If the top element at 5x5 points is not the area itself (or inside it) the area is covered.
 function covered(el: HTMLElement, r: DOMRect) {
   for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
     const top = document.elementFromPoint(r.left + 3 + ((r.width - 6) * i) / 4, r.top + 3 + ((r.height - 6) * j) / 4);
@@ -119,7 +119,7 @@ function covered(el: HTMLElement, r: DOMRect) {
 
 function Pane({ world, p, snap: s, many }: { world: World; p: PbWorld; snap: Snap; many: boolean }) {
   const all = s.tabs.filter((t) => t.worldId === world.id);
-  // Sekmeler sürüklenerek sıralanır; sürüklerken sıra yerelde tutulur, bırakınca ana sürece gider.
+  // Tabs are reordered by dragging; while dragging the order is kept locally, on drop it goes to the main process.
   const [order, setOrder] = useState<string[] | null>(null);
   const ts = order ? [...order.map((id) => all.find((t) => t.id === id)).filter((t): t is Tab => !!t), ...all.filter((t) => !order.includes(t.id))] : all;
   const saveOrder = () => {
@@ -139,7 +139,7 @@ function Pane({ world, p, snap: s, many }: { world: World; p: PbWorld; snap: Sna
   }, [s.focus, s.shown, world.id]);
   const acc = cur && p.accounts.find((a) => s.sites[a.platform]?.hosts.some((h) => host(cur.url) === h || host(cur.url).endsWith(`.${h}`)));
   const shot = cur && shots.get(cur.id);
-  // Sekme yok ya da sekme boş (yeni sekme): hesaplar ve arama gösterilir.
+  // No tab or the tab is empty (new tab): accounts and search are shown.
   const blank = !cur || !cur.url || cur.url.startsWith("about:");
   return (
     <section className={`lb-pane ${isFocus && many ? "is-focus" : ""}`} data-w={world.id} style={{ ["--w" as string]: world.color }} onMouseDown={() => { if (s.focus !== world.id) act({ type: "focus", world: world.id }); }}>
@@ -182,8 +182,8 @@ function Pane({ world, p, snap: s, many }: { world: World; p: PbWorld; snap: Sna
   );
 }
 
-// Boş sekme (ya da sekmesi olmayan dünya): gri Rou silueti, arama, dünyanın hesapları ve girişleri.
-// tab verilirse açılan adres o boş sekmede açılır; yoksa yeni sekme.
+// Empty tab (or a world with no tabs): grey Rou silhouette, search, the world's accounts and logins.
+// If tab is given the address opens in that empty tab; otherwise a new tab.
 function Empty({ world, p, sites, tab }: { world: World; p: PbWorld; sites: Snap["sites"]; tab?: string }) {
   const [q, setQ] = useState("");
   const open = (url: string) => act(tab ? { type: "go", tab, world: world.id, input: url } : { type: "newTab", world: world.id, url });

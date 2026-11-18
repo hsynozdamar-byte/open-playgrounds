@@ -29,7 +29,7 @@ export function Check({ task, mutate, size = 19, running }: { task: Task; mutate
       whileTap={{ scale: 0.8 }}
       onClick={(e) => {
         e.stopPropagation();
-        // Çalışan iş bitirilirse süresi oturum olarak kaydedilir.
+        // Finishing a running task saves its time as a session.
         const prev = task.status;
         const undo = () => mutate((s) => { const x = s.tasks.find((y) => y.id === task.id); if (x) setStatus(x, prev === "done" ? "todo" : prev); });
         if (!done && running) {
@@ -55,7 +55,7 @@ export function Check({ task, mutate, size = 19, running }: { task: Task; mutate
   );
 }
 
-// Rou'nun görevi: odak sayacı yok (işi sen yapmıyorsun). Henüz çıktı yoksa ya da hazırlanamadıysa "şimdi yap" düğmesi.
+// Rou's task: no focus timer (you are not doing it). A "do it now" button while there is no output yet or it failed to prepare.
 function BotGo({ task, ctx }: { task: Task; ctx: Ctx }) {
   const last = runOfTask(ctx.state.runs, task.id);
   const idle = !last || last.status === "failed" || isStale(last);
@@ -106,7 +106,7 @@ export function Play({ task, ctx, label }: { task: Task; ctx: Ctx; label?: boole
     </motion.button>
   );
   if (!running) return btn;
-  // Çalışırken iki seçenek: hap duraklatır/devam ettirir, kare düğme "Bitir, kaydet".
+  // While running there are two options: the pill pauses/resumes, the square button is "Finish, save".
   return (
     <span className="playgrp">
       {btn}
@@ -140,7 +140,7 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
   const checks = task.checklist.length;
   const sessions = sessionsOf(s, task.id);
   const [open, setOpen] = useState(task.status === "doing");
-  // Rou'nun yürüttüğü otomasyon işi: tik yerine çıktı türünün ikonu; sen bitirmezsin, adımlar biter.
+  // An automation task run by Rou: the output type's icon instead of a tick; you do not finish it, the steps do.
   const botAuto = (() => { const a = autoOf(ctx.state, task); return a && a.who !== "me" ? a : undefined; })();
   const hasSub = checks > 0 || sessions.length > 0;
   return (
@@ -226,7 +226,7 @@ export function TaskRow({ task, ctx, o = {} }: { task: Task; ctx: Ctx; o?: RowOp
         </AnimatePresence>
       </div>
       {botAuto && (() => {
-        // Otomasyon işi: hangi adımda, kimi bekliyor. Satırın sağında, başlık hizasında; açma oku yanında.
+        // Automation task: which step it is on and who it waits for. On the right of the row, level with the title; the expand arrow is next to it.
         const run = s.runs.filter((r) => r.taskId === task.id).sort((x, y) => (x.at < y.at ? 1 : -1))[0];
         const st = stagesOf(s, botAuto, task, run);
         const mine = !st.busy && st.steps.find((x) => x.key === st.current)?.who === "You";

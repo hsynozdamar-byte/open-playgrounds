@@ -8,8 +8,8 @@ import { platformsOf } from "../../shared/stages.mjs";
 import { BrandIcon } from "./BrandIcon";
 import { toast } from "./Toast";
 
-// Gönderiler › Öneriler: seçili otomasyon için gündemden gönderi fikirleri. Rou gündemi tarayıp çıkarır (server/ideas.mjs).
-// "Plana ekle" fikri otomasyonun konusu boş ilk saatine yazar; hazırlık yine saatinden önce Rou'da.
+// Posts › Ideas: post ideas from current events for the selected automation. Rou scans the news and produces them (server/ideas.mjs).
+// "Add to plan" writes the idea into the automation's first slot with an empty topic; preparation still happens before its time.
 export function Ideas({ ctx, autos, pick }: { ctx: Ctx; autos: Automation[]; pick?: string | null }) {
   const s = ctx.state;
   const list = autos.filter((a) => a.who !== "me");
@@ -22,7 +22,7 @@ export function Ideas({ ctx, autos, pick }: { ctx: Ctx; autos: Automation[]; pic
     const r = await fetch("/api/post-ideas", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ autoId: a.id }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     if (!r.ok) toast(r.error ?? "Couldn't start");
   };
-  // Konusu boş ilk saat (14 gün): açılmış ama hazırlanmamış görev ya da henüz açılmamış gün.
+  // First slot with an empty topic (14 days): a task that is open but not prepared, or a day not yet opened.
   const slot = () => {
     for (let i = 0; i < 14; i++) {
       const day = addDays(today(), i);

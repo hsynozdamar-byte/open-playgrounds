@@ -9,8 +9,8 @@ import { autoOf } from "./Auto";
 import { uploadFile } from "./RouAttach";
 import { toast } from "./Toast";
 
-// Bugün panosu: bugünün otomasyon işleri (ve önceki günlerden onay bekleyenler), her biri adımlarıyla.
-// Her kartta tek soru cevaplanır: şu an hangi adımda, kimin elinde, sıradaki ne.
+// Today board: today's automation tasks (and ones waiting for approval from earlier days), each with its steps.
+// Each card answers one question: which step it is on now, whose hands it is in, what comes next.
 export type BoardRow = { task: Task; a: Automation; run?: Run };
 
 export function boardRows(ctx: Ctx): BoardRow[] {
@@ -28,7 +28,7 @@ export function boardRows(ctx: Ctx): BoardRow[] {
   return rows.sort((x, y) => (x.task.day! + (x.task.autoSlot || "99")).localeCompare(y.task.day! + (y.task.autoSlot || "99")));
 }
 
-// Senin elinde olan adımlar: ses, onay, kendi işin.
+// Steps in your hands: voice, approval, your own task.
 export const yourTurn = (ctx: Ctx, rows: BoardRow[]) => rows.filter(({ task, a, run }) => {
   const st = stagesOf(ctx.state, a, task, run);
   return !st.busy && st.steps.find((x) => x.key === st.current)?.who === "You";
@@ -52,7 +52,7 @@ export const whereText = (st: ReturnType<typeof stagesOf>, run?: Run) => {
   }[cur.key];
 };
 
-// Ses adımı: metni oku, kaydet (ya da dosya seç). Kayıt yüklenince video kendiliğinden üretilir.
+// Voice step: read the text, record (or pick a file). When the recording is uploaded the video is produced by itself.
 export function VoiceStep({ run }: { run: Run }) {
   const [state, setState] = useState<"idle" | "rec" | "up">("idle");
   const [sec, setSec] = useState(0);
@@ -64,7 +64,7 @@ export function VoiceStep({ run }: { run: Run }) {
     const t = setInterval(() => setSec((x) => x + 1), 1000);
     return () => clearInterval(t);
   }, [state]);
-  // Kart kayıt sürerken kapanırsa kayıt atılır: yarım ses yüklenip video render'ı başlamasın.
+  // If the card closes while recording, the recording is discarded: a half recording must not be uploaded and start the video render.
   const dropped = useRef(false);
   useEffect(() => () => { dropped.current = true; rec.current?.stream.getTracks().forEach((t) => t.stop()); }, []);
   const send = async (blob: Blob, name: string) => {
@@ -110,10 +110,10 @@ export function VoiceStep({ run }: { run: Run }) {
   );
 }
 
-// Metindeki **kalın** başlıklar düz yazı olarak değil, kalın gösterilir.
+// **Bold** headings in the text are shown bold, not as plain text.
 const script = (t: string) => t.split(/(\*\*[^*]+\*\*)/g).map((x, i) => (x.startsWith("**") && x.endsWith("**") ? <b key={i}>{x.slice(2, -2)}</b> : x));
 
-// LinkedIn görseli: metin hazır, görsel yoksa Rou yalnız görseli üretir (metin aynı kalır).
+// LinkedIn image: text is ready, if there is no image Rou produces only the image (the text stays the same).
 export function ImageStep({ run, failed }: { run: Run; failed?: boolean }) {
   const make = () => fetch("/api/run-image", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: run.id }) }).then((x) => x.json()).then((r) => !r.ok && toast(r.error ?? "Couldn't start")).catch(() => toast("Couldn't reach the server"));
   if (run.phase) return <p className="bnote muted"><span>{run.phase}…</span></p>;

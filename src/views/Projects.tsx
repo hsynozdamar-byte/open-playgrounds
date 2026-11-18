@@ -30,7 +30,7 @@ import { NewPost } from "./Studio";
 import { addDays } from "../date";
 import { autoOf, ghosts } from "../ui/Auto";
 
-// Projeler: mercek "Hepsi" ise tüm dünyalar, bir dünya ise o dünyanın projeleri; proje seçiliyse proje sayfası.
+// Projects: if the lens is "All" all worlds, if a world then that world's projects; if a project is selected the project page.
 export function Projects({ ctx }: { ctx: Ctx }) {
   const { state: s, route } = ctx;
   if (route.project) {
@@ -99,7 +99,7 @@ function WorldSection({ ctx, world, solo }: { ctx: Ctx; world: World; solo: bool
   );
 }
 
-// Projesi olan dünyalar kart olarak; hiç projesi ve işi olmayanlar en altta tek satırda toplanır, liste uzamasın.
+// Worlds that have projects as cards; ones with no projects and no tasks are gathered in one line at the bottom so the list does not grow long.
 function AllWorlds({ ctx }: { ctx: Ctx }) {
   const s = ctx.state;
   const has = (w: World) => s.projects.some((p) => p.worldId === w.id) || s.tasks.some((t) => t.worldId === w.id && !t.projectId && t.status !== "done");
@@ -126,7 +126,7 @@ function AllWorlds({ ctx }: { ctx: Ctx }) {
   );
 }
 
-// Hepsi görünümü: her dünya bir kart, projeleri içinde aynı sütunlara oturan satırlar. Boş dünya yalnız başlık satırı.
+// All view: each world is a card, its projects are rows that sit in the same columns. An empty world is only a header row.
 function WorldGroup({ ctx, world }: { ctx: Ctx; world: World }) {
   const s = ctx.state;
   const all = s.projects.filter((p) => p.worldId === world.id);
@@ -145,7 +145,7 @@ function WorldGroup({ ctx, world }: { ctx: Ctx; world: World }) {
         </button>
         {rest.length > 0 && <button className="link wgrest" onClick={() => setShowRest(!showRest)}>{showRest ? "Hide paused and done" : `Paused and done · ${rest.length}`}</button>}
       </header>
-      {/* Projeler eşit boyda kutular, soldan sağa; sığmayan yana kayar. İlk kutu yeni proje. */}
+      {/* Projects are equal-size boxes, left to right; what does not fit slides sideways. The first box is a new project. */}
       <ul className="strip ptiles">
         <AddTile items={[{ label: "New project", onClick: () => openProjectForm({ worldId: world.id }) }]} />
         {rows.map((p) => <ProjectTile key={p.id} p={p} ctx={ctx} />)}
@@ -159,7 +159,7 @@ function WorldGroup({ ctx, world }: { ctx: Ctx; world: World }) {
   );
 }
 
-// Proje kutusu: ad, durum, ne yürüyor (otomasyon/gönderi ya da görev sayısı), zaman.
+// Project box: name, status, what is running (automation/post or task count), time.
 function ProjectTile({ p, ctx }: { p: Project; ctx: Ctx }) {
   const s = ctx.state;
   const tasks = s.tasks.filter((t) => t.projectId === p.id);
@@ -177,8 +177,8 @@ function ProjectTile({ p, ctx }: { p: Project; ctx: Ctx }) {
   );
 }
 
-// Otomasyonla yürüyen projenin özeti: "2 otomasyon · bu hafta 9 gönderi · 1 onayını bekliyor (· 2 açık görev)".
-// Otomasyonu olmayan projede null: görev sayıları gösterilir.
+// Summary of a project run by an automation: "2 automations · 9 posts this week · 1 waiting for your approval (· 2 open tasks)".
+// Null for a project with no automation: the task counts are shown.
 function autoLine(s: Ctx["state"], p: Project): string | null {
   const autos = s.automations.filter((a) => a.projectId === p.id && a.who !== "me");
   if (!autos.length) return null;
@@ -254,7 +254,7 @@ const COLS: TaskStatus[] = ["todo", "doing", "waiting", "done"];
 function ProjectPage({ ctx, world, project }: { ctx: Ctx; world: World; project?: Project }) {
   const s = ctx.state;
   const tasks = s.tasks.filter((t) => t.worldId === world.id && (project ? t.projectId === project.id : !t.projectId));
-  // Otomasyonun açtığı işler (Rou hazırlar) kanbanda değil, "Gönderiler" kartında; kanban elle eklenen işler için.
+  // Tasks opened by an automation (Rou prepares) are not on the kanban but in the "Posts" card; the kanban is for hand-added tasks.
   const isAutoTask = (t: Task) => { const a = autoOf(s, t); return !!a && a.who !== "me"; };
   const manual = project ? tasks.filter((t) => !isAutoTask(t)) : tasks;
   const autos = project ? s.automations.filter((a) => a.projectId === project.id) : [];
@@ -299,7 +299,7 @@ function ProjectPage({ ctx, world, project }: { ctx: Ctx; world: World; project?
                 <button className="iconbtn" onClick={() => setMenu(!menu)} aria-label="More" aria-expanded={menu}><MoreHorizontal size={18} /></button>
                 {menu && (
                   <div className="ppmenu" onMouseLeave={() => setMenu(false)}>
-                    {/* Dünya değiştirmek nadir ve büyük bir iş: başlıkta değil, menüde (2026-11-01). */}
+                    {/* Changing the world is rare and a big thing: in the menu, not in the header (2026-11-01). */}
                     {s.worlds.length > 1 && <p className="ppmenuh">Move to another world</p>}
                     {s.worlds.filter((w) => w.id !== world.id).map((w) => <button key={w.id} onClick={() => (setMenu(false), move(w.id))}><i className="ppwdot" style={{ background: w.color }} />{w.name}</button>)}
                     <button className="danger" onClick={() => (setMenu(false), setAsk(true))}><Trash2 size={14} />Delete project</button>
@@ -349,15 +349,15 @@ function ProjectPage({ ctx, world, project }: { ctx: Ctx; world: World; project?
         )}
       </header>
 
-      {/* Sıra: projeyi yürüten otomasyonlar ve onların çıktıları üstte, elle eklenen görevler sonra, ayarlar (hesap, marka, medya, bilgi) en altta. */}
+      {/* Order: automations that run the project and their outputs on top, hand-added tasks next, settings (account, brand, media, notes) at the bottom. */}
 
-      {/* Görevler tek liste: projenin otomasyonları (etiketli, basınca ayar/plan/çıktılar) ve elle eklenen işler. Otomasyonun günlük gönderileri burada değil, otomasyonun içinde. */}
-      {/* Ayarlar: hesaplar ve bilgi yan yana (dar içerik), marka sesi ve medya altında tam genişlik. */}
-      {/* Bento: görevler solda geniş; bilgi sağda. Marka sesi, planlanan gönderiler ve medya altında tam genişlik. Hesaplar yalnız Gönderiler'de. */}
-      {/* Proje sayfası (2026-11-01): solda dar sütun (oluştur, bilgi, marka sesi), sağda iş (görevler, otomasyonlar, medya). */}
+      {/* Tasks in one list: the project's automations (labelled, pressing opens settings/plan/outputs) and hand-added tasks. The automation's daily posts are not here, they are inside the automation. */}
+      {/* Settings: accounts and notes side by side (narrow content), brand voice and media below at full width. */}
+      {/* Bento: tasks wide on the left; notes on the right. Brand voice, planned posts and media below at full width. Accounts only in Posts. */}
+      {/* Project page (2026-11-01): a narrow column on the left (create, notes, brand voice), work on the right (tasks, automations, media). */}
       {project ? (
         <div className="pplayout">
-          {/* Üst satır: Oluştur ve Görevler aynı boyda; altındaki boşluk iki sütunda tek çizgi. */}
+          {/* Top row: Create and Tasks the same size; the space under them is one line across both columns. */}
           <section className="card ppmake" aria-label="Create">
               <button className="ppmk" onClick={() => { const t = newTask(world.id, "New task", { projectId: project.id }); ctx.mutate((st) => void st.tasks.push(t)); openNew(ctx, t.id); }}><span className="ppmki"><ListPlus size={17} /></span><span><b>Add task</b><em>You or Rou do it</em></span></button>
               <button className="ppmk" onClick={() => setNewPost(true)}><span className="ppmki"><Send size={16} /></span><span><b>Create post</b><em>Shared once</em></span></button>

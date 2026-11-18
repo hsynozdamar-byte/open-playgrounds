@@ -7,11 +7,11 @@ import { canFocusTab, usePlatform } from "../platform";
 
 const host = (u: string) => { try { const x = new URL(u); return (x.host + x.pathname).replace(/\/$/, ""); } catch { return u; } };
 const post = (url: string, body: unknown) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
-// Rou'nun çalıştığı sekmeyi öne getirir: Playgrounds'un Tarayıcı sayfası, işin dünyası (yedek yol: Chrome).
+// Brings forward the tab Rou is working in: the Browser page of Playgrounds, the task's world (fallback: Chrome).
 export const focusTab = (runId?: string) => void post("/api/focus-chrome", { runId });
 
-// Rou tarayıcıda çalışırken: hangi sayfa, şu an ne yapıyor, son adımlar (server/live.mjs).
-// Yedek Chrome yolunda Claude eklentisi izin beklerken kutu bunu öne çıkarır.
+// While Rou works in the browser: which page, what it is doing now, the last steps (server/live.mjs).
+// On the Chrome fallback path the box highlights it when the Claude extension is waiting for permission.
 export function LiveBox({ live, busy, runId }: { live?: Live; busy: boolean; runId?: string }) {
   const platform = usePlatform();
   if (!live) return busy ? <div className="livebox"><p className="livenow"><RefreshCw size={13} className="spin" />Opening the browser…</p></div> : null;
@@ -29,12 +29,12 @@ export function LiveBox({ live, busy, runId }: { live?: Live; busy: boolean; run
   );
 }
 
-// Onaydan ya da çekmecedeki Kaydet'ten sonra Rou'nun tarayıcı işini başlatma isteği; panel açılınca alır.
+// Request to start Rou's browser task after approval or Save in the drawer; the panel takes it when it opens.
 const pending = new Set<string>();
 export function requestDo(runId: string) { pending.add(runId); window.dispatchEvent(new Event("pg-do")); }
 
-// Tek iş (otomasyon değil), Rou'nun: onaylanan planı Rou Playgrounds'un tarayıcısında, işin dünyasının oturumunda yapar (POST /api/do).
-// Soru gelirse burada cevaplanır.
+// A single task (not an automation), Rou's: Rou carries out the approved plan in Playgrounds' browser, in the session of the task's world (POST /api/do).
+// If a question comes it is answered here.
 export function DoPanel({ r }: { r: Run; task?: Task; ctx?: Ctx }) {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,7 +62,7 @@ export function DoPanel({ r }: { r: Run; task?: Task; ctx?: Ctx }) {
       {act?.error && <p className="pvissues">Rou couldn't do it: {act.error}</p>}
       {act?.question ? (
         <form className="doask" onSubmit={(e) => (e.preventDefault(), answer.trim() && start(answer.trim()))}>
-          {/* Uzun listeler (ör. abonelikler "1 … | 2 …") madde madde; soru ve açıklama ayrı satırda. */}
+          {/* Long lists (e.g. subscriptions "1 … | 2 …") item by item; the question and the explanation on separate lines. */}
           {(() => { const parts = act.question.split(/\s+\|\s+|\n+/).map((x) => x.trim()).filter(Boolean); return parts.length > 3
             ? <div className="doq"><b>Rou asks</b><ul>{parts.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
             : <p><b>Rou asks</b>{act.question}</p>; })()}

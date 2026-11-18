@@ -17,10 +17,10 @@ import { toast } from "./Toast";
 import { UPDATE_READY, hasDraft } from "./Update";
 import { DEFAULT_ROU, ROU_COLORS, chatOf, memoryOf, migrateRous, newRou, rouOf, rousOf, setChat } from "../../shared/rou.mjs";
 
-// Rou: Playgrounds'un asistanı. Siyah yumuşak gövde, iki beyaz göz (bebeksiz): kırpar, imleci izler, düşünürken etrafa bakar.
+// Rou: Playgrounds' assistant. A soft black body, two white eyes (no pupils): it blinks, follows the pointer, looks around while thinking.
 type Mood = "idle" | "think" | "happy";
 
-// Gözler imlece bakar: tüm Rou'lar tek bir dinleyiciyi paylaşır.
+// Eyes look at the pointer: all Rous share one listener.
 const lookers = new Set<(x: number, y: number) => void>();
 let listening = false;
 function listen() {
@@ -33,9 +33,9 @@ function listen() {
   });
 }
 
-// color: Rou'nun rengi (boşsa siyah).
-// lively: yalnız üst çubuktaki Rou zıplar, sıkışır, yoğrulur. Sohbetteki Rou'lar durgun; yalnız gözleri canlı.
-// Rou: koyu yumuşak gövde, başında kendi renginde akan ışıklı kubbe (renk seçilmemişse neon limon); gözler aynı renkte ışır.
+// color: Rou's colour (black if empty).
+// lively: only the Rou in the top bar hops, squishes and kneads. Rous in the chat stay still; only their eyes are alive.
+// Rou: dark soft body, a glowing dome in its own colour flowing on its head (neon lime if no colour is chosen); the eyes glow in the same colour.
 const ROU_BODY = "#c9f5d6";
 export function RouMascot({ size = 32, mood = "idle", color = "", lively = false }: { size?: number; mood?: Mood; color?: string; lively?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -57,7 +57,7 @@ export function RouMascot({ size = 32, mood = "idle", color = "", lively = false
   }, []);
   return (
     <span ref={ref} className={`rou is-${mood}${color ? " is-tint" : ""}${lively ? " is-lively" : ""}`} style={{ ["--s" as string]: `${size}px`, ["--rc" as string]: color || ROU_BODY }} aria-hidden>
-      {/* Küçük Rou'da karakter kutudan taşar: ince, uzun gövde 28-40 px'te de okunur */}
+      {/* In a small Rou the character overflows the box: the thin, tall body stays readable at 28-40 px too */}
       <span className="rou-fig" style={{ ["--s" as string]: `${fig}px`, left: (size - fig) / 2, top: (size - fig) * 0.62 }}>
       <span className="rou-body"><RouOrb size="100%" colors={color ? rouTones(color) : undefined} state={mood === "think" ? "thinking" : mood === "happy" ? "happy" : "idle"} /></span>
       <span className="rou-face">
@@ -70,13 +70,13 @@ export function RouMascot({ size = 32, mood = "idle", color = "", lively = false
   );
 }
 
-// ask: Rou açılır ve bu mesajı kendisi gönderir (ör. Defter'deki "Rou düzenlesin").
-// "Rou'ya sor": bir işi ya da çıktıyı sohbete iliştirir; kullanıcı onunla ilgili soru yazar, Rou içeriğiyle birlikte görür.
+// ask: Rou opens and sends this message itself (e.g. "Let Rou tidy" in the Notebook).
+// "Ask Rou": attaches a task or output to the chat; the user writes a question about it and Rou sees it together with its content.
 export const askRouAbout = (ref: { taskId?: string; runId?: string }) => dispatchEvent(new CustomEvent("pg-rou-ref", { detail: ref }));
 export const openRou = (ask?: string) => dispatchEvent(new CustomEvent("pg-rou", { detail: typeof ask === "string" ? ask : undefined }));
 
-// Üst çubuktaki (mobilde alt çubuktaki) Rou düğmesi.
-// waiting: dış öneri kanalında onay bekleyen öneri sayısı.
+// Rou button in the top bar (in the bottom bar on mobile).
+// waiting: number of proposals waiting for approval in the outside proposal channel.
 export function RouButton({ waiting = 0 }: { waiting?: number }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [away, setAway] = useState(false);
@@ -90,26 +90,26 @@ export function RouButton({ waiting = 0 }: { waiting?: number }) {
   );
 }
 
-// action: Rou'nun önerdiği iş; act: kullanıcının kararı.
-// show: Rou'nun sohbette gösterdiği çıktılar (runId), önizlemeleriyle.
+// action: the task Rou proposed; act: the user's decision.
+// show: outputs Rou showed in the chat (runId), with their previews.
 // Sekmeler:
-// Onay bekleyen = yalnız şu an Onayla'ya basılabilecek öneriler; onaylanan, vazgeçilen, geçersizleşen ve "Geri al" satırları girmez.
-// Değişiklikler = Rou'nun kendi yaptığı işlerin durumu: şimdi çalışan, sırada bekleyen, yapılanlar (Geri al) ve olmayanlar.
+// Waiting for approval = only proposals that can be approved right now; approved, dismissed, invalidated ones and "Undo" rows are not included.
+// Changes = the state of the work Rou did itself: running now, queued, done (Undo) and failed.
 type Cat = "all" | "wait" | "change";
 const CATS: { id: Cat; label: string }[] = [{ id: "all", label: "Chat" }, { id: "wait", label: "Awaiting approval" }, { id: "change", label: "Changes" }];
 const live = (a: RouAction | undefined, act: string | undefined, s: Ctx["state"]) => !!a && !act && a.type !== "undo_change" && !!describe(a, s);
 type Msg = { role: "user" | "rou"; text: string; at?: string; error?: boolean; action?: RouAction; act?: "done" | "no"; show?: string[]; files?: Att[] };
 const KEY = "pg-rou-chat";
-// Kullanıcının adı (Profil, localStorage pg-profile); yoksa "Kullanıcı".
+// The user's name (Profile, localStorage pg-profile); otherwise "User".
 const myName = () => { try { return (JSON.parse(localStorage.getItem("pg-profile") || "{}").name as string)?.trim() || "User"; } catch { return "User"; } };
-const CLEARED = "pg-rou-cleared"; // "Yeni sohbet": kanalın bundan önceki mesajları gizlenir
+const CLEARED = "pg-rou-cleared";   // "New chat": the channel's earlier messages are hidden
 const cleared = () => { try { return localStorage.getItem(CLEARED) ?? ""; } catch { return ""; } };
-// Eskiden sohbet tarayıcıda (localStorage) dururdu; ilk açılışta veriye taşınır.
+// The chat used to live in the browser (localStorage); on first open it moves to the data.
 const legacy = (): Msg[] => {
   try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
 };
-// Sunucu cevap verene kadar bekleyip sayfayı yeniler (en çok ~30 sn); yeniden başlarken açılan boş sayfayı önler.
-// Yazılmış ama gönderilmemiş metin varsa sayfa yenilenmez (yazı silinirdi): sağ altta "Güncelleme var" çıkar, kullanıcı ne zaman isterse basar.
+// Waits until the server answers and reloads the page (about 30 s at most); avoids the empty page that opens during a restart.
+// If there is typed but unsent text the page is not reloaded (the text would be lost): "Update available" appears bottom right and the user presses it when they want.
 async function reloadWhenUp(wait: number) {
   await new Promise((r) => setTimeout(r, wait));
   for (let i = 0; i < 60; i++) {
@@ -118,36 +118,36 @@ async function reloadWhenUp(wait: number) {
         if (hasDraft()) return dispatchEvent(new Event(UPDATE_READY));
         return location.reload();
       }
-    } catch { /* yeniden başlıyor */ }
+    } catch { /* restarting */ }
     await new Promise((r) => setTimeout(r, 500));
   }
 }
 
 const STARTERS = ["What's on today?", "Which tasks are late?", "What should I focus on this week?"];
 
-const PICK = "pg-rou-pick"; // seçili Rou (cihazda)
+const PICK = "pg-rou-pick";   // the selected Rou (on this device)
 const picked = () => { try { return localStorage.getItem(PICK) ?? DEFAULT_ROU; } catch { return DEFAULT_ROU; } };
-const WIDE = "pg-rou-list"; // Rou listesi açık mı (masaüstü; varsayılan kapalı, yalnız maskotlar)
+const WIDE = "pg-rou-list";   // is the Rou list open (desktop; closed by default, only mascots)
 
-// Rou'nun önerisi onay bekliyor mu: kendi sohbetinde, varsayılan Rou'da dış öneri kanalında da.
+// Is a Rou proposal waiting for approval: in its own chat, and for the default Rou in the outside proposal channel too.
 const pendingOf = (s: Ctx["state"], id: string) =>
   chatOf(s, id).some((m) => live(m.action as RouAction | undefined, m.act, s)) || (id === DEFAULT_ROU && rouWaiting(s) > 0);
 const roleOf = (r: RouDef) => r.persona.trim().split("\n")[0] || (r.id === DEFAULT_ROU ? "Your Playgrounds assistant" : "No instructions");
 
-// Sohbet paneli: solda Rou'lar, sağda seçili Rou'nun sohbeti. Masaüstünde sağ üstte yüzen geniş panel, mobilde alttan açılan sayfa.
+// Chat panel: Rous on the left, the selected Rou's chat on the right. On desktop a wide floating panel at the top right, on mobile a sheet opening from the bottom.
 export function RouChat({ ctx }: { ctx: Ctx }) {
   const [open, setOpen] = useState(false);
   const [pick, setPick] = useState(picked);
   const [wide, setWide] = useState(() => { try { return localStorage.getItem(WIDE) === "1"; } catch { return false; } });
-  const toggleList = () => setWide((w) => { try { localStorage.setItem(WIDE, w ? "0" : "1"); } catch { /* depolama yok */ } return !w; });
+  const toggleList = () => setWide((w) => { try { localStorage.setItem(WIDE, w ? "0" : "1"); } catch { /* no storage */ } return !w; });
   const rous = rousOf(ctx.state);
   const cur = rouOf(ctx.state, pick);
   const choose = (id: string) => {
     setPick(id);
     setView("chat");
-    try { localStorage.setItem(PICK, id); } catch { /* depolama yok */ }
+    try { localStorage.setItem(PICK, id); } catch { /* no storage */ }
   };
-  // Sohbet veride (state.chat[rouId]): tarayıcı ve Mac uygulaması aynı geçmişi görür.
+  // The chat is in the data (state.chat[rouId]): the browser and the desktop app see the same history.
   const msgs = chatOf(ctx.state, cur.id) as Msg[];
   const setMsgs = (id: string, fn: (l: Msg[]) => Msg[]) => ctx.mutate((s) => setChat(s, id, (l) => fn(l as Msg[])));
   const since = ctx.state.chatFrom ?? "";
@@ -159,18 +159,18 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
       if (!chatOf(s, DEFAULT_ROU).length && old.length) setChat(s, DEFAULT_ROU, () => old);
       if (!s.chatFrom && cleared()) s.chatFrom = cleared();
     });
-    try { localStorage.removeItem(KEY); localStorage.removeItem(CLEARED); } catch { /* depolama yok */ }
+    try { localStorage.removeItem(KEY); localStorage.removeItem(CLEARED); } catch { /* no storage */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // Sohbet = Rou ile konuşma + (varsayılan Rou'da) dış araçların önerileri, zamana göre.
+  // Chat = conversation with Rou + (for the default Rou) proposals from outside tools, by time.
   const talk = cur.id === DEFAULT_ROU ? (ctx.state.talk ?? []).filter((m) => m.at > since && m.from === "agent") : [];
-  // Sistemin geri dönüşleri (paylaşıldı, paylaşılamadı, onay bekliyor...) Rou'nun ağzından, düğmeleriyle (shared/notices.mjs).
+  // The system's feedback (shared, could not be shared, waiting for approval...) in Rou's voice, with its buttons (shared/notices.mjs).
   const notices = cur.id === DEFAULT_ROU ? freshNotices(ctx.state.notices).filter((n) => n.at > since) : [];
   const rows: { key: string; at: string; m?: Msg; i?: number; t?: Talk; n?: Notice }[] = [
     ...msgs.map((m, i) => ({ key: `m${i}`, at: m.at ?? "", m, i })),
     ...talk.map((t) => ({ key: t.id, at: t.at, t })),
     ...notices.map((n) => ({ key: `n${n.id}`, at: n.at, n })),
   ].sort((a, b) => a.at.localeCompare(b.at));
-  // Sohbet kategorileri (2026-11-04): öneriler çoğalınca bekleyenler, yapılanlar ve kod değişiklikleri ayrı süzülür.
+  // Chat categories (2026-11-04): when proposals multiply, waiting, done and code changes are filtered separately.
   const [cat, setCat] = useState<Cat>("all");
   const actOf = (r: (typeof rows)[number]) => (r.m?.action ? { a: r.m.action, act: r.m.act } : r.t?.action ? { a: r.t.action as RouAction, act: r.t.act } : null);
   const inCat = (r: (typeof rows)[number], c: Cat) => {
@@ -183,9 +183,9 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
   const counts = { wait: rows.filter((r) => inCat(r, "wait")).length, change: working + (st.changeQueue?.length ?? 0) };
   const hasChanges = counts.change > 0 || !!st.changes?.length;
   const shown = rows.filter((r) => inCat(r, cat));
-  // Son bekleyen de onaylanınca sohbete dönülür; boş "Onay bekleyen" ekranında kalınmaz.
+  // When the last waiting one is approved we return to the chat; the user does not stay on an empty "Waiting for approval" screen.
   useEffect(() => { if (cat === "wait" && counts.wait === 0) setCat("all"); }, [cat, counts.wait]);
-  // Sohbet açıkken görülen bildirimler okundu sayılır (zildeki sayı düşer).
+  // Notices seen while the chat is open count as read (the bell's number drops).
   const unreadHere = notices.filter((n) => !n.read).map((n) => n.id).join(",");
   useEffect(() => { if (open && unreadHere) markRead(ctx, unreadHere.split(",")); }, [open, unreadHere]); // eslint-disable-line react-hooks/exhaustive-deps
   const reset = () => {
@@ -195,12 +195,12 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     });
   };
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState<string | null>(null); // düşünen Rou
+  const [busy, setBusy] = useState<string | null>(null);   // the Rou that is thinking
   const [mood, setMood] = useState<Mood>("idle");
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
-  // Rou bir işi kendisi yaparken: ilerleme o Rou'nun sohbetinde görünür. Derlenmiş uygulamada (Mac) bitince sayfa yenilenir; geliştirmede Vite zaten yeniler.
-  // Sunucu kodu değiştiyse sunucu yeniden başlar; sayfa sunucu yeniden cevap verince yenilenir.
+  // While Rou does a task itself: progress shows in that Rou's chat. In a built app the page reloads when it finishes; in development Vite reloads anyway.
+  // If the server code changed the server restarts; the page reloads once the server answers again.
   const ch = ctx.state.change;
   const changing = !!ch && !ch.done && Date.now() - Date.parse(ch.at) < 25 * 60 * 1000;
   const saw = useRef<string | null>(null);
@@ -208,7 +208,7 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     if (changing) saw.current = ch!.id;
     else if (ch?.done && saw.current === ch.id) {
       saw.current = null;
-      // Yalnız arayüz kodu değiştiyse yenilenir; veri ya da sistem işi (kod değişmedi) ekranı yenilemez.
+      // Reloads only if the interface code changed; a data or system task (no code change) does not reload the screen.
       if (!ch.error && ch.code && !import.meta.env.DEV) void reloadWhenUp(ch.restart ? 1500 : 800);
     }
   }, [changing, ch]);
@@ -237,7 +237,7 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     list.current?.scrollTo({ top: list.current.scrollHeight, behavior: "smooth" });
   }, [msgs.length, busy, open, talk.length, changing, cur.id]);
 
-  // Ekler: ataç, sürükle-bırak ya da yapıştır. Yüklenirken gönder bekler.
+  // Attachments: paperclip, drag-and-drop or paste. Send waits while uploading.
   const [atts, setAtts] = useState<Pending[]>([]);
   const [ref, setRef] = useState<{ taskId?: string; runId?: string } | null>(null);
   useEffect(() => {
@@ -260,7 +260,7 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     }
   };
   const uploading = atts.some((a) => a.up);
-  // Döküm yazma alanına eklenir; kullanıcı bakıp düzeltir, kendisi gönderir.
+  // The transcript is added to the input; the user looks, corrects and sends it themselves.
   const voice = useVoice((v) => { setText((x) => (x.trim() ? `${x.trimEnd()} ${v}` : v)); setTimeout(() => input.current?.focus(), 30); }, (e) => toast(e));
 
   const send = async (raw: string) => {
@@ -269,7 +269,7 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
     if ((!q && !files.length) || busy || uploading) return;
     const id = cur.id;
     const next = [...msgs.filter((m) => !m.error), { role: "user" as const, text: q, at: new Date().toISOString(), ...(files.length ? { files } : {}), ...(refRun ? { show: [refRun.id] } : {}) }];
-    // İliştirilen iş/çıktı: sunucuya giden son mesajın başına içeriğiyle eklenir (sohbette yalnız soru ve kart görünür).
+    // Attached task/output: added with its content to the start of the last message going to the server (the chat shows only the question and the card).
     const me = myName();
     const about = refTask || refRun ? [
       `[${me} is asking about this task: "${refTask?.title ?? refRun?.title}" (task ${refTask?.id ?? "-"}, status ${refTask?.status ?? "-"}${refTask?.who ? `, done by ${refTask.who === "claude" ? "Rou" : me}` : ""})`,
@@ -288,7 +288,7 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
       .catch(() => ({ ok: false, error: "Couldn't reach the server" }));
     setBusy(null);
     const at = new Date().toISOString();
-    // İstenen iş hemen yapılır; yalnız paylaşma, onaylama gibi işler kartta onay bekler (rouActions runsAtOnce).
+    // The requested task is done at once; only tasks like sharing and approving wait for approval on the card (rouActions runsAtOnce).
     const now = r.ok && r.action && describe(r.action, ctx.state) && runsAtOnce(r.action);
     if (now) apply(r.action, ctx, id);
     setMsgs(id, (m) => [...m, r.ok ? { role: "rou", text: r.text, at, ...(r.action ? { action: r.action } : {}), ...(now ? { act: "done" as const } : {}), ...(r.show?.length ? { show: r.show } : {}) } : { role: "rou", text: `I couldn't answer right now. ${r.error ?? ""}`.trim(), at, error: true }]);
@@ -457,8 +457,8 @@ export function RouChat({ ctx }: { ctx: Ctx }) {
   );
 }
 
-// Yeni Rou ya da düzenleme: ad, renk, görev talimatı. Varsayılan Rou silinmez.
-// onDone(id): kaydedildi (id) ya da silindi/vazgeçildi (undefined).
+// New Rou or editing: name, colour, task instruction. The default Rou cannot be deleted.
+// onDone(id): saved (id) or deleted/cancelled (undefined).
 function RouForm({ ctx, rou, onDone }: { ctx: Ctx; rou?: RouDef; onDone: (id?: string) => void }) {
   const [name, setName] = useState(rou?.name ?? "");
   const [color, setColor] = useState(rou?.color ?? ROU_COLORS[1]);
@@ -477,7 +477,7 @@ function RouForm({ ctx, rou, onDone }: { ctx: Ctx; rou?: RouDef; onDone: (id?: s
     ctx.mutate((s) => (migrateRous(s), void s.rous!.push(r)));
     onDone(r.id);
   };
-  // Silinen Rou sohbeti ve kendi hafızasıyla gider; bildirimden geri gelir.
+  // A deleted Rou goes with its chat and its own memory; comes back from the notice.
   const remove = () => {
     if (!rou) return;
     const i = ctx.state.rous?.findIndex((x) => x.id === rou.id) ?? -1;
@@ -536,7 +536,7 @@ function RouForm({ ctx, rou, onDone }: { ctx: Ctx; rou?: RouDef; onDone: (id?: s
   );
 }
 
-// Rou'nun özeti: modele sormadan, veriden. Sıradaki işler (bugün + 7 gün, saatiyle) ve onay bekleyen otomasyon çıktıları.
+// Rou's summary: from the data, without asking the model. Upcoming tasks (today + 7 days, with times) and automation outputs waiting for approval.
 function Briefing({ ctx, onOpen }: { ctx: Ctx; onOpen: () => void }) {
   const s = ctx.state;
   const lens = ctx.route.lens;
@@ -580,23 +580,23 @@ function Briefing({ ctx, onOpen }: { ctx: Ctx; onOpen: () => void }) {
   );
 }
 
-// Rou'nun gösterdiği çıktılar: veride hâlâ varsa önizlemeyle.
+// Outputs Rou showed: with a preview if they still exist in the data.
 function Shown({ ids, ctx }: { ids: string[]; ctx: Ctx }) {
   const runs = ids.map((id) => ctx.state.runs.find((r) => r.id === id)).filter((r) => !!r);
   if (!runs.length) return null;
   return <div className="rbruns rshow">{runs.map((r) => <RunCard key={r.id} r={r} ctx={ctx} withSource />)}</div>;
 }
 
-// Rou'nun cevaplarında **kalın** yazı yıldızlarıyla görünmesin (değişiklik raporları markdown yazıyor).
+// In Rou's answers **bold** must not show with its asterisks (change reports are written in markdown).
 const bold = (t: string) => t.split(/\*\*(.+?)\*\*/g).map((x, i) => (i % 2 ? <b key={i}>{x}</b> : x));
 
-// Rou'nun kendi yaptığı işler: şimdi çalışan, sırada bekleyen, yapılanlar. Geri al yalnız kod değişikliğinde (sha) var.
+// Work Rou did itself: running now, queued, done. Undo exists only for a code change (sha).
 const when = (at: string) => {
   const d = new Date(at), t = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
   return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString("en-US", { day: "numeric", month: "short" })} ${t}`;
 };
-// Kayıtta Rou'ya giden talimatın tamamı durur; listede ilk cümlesi (numaralı adımlardan önce) yeter.
-// Sohbette süren iş: tek satır (aşama + işin kısa adı); talimatın tamamı "Ayrıntı" ile açılır.
+// The record holds the whole instruction sent to Rou; the list needs only its first sentence (before the numbered steps).
+// A running task in the chat: one line (stage + short name of the task); the whole instruction opens with "Details".
 function ChangeLine({ phase, text }: { phase: string; text: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -665,12 +665,12 @@ function ChangeList({ ctx, rouId }: { ctx: Ctx; rouId: string }) {
   );
 }
 
-// Rou'nun önerdiği iş: Onayla'ya basılınca uygulanır. Veriyle uyuşmayan öneri kart olarak çıkmaz.
+// A task Rou proposed: applied when Approve is pressed. A proposal that does not match the data does not appear as a card.
 function ActionCard({ a, act, ctx, rouId, onAct }: { a: RouAction; act?: "done" | "no"; ctx: Ctx; rouId: string; onAct: (x: "done" | "no") => void }) {
   const d = describe(a, ctx.state);
   if (!d && !act) return <div className="ract is-void">This suggestion no longer applies.</div>;
   if (!d) return null;
-  // Geri al bir onay isteği değil: değişiklik zaten yapıldı. Ayrı, sakin bir satır olarak durur ve bir kez daha sorar.
+  // Undo is not an approval request: the change was already made. It stays as a separate, calm row and asks once more.
   if (a.type === "undo_change") return <UndoCard ctx={ctx} a={a} rouId={rouId} act={act} onAct={onAct} />;
   if (a.type === "plan") return <PlanCard ctx={ctx} a={a} rouId={rouId} act={act} onAct={onAct} title={d.what} />;
   return (
@@ -692,7 +692,7 @@ function ActionCard({ a, act, ctx, rouId, onAct }: { a: RouAction; act?: "done" 
   );
 }
 
-// Toplu öneri: her adım ayrı satır, kutusundan açılıp kapanır. Seçilmeyen bir adıma bağlı adım (ör. açılmayacak projeye iş) kendiliğinden pasifleşir.
+// Batch proposal: each step is its own row, opens and closes from its box. A step that depends on an unselected step (e.g. a task for a project that will not be created) turns off by itself.
 function PlanCard({ a, act, ctx, rouId, onAct, title }: { a: Extract<RouAction, { type: "plan" }>; act?: "done" | "no"; ctx: Ctx; rouId: string; onAct: (x: "done" | "no") => void; title: string }) {
   const all = planSteps(a, ctx.state);
   const valid = all.filter((x) => x.d).map((x) => x.i);
@@ -759,13 +759,13 @@ function UndoCard({ a, act, ctx, rouId, onAct }: { a: RouAction; act?: "done" | 
   );
 }
 
-// Dış öneri kanalında onay bekleyen, hâlâ geçerli öneriler.
-// Sohbet temizlendiyse (chatFrom) öncesindeki kartlar görünmez; onlar da bekleyen sayılmaz (nokta boşuna yanıyordu).
+// Proposals in the outside proposal channel that wait for approval and are still valid.
+// If the chat was cleared (chatFrom) the cards before it are not shown; they do not count as waiting either (the dot used to burn for nothing).
 export const rouWaiting = (s: Ctx["state"]) => (s.talk ?? []).filter((t) => t.at > (s.chatFrom ?? "") && live(t.action as RouAction | undefined, t.act, s)).length;
-// Rou düğmesindeki nokta yalnız görülmemiş öneriler için: sohbet açılınca o ana kadarkiler görüldü sayılır (cihazda).
+// The dot on the Rou button is only for unseen proposals: when the chat opens the ones until then count as seen (on this device).
 const SEEN = "pg-rou-seen";
 const seenAt = () => { try { return localStorage.getItem(SEEN) ?? ""; } catch { return ""; } };
-export const markRouSeen = () => { try { localStorage.setItem(SEEN, new Date().toISOString()); } catch { /* yok */ } dispatchEvent(new Event(SEEN)); };
+export const markRouSeen = () => { try { localStorage.setItem(SEEN, new Date().toISOString()); } catch { /* no storage */ } dispatchEvent(new Event(SEEN)); };
 export function useRouUnseen(s: Ctx["state"]) {
   const [seen, setSeen] = useState(seenAt);
   useEffect(() => { const h = () => setSeen(seenAt()); addEventListener(SEEN, h); return () => removeEventListener(SEEN, h); }, []);
@@ -773,7 +773,7 @@ export function useRouUnseen(s: Ctx["state"]) {
   return [...(s.talk ?? []), ...chats].filter((t) => t.action && !t.act && (t.at ?? "") > seen && describe(t.action as RouAction, s)).length;
 }
 
-// Rou'nun hafızası: ortak kayıtlar (tüm Rou'lar bilir) + bu Rou'nun kendi kayıtları. Rou önerir (Hatırla kartı) ya da buradan elle eklenir; her biri silinebilir.
+// Rou's memory: shared entries (all Rous know them) + this Rou's own entries. Rou proposes (Remember card) or they are added here by hand; each can be deleted.
 function MemoryView({ ctx, rou }: { ctx: Ctx; rou: RouDef }) {
   const list = memoryOf(ctx.state, rou.id);
   const [text, setText] = useState("");

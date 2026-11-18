@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Ctx } from "../lib";
 
-// Hazırlayanların durumu (server/status.mjs). Tek istek paylaşılır, 5 dakikada bir yenilenir.
-// claude: seçili asistanın (Claude Code, Codex, Gemini CLI) durumu; llm: hangisi seçili.
+// Status of the preparers (server/status.mjs). One request is shared and refreshed every 5 minutes.
+// claude: status of the selected assistant (Claude Code, Codex, Gemini CLI); llm: which one is selected.
 export type Status = { claude: { state: "ok" | "off" | "missing" | "unknown" }; llm?: { id: string; name: string; cmd: string; fromEnv: boolean; install: string; caps: Record<string, boolean> } };
 let last: Status | null = null;
 let inflight: Promise<Status | null> | null = null;
@@ -36,15 +36,15 @@ const since = (t: string) => {
   const m = Math.max(1, Math.round((Date.now() - new Date(t).getTime()) / 60000));
   return m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} days`;
 };
-const DAY = 26 * 3600 * 1000; // günlük iş: bir günden uzun görünmediyse uyarı
+const DAY = 26 * 3600 * 1000;   // daily job: warn if not seen for more than a day
 
 type Light = { id: "claude"; name: string; tone: "ok" | "warn" | "off" | "idle" | "busy"; text: string; fix?: string; taskId?: string };
 
-// Yalnız etkin otomasyonlarda kullanılan hazırlayanlar gösterilir.
+// Only preparers used by active automations are shown.
 export function lights(ctx: Ctx, s: Status | null): Light[] {
   const used = new Set(ctx.state.automations.filter((a) => a.status === "active").map((a) => a.who));
   const out: Light[] = [];
-  // Rou bir iş hazırlıyorsa ışık onu söyler ve tıklayınca işi açar (12 dk'dan eski "hazırlanıyor" kayıtları sayılmaz).
+  // If Rou is preparing a task the light says so and opens the task on click ("preparing" records older than 12 min do not count).
   const busy = ctx.state.runs.filter((r) => (r.status === "working" && Date.now() - new Date(r.at).getTime() < 60 * 60 * 1000) || (!!r.act?.phase && Date.now() - new Date(r.act.at).getTime() < 45 * 60 * 1000));
   if (busy.length) used.add("claude");
   if (busy.length && s?.claude.state === "ok") {
@@ -60,7 +60,7 @@ export function lights(ctx: Ctx, s: Status | null): Light[] {
   return out;
 }
 
-// Otomasyonlar sayfası: hazırlayanların ışıkları.
+// Automations page: lights for the preparers.
 export function AgentLights({ ctx }: { ctx: Ctx }) {
   const s = useStatus();
   const list = lights(ctx, s);
@@ -84,10 +84,10 @@ export function AgentLights({ ctx }: { ctx: Ctx }) {
   );
 }
 
-// `komut` kod olarak görünür.
+// `command` shows as code.
 const code = (t?: string) => t?.split("`").map((x, i) => (i % 2 ? <code key={i}>{x}</code> : x));
 
-// Odak ve onay kuyruğu: bir hazırlayan çalışmıyorsa tek satır uyarı.
+// Focus and the approval queue: a one-line warning when a preparer is not running.
 export function AgentAlert({ ctx }: { ctx: Ctx }) {
   const s = useStatus();
   const bad = lights(ctx, s).filter((l) => l.tone === "off" || l.tone === "warn");

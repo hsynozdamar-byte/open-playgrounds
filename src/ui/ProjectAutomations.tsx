@@ -9,9 +9,9 @@ import { AutoRuns } from "./AutoRuns";
 import { openAutoView } from "./openAuto";
 import { SeriesDot } from "./Auto";
 
-// Projenin otomasyonları (2026-11-01, sadeleştirildi): tek otomasyonda süzgeç yok, başlıkta adı, saati ve ayar düğmesi;
-// birden çoksa Tümü + her otomasyon çipi (çipin ayar simgesi o otomasyonu açar). Altında işleri (AutoRuns).
-// Otomasyon kurma sol sütunda (Oluştur).
+// The project's automations (2026-11-01, simplified): with one automation there is no filter, its name, time and settings button are in the header;
+// with several, All + a chip per automation (the chip's settings icon opens that automation). Its tasks below (AutoRuns).
+// Setting up an automation is in the left column (Create).
 export function ProjectAutomations({ ctx, projectId }: { ctx: Ctx; worldId: string; projectId: string }) {
   const s = ctx.state;
   const all = s.automations.filter((a) => a.projectId === projectId);
@@ -24,7 +24,7 @@ export function ProjectAutomations({ ctx, projectId }: { ctx: Ctx; worldId: stri
   return (
     <section className="card kbcard pautos2">
       <div className="cardhead"><Repeat size={15} className="hicon" /><h3>Automations</h3><span className="n">{all.length}</span></div>
-      {/* Her otomasyon bir çip: adı, saati, ayar simgesi. Birden çoksa çipe basınca işler o otomasyona daralır (Tümü ile geri). */}
+      {/* Each automation is a chip: name, time, settings icon. With several, pressing a chip narrows the tasks to that automation (All goes back). */}
       <nav className="pafilter" aria-label="Automations">
         {!one && <button className={only ? "" : "on"} onClick={() => setOnly(null)}>All</button>}
         {all.map((a) => (

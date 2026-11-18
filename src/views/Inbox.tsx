@@ -22,19 +22,19 @@ const CATS: { id: NoteCategory; label: string; plural: string; Icon: typeof Stic
   { id: "todo", label: "To do", plural: "To dos", Icon: CheckSquare, empty: "Small things you have not put on a day yet. Make them a task and they go on the calendar." },
   { id: "link", label: "Link", plural: "Links", Icon: Link2, empty: "Pages to look at later. Paste one and the link becomes its title." },
 ];
-// Rou'ya giden istek: bekleyen notları okuyup her birine yer önerir (tek toplu kart, sen seçip onaylarsın).
+// The request that goes to Rou: reads the waiting notes and suggests a place for each (one batch card, you choose and approve).
 const ROU_ASK = "Sort the waiting notes in the Notebook: put each one in the right world and project, turn the ones that should be tasks into tasks, and add the ones that belong to an existing task to that task.";
 const catOf = (i: InboxItem): NoteCategory => i.category ?? "note";
 type Tab = "all" | NoteCategory | "done" | "feeds";
 
-// Defter: not yaz, kategorisini seç. Sonra işe çevir, bir dünyaya koy, arşivle ya da sil.
+// Notebook: write a note, pick its category. Then turn it into a task, put it in a world, archive or delete it.
 export function Inbox({ ctx }: { ctx: Ctx }) {
   const { state: s, route } = ctx;
   const lens = route.lens;
   const [tab, setTab] = useState<Tab>("all");
   const sideRef = useRef<HTMLElement>(null);
   const emptyRef = useRef<HTMLDivElement>(null);
-  // Masaüstünde boş kartın alt kenarı soldaki menü kartının alt kenarıyla aynı hizada.
+  // On desktop the bottom edge of the empty card lines up with the bottom edge of the menu card on the left.
   useLayoutEffect(() => {
     const side = sideRef.current, el = emptyRef.current;
     if (!side || !el) return;
@@ -47,10 +47,10 @@ export function Inbox({ ctx }: { ctx: Ctx }) {
     const ro = new ResizeObserver(fit);
     ro.observe(side);
     if (el.previousElementSibling) ro.observe(el.previousElementSibling);
-    const t = setTimeout(fit, 250); // sayfa geçişindeki kayma bitince
+    const t = setTimeout(fit, 250);   // once the shift from the page transition is over
     return () => (ro.disconnect(), clearTimeout(t));
   });
-  // Aramadan gelen not: arşivdeyse Arşiv sekmesi açılır, kart vurgulanır.
+  // A note coming from search: if it is in the archive the Archive tab opens, the card is highlighted.
   useReveal("note", (id) => {
     const n = s.inbox.find((x) => x.id === id);
     if (!n) return;
@@ -163,7 +163,7 @@ Clear archive
   );
 }
 
-// Gelenler: mail, Slack gibi kaynaklar. Okunanlar Defter'e düşer, kaynaklar da burada kurulur.
+// Incoming: sources like mail and Slack. What is read lands in the Notebook; sources are set up here.
 function Feeds({ ctx, on, onClick }: { ctx: Ctx; on: boolean; onClick: () => void }) {
   const n = incomingSources(ctx).length;
   return (
@@ -175,7 +175,7 @@ function Feeds({ ctx, on, onClick }: { ctx: Ctx; on: boolean; onClick: () => voi
   );
 }
 
-// Yazma alanı: Enter ekler, Shift+Enter yeni satır. İlk satır başlık, gerisi not.
+// Input: Enter adds, Shift+Enter a new line. The first line is the title, the rest is the note.
 function Composer({ ctx, defaultCat }: { ctx: Ctx; defaultCat: NoteCategory }) {
   const [text, setText] = useState("");
   const [cat, setCat] = useState<NoteCategory>(defaultCat);
@@ -231,7 +231,7 @@ function NoteCard({ i, n, ctx, onDelete }: { i: InboxItem; n: number; ctx: Ctx; 
   const lensWorld = ctx.route.lens === ALL ? s.worlds[0].id : ctx.route.lens;
   const live = (id?: string | null) => (id && s.projects.some((p) => p.id === id) ? id : null);
   const sp = live(i.suggestion?.projectId) ?? live(i.projectId);
-  // pick: proje id'si ya da "none:<dünya>" (iş kartındaki proje seçicisiyle aynı).
+  // pick: a project id or "none:<world>" (same as the project picker on the task card).
   const [f, setF] = useState<{ title: string; pick: string; day: string | null }>(() => ({
     title: i.suggestion?.title ?? i.title,
     pick: sp ?? `none:${i.worldId ?? lensWorld}`,
@@ -246,7 +246,7 @@ function NoteCard({ i, n, ctx, onDelete }: { i: InboxItem; n: number; ctx: Ctx; 
   const pickProject = f.pick.startsWith("none:") ? null : f.pick;
 
   const convert = () => {
-    // Çift tıklama ya da Enter tekrarı ikinci bir iş açmasın.
+    // A double click or a repeated Enter must not open a second task.
     if (saved.current || !f.title.trim()) return;
     saved.current = true;
     const task = newTask(pickWorld, f.title.trim(), { projectId: pickProject, day: f.day, notes: [i.title !== f.title.trim() ? i.title : "", i.body].filter(Boolean).join("\n\n"), ...(i.url ? { source: { type: i.source, url: i.url } } : {}) });
@@ -362,7 +362,7 @@ function NoteCard({ i, n, ctx, onDelete }: { i: InboxItem; n: number; ctx: Ctx; 
   );
 }
 
-// Notu yerinde düzenle: ilk satır başlık, gerisi metin (Defter'e yazarkenki gibi). ⌘Enter kaydeder, Esc vazgeçer.
+// Edit a note in place: the first line is the title, the rest is the text (as when writing into the Notebook). ⌘Enter saves, Esc cancels.
 function NoteEdit({ i, onSave, onCancel }: { i: InboxItem; onSave: (title: string, body: string) => void; onCancel: () => void }) {
   const [text, setText] = useState(() => [i.title, i.body].filter(Boolean).join("\n"));
   const save = () => {
@@ -391,8 +391,8 @@ function NoteEdit({ i, onSave, onCancel }: { i: InboxItem; onSave: (title: strin
   );
 }
 
-// İki sütun, üstleri aynı çizgide: notlar sırayla kısa kalan sütuna gider (yükseklik tahmini metin uzunluğundan).
-// Dar ekranda sütunlar açılır (display: contents), kartlar `order` ile yine sırayla dizilir.
+// Two columns with tops on the same line: notes go in turn to the shorter column (height estimated from text length).
+// On a narrow screen the columns unfold (display: contents), cards still line up in order with `order`.
 function splitCols(items: InboxItem[]) {
   const cols: { i: InboxItem; n: number }[][] = [[], []];
   const h = [0, 0];

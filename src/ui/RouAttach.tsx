@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Music, Video, X } from "lucide-react";
 import type { Att } from "../types";
 
-// Rou'ya ek: görsel, video, ses, belge. Dosya sunucuya yüklenir (data/media), mesajda yalnız adı durur.
+// Attachment for Rou: image, video, audio, document. The file is uploaded to the server (data/media), the message holds only its name.
 export type Pending = Att & { key: string; up?: boolean; preview?: string };
 
 export async function uploadFile(f: Blob, name: string): Promise<Att | { error: string }> {
@@ -13,7 +13,7 @@ export async function uploadFile(f: Blob, name: string): Promise<Att | { error: 
 
 const ICON = { video: Video, audio: Music, file: FileText } as const;
 
-// Gönderilmeyi bekleyen ekler (yazma alanının üstünde).
+// Attachments waiting to be sent (above the input).
 export function AttChips({ list, onRemove }: { list: Pending[]; onRemove: (key: string) => void }) {
   if (!list.length) return null;
   return (
@@ -32,7 +32,7 @@ export function AttChips({ list, onRemove }: { list: Pending[]; onRemove: (key: 
   );
 }
 
-// Mesajdaki ekler: görsel küçük resim, video ve ses oynatıcı, belge adıyla.
+// Attachments in a message: image as a thumbnail, video and audio with a player, document by name.
 export function MsgFiles({ files }: { files: Att[] }) {
   return (
     <div className="rmfiles">
@@ -46,8 +46,8 @@ export function MsgFiles({ files }: { files: Att[] }) {
   );
 }
 
-// Sesli komut: kayıt → yükle → yerelde yazıya dök → metin yazma alanına gelir; gönderen kullanıcı (düzeltebilsin diye).
-// Kayıt sırasında vazgeç (kaydı atar) ya da bitir (yazıya döker). Mikrofon izni ilk kullanımda sorulur.
+// Voice command: record → upload → transcribe locally → the text arrives in the input; the user sends it (so they can correct it).
+// While recording cancel (discards the recording) or finish (transcribes). Microphone permission is asked on first use.
 export function useVoice(onText: (t: string) => void, onError: (e: string) => void) {
   const [state, setState] = useState<"idle" | "rec" | "busy">("idle");
   const [sec, setSec] = useState(0);

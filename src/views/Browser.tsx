@@ -8,8 +8,8 @@ import { AccountTile } from "../ui/Social";
 import { toast } from "../ui/Toast";
 import { inShell, LiveBrowser } from "../ui/LiveBrowser";
 
-// Tarayıcı: Playground Browser (server/pb.mjs). Her dünya bir profil; Rou orada çalışır, kullanıcı buradan izler.
-// Sayfa açıkken durum 4 sn'de bir yenilenir, sekme görüntüleri de aynı tempoda yeniden çekilir.
+// Browser: Playground Browser (server/pb.mjs). Each world is a profile; Rou works there, the user watches from here.
+// While the page is open the state refreshes every 4 s, and the tab images are captured again at the same pace.
 type Page = { id: string; title: string; url: string; rou?: string };
 type Profile = { worldId: string; dir: string; exists: boolean; open: boolean; accounts: Record<string, boolean | null>; pages: Page[] };
 type PB = { installed: boolean; running: boolean; profiles: Profile[]; other: (Page & { dir: string | null })[] };
@@ -35,7 +35,7 @@ function usePb() {
 }
 
 export function Browser({ ctx }: { ctx: Ctx }) {
-  // Playgrounds uygulamasının içinde: gerçek tarayıcı bu sayfada. Telefonda ve tarayıcıda: izleme (hesaplar, sekme görüntüleri).
+  // Inside the Playgrounds app: the real browser is on this page. On phone and in the browser: the watch view (accounts, tab images).
   if (inShell) return <LiveBrowser ctx={ctx} />;
   return <Watch ctx={ctx} />;
 }
@@ -94,7 +94,7 @@ function WorldProfile({ ctx, world, p, tick, onOpen }: { ctx: Ctx; world: World;
   );
 }
 
-// Hesap kutusu: profildeki oturum (çerezden), girişe gitme ve Rou'ya giriş yaptırma.
+// Account box: the session in the profile (from the cookie), going to login and having Rou sign in.
 function PbAccount({ ctx, a, world, on }: { ctx: Ctx; a: Account; world: World; on?: boolean | null }) {
   const lg = a.pbLogin;
   const working = !!lg?.phase && !lg.error && lg.ok === undefined;
@@ -116,9 +116,9 @@ function PbAccount({ ctx, a, world, on }: { ctx: Ctx; a: Account; world: World; 
   );
 }
 
-// Sekme kutusu: canlı küçük görüntü, başlık, alan adı; basınca tarayıcıda o sekme öne gelir.
+// Tab box: a live small image, title, domain; pressing brings that tab forward in the browser.
 function TabTile({ t, tick }: { t: Page; tick: number }) {
-  // Görüntü yüklenene kadar eskisi kalır (kutu yanıp sönmesin). Penceresinde önde olmayan sekme çizilmez: o zaman alan adı görünür.
+  // The old image stays until the new one loads (so the box does not flicker). A tab that is not in front in its window is not drawn: then the domain shows.
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     const next = `/api/pb/shot?t=${t.id}&v=${tick}`;

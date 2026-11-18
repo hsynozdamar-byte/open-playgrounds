@@ -14,9 +14,9 @@ import { binIt } from "../trashOps";
 import { Select } from "./Select";
 
 
-// Hesaplar dünyada durur: paylaşım hesapları (Instagram, LinkedIn...) ve gelen kaynakları (Gmail, Slack...).
-// Hesabın hangi projelerde kullanıldığı (project.accountIds) hesap penceresinin Projeler satırında seçilir.
-// Hesap penceresi her yerden açılır: openAccountForm({ worldId }) yeni, ({ worldId, id }) düzenle, projectId verilirse yeni hesap o projede seçilir.
+// Accounts live on the world: posting accounts (Instagram, LinkedIn...) and incoming sources (Gmail, Slack...).
+// Which projects an account is used in (project.accountIds) is chosen in the Projects row of the account window.
+// The account window opens from anywhere: openAccountForm({ worldId }) new, ({ worldId, id }) edit; with projectId the new account is selected in that project.
 
 export type AccountDraft = Pick<Account, "platform" | "name" | "handle" | "voice" | "lang" | "login" | "premium">;
 type Kind = Platform | Feed;
@@ -29,7 +29,7 @@ const MAKES: Record<Platform, string> = {
   youtube: "Vertical video",
   other: "Plain text",
 };
-// Tarayıcıdan paylaşılabilen platformlar (server/publish.mjs HOME ile aynı).
+// Platforms that can be shared from the browser (same as server/publish.mjs HOME).
 export const PUBLISHABLE = new Set<string>(["instagram", "linkedin", "x", "threads", "tiktok", "youtube"]);
 export const emptyAccount = (platform: Kind = "instagram"): AccountDraft => ({ platform, name: "", handle: "", voice: "", lang: DEFAULT_LANG });
 export const cleanHandle = (a: AccountDraft) => {
@@ -40,8 +40,8 @@ export const cleanHandle = (a: AccountDraft) => {
 export const accountLine = (a: Pick<Account, "platform" | "name" | "handle">) => [platformName(a), a.platform === "other" ? "" : a.name, a.handle].filter(Boolean).join(" · ");
 export const worldOfAccount = (ws: World[], id: string) => ws.find((w) => w.accounts?.some((a) => a.id === id));
 
-// Platform kutucukları (Paylaşım ve Gelenler) + alanlar. Proje formu da bunu kullanır.
-// group: yalnız paylaşım ya da yalnız gelen kaynakları gösterilir (Gönderiler ve Defter kendi türünü ekler).
+// Platform tiles (Share and Incoming) + fields. The project form uses this too.
+// group: only posting or only incoming sources are shown (Posts and Notebook add their own kind).
 export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDraft; set: (p: Partial<AccountDraft>) => void; autoFocus?: boolean; lock?: boolean; group?: Group }) {
   const feed = isFeed(a.platform);
   return (
@@ -129,7 +129,7 @@ export function AccountFields({ a, set, autoFocus, lock, group }: { a: AccountDr
 }
 
 type Group = "post" | "feed";
-// pickWorld: dünya pencerede seçilir (Defter tüm dünyalardayken).
+// pickWorld: the world is chosen in the window (when the Notebook shows all worlds).
 type Req = { worldId: string; id?: string; projectId?: string; platform?: Kind; group?: Group; pickWorld?: boolean };
 export const openAccountForm = (r: Req) => dispatchEvent(new CustomEvent("pg-account-form", { detail: r }));
 
@@ -153,11 +153,11 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
   const project = req.projectId ? s.projects.find((p) => p.id === req.projectId) : undefined;
   const [a, setA] = useState<AccountDraft>(() => (old ? { platform: old.platform, name: old.name, handle: old.handle, voice: old.voice, lang: old.lang, login: old.login ?? "", premium: old.premium } : emptyAccount(req.platform ?? (req.group === "feed" ? "gmail" : undefined))));
   const [confirm, setConfirm] = useState(false);
-  // Projeler: hesabın dünyasındaki projelerden bu hesapla paylaşanlar (project.accountIds). Kaydedince yazılır.
+  // Projects: projects in the account's world that share with this account (project.accountIds). Written on save.
   const [pids, setPids] = useState<string[]>(() => (old ? projectsOfAccount(s, old.id).map((p) => p.id) : project ? [project.id] : []));
   const wprojects = s.projects.filter((p) => p.worldId === wid && (p.status !== "done" || pids.includes(p.id)));
   useEffect(() => {
-    // Yakalama aşamasında dinler ve olayı durdurur: Esc yalnız bu pencereyi kapatır, altındaki iş kartını değil.
+    // Listens in the capture phase and stops the event: Esc closes only this window, not the task card under it.
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
     addEventListener("keydown", k, true);
     return () => removeEventListener("keydown", k, true);
@@ -165,7 +165,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
   const saving = useRef(false);
   if (!world) return null;
   const save = async () => {
-    // Kayıt sürerken ikinci Enter aynı hesabı ikinci kez eklemesin.
+    // While saving, a second Enter must not add the same account twice.
     if (saving.current) return;
     saving.current = true;
     try { await saveOnce(); } finally { saving.current = false; }
@@ -174,7 +174,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
     const next: AccountDraft = { ...a, name: a.name.trim(), handle: cleanHandle(a), voice: isFeed(a.platform) ? "" : a.voice.trim(), login: (a.login ?? "").trim() };
     if (!next.login) delete next.login;
     const id = old?.id ?? uid();
-    // Seçilen projelere ekle, seçimi kaldırılanlardan çıkar (yalnız hesabın varacağı dünyanın projeleri).
+    // Add to the selected projects, remove from the deselected ones (only projects of the world the account will be in).
     const link = (st: typeof s) => {
       for (const p of st.projects) {
         if (p.worldId !== wid) continue;
@@ -191,7 +191,7 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
         if (!from || !x) return;
         Object.assign(x, next);
         if (!next.login) delete x.login;
-        // Başka dünyaya taşındı: eski dünyanın projelerinden çıkar.
+        // Moved to another world: remove it from the old world's projects.
         const to = wid !== world.id && st.worlds.find((w) => w.id === wid);
         if (to) {
           from.accounts = from.accounts!.filter((y) => y.id !== x.id);
@@ -280,8 +280,8 @@ function AccountForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
   );
 }
 
-// Hesabın paylaşım yeri: Playgrounds'un kendi tarayıcısı, hesabın dünyasının oturumu. Rou (ya da sen) orada paylaşır.
-// Giriş durumu tarayıcının çerezlerinden okunur (/api/pb); giriş yoksa sekme orada açılır.
+// Where the account shares: Playgrounds' own browser, the session of the account's world. Rou (or you) shares there.
+// Login state is read from the browser's cookies (/api/pb); with no login the tab opens there.
 function BrowserLink({ ctx, acc }: { ctx: Ctx; acc: Account }) {
   const world = worldOfAccount(ctx.state.worlds, acc.id);
   const [login, setLogin] = useState<boolean | null | undefined>(undefined);
@@ -311,7 +311,7 @@ function BrowserLink({ ctx, acc }: { ctx: Ctx; acc: Account }) {
   );
 }
 
-// Hesap kartında yalnız hesabın kendi bilgisi. Kimin paylaşacağı hesabın değil, işin ve otomasyonun ayarıdır (Paylaşan: Rou / Sen).
+// The account card holds only the account's own info. Who shares is a setting of the task and automation, not the account (Sharer: Rou / You).
 export function accountState(a: Account) {
   if (isFeed(a.platform)) return { ok: false, text: "Reading comes soon" };
   return null;
@@ -340,9 +340,9 @@ export function AccountTile({ ctx, a, world, tags, children }: { ctx: Ctx; a: Ac
   );
 }
 
-// Profilde: tüm dünyaların hesapları tek listede. Satır hesabın formunu açar (giriş e-postası, dünya).
-// Profil › Hesaplar: bütün hesaplar dünyaya göre gruplu. Satırda yalnız gerçek durum: tarayıcıda giriş açık mı.
-// Giriş durumu Playgrounds tarayıcısının çerezlerinden (/api/pb); bilinmiyorsa hiçbir şey yazılmaz.
+// In Profile: accounts of all worlds in one list. A row opens the account's form (login email, world).
+// Profile › Accounts: all accounts grouped by world. A row shows only the real state: is the browser login open.
+// Login state from the Playgrounds browser's cookies (/api/pb); if unknown nothing is written.
 export function AllAccounts({ ctx }: { ctx: Ctx }) {
   const s = ctx.state;
   const worlds = s.worlds.filter((w) => w.accounts?.length);

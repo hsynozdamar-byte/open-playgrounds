@@ -7,22 +7,22 @@ import { chime, notify, startTask } from "../timer";
 import { toast } from "./Toast";
 import { useNow } from "./useNow";
 
-// Hatırlatmalar (uygulama açıkken): takvimdeki işin saati gelince, ve günün ilk açılışında bugün deadline'ı olan işler.
-// Hatırlatılanlar bu tarayıcıda tutulur; sayfa yenilenince aynısı tekrar çıkmaz.
+// Reminders (while the app is open): when a calendar task's time comes, and on the first open of the day for tasks due today.
+// Reminded items are kept in this browser; the same one does not appear again after a reload.
 const KEY = "pg-reminded";
-const LATE_MIN = 10; // saati 10 dakikadan fazla geçmişse artık hatırlatılmaz
+const LATE_MIN = 10;   // more than 10 minutes past its time: no longer reminded
 
 function seen(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { return new Set(); }
 }
-// Anahtar "b:GÜN:blok" ya da "d:GÜN"; yalnız dünden bu yana olanlar saklanır.
+// Key is "b:DAY:block" or "d:DAY"; only entries since yesterday are kept.
 function remember(keys: Set<string>) {
   const from = addDays(today(), -1);
   const keep = [...keys].filter((k) => k.split(":")[1] >= from);
-  try { localStorage.setItem(KEY, JSON.stringify(keep)); } catch { /* yok */ }
+  try { localStorage.setItem(KEY, JSON.stringify(keep)); } catch { /* no storage */ }
 }
 
-// Şu an başlaması gereken bloklar: başlangıcı geçmiş ama LATE_MIN içinde, işi bitmemiş, sayaçta değil.
+// Blocks that should start now: start has passed but within LATE_MIN, task not done, timer not running.
 export function dueBlocks(s: State, now = new Date()) {
   const cur = localTs(now);
   const from = localTs(new Date(now.getTime() - LATE_MIN * 60000));
@@ -30,7 +30,7 @@ export function dueBlocks(s: State, now = new Date()) {
     if (!b.taskId || b.start > cur || b.start < from) return false;
     const t = s.tasks.find((x) => x.id === b.taskId);
     if (!t || t.status === "done" || s.timer?.taskId === t.id) return false;
-    // Rou'nun işi için "Başlama zamanı" çalmaz: o iş senin odak sayacınla başlamaz.
+    // No "Start time" for Rou's tasks: those do not start with your focus timer.
     const auto = t.autoId ? s.automations.find((a) => a.id === t.autoId) : undefined;
     return (auto?.who ?? t.who ?? "me") === "me";
   });
@@ -45,7 +45,7 @@ export function useReminders(ctx: Ctx) {
     const ctx = c.current;
     const done = seen();
     let changed = false;
-    // Tek bildirim alanı var: saati gelen iş daha acil, en son o gösterilir.
+    // There is one notice area: the task whose time came is more urgent, so it is shown last.
     const t = today();
     const k = `d:${t}`;
     if (!done.has(k)) {

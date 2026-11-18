@@ -2,21 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { RouMascot } from "./Rou";
 import { PLAYGROUNDS_COLORS } from "./fluid/FluidOrb";
 
-// Karşılamada Rou: "Playgrounds" yazısının etrafında yaşar. Yazının çevresinde 3B bir sahne var: z < 0 yazının
-// arkası (küçülür, bulanıklaşır, harflerin ardında kalır), z > 0 önü (büyür). Rou sırayla farklı şeyler yapar:
-// yazının etrafında kuyruklu yıldız gibi tur atar, harflerin üstüne oturup etrafa bakar, arkasından kafasını uzatır,
-// düşünür, uzağa süzülüp geri gelir, takla atar, uyuklar. Sırayı rastgele seçer, aynı şeyi üst üste yapmaz;
-// selamı açılışta ve tıklanınca verir, arada yalnız seyrek. Hareket azaltılmışsa yazının üstünde sabit oturur.
-type V = { x: number; y: number; z: number };                       // yazı merkezine göre, yazı boyu (H) biriminde
+// Rou on the welcome screen: lives around the "Playgrounds" wordmark. There is a 3D scene around the text: z < 0 is behind the text
+// (shrinks, blurs, stays behind the letters), z > 0 in front (grows). Rou does different things in turn:
+// laps the text like a comet, sits on the letters and looks around, peeks out from behind them,
+// thinks, drifts far away and comes back, does a flip, dozes. It picks the order at random and never repeats the same act;
+// it greets on opening and on click, otherwise only rarely. With reduced motion it sits still on the text.
+type V = { x: number; y: number; z: number };   // relative to the text centre, in units of text height (H)
 type Bubble = { kind: "say" | "think"; text: string } | null;
 type St = V & { mood?: "idle" | "think" | "happy"; bubble?: Bubble; gaze?: [number, number] | null; rot?: number; sq?: number; sleep?: boolean; wave?: number; op?: number };
 type Seg = { t0: number; dur: number; until: number; f: (u: number, t: number) => St };
 type Metrics = { cx: number; cy: number; H: number; W: number; r: number; letters: { x: number; top: number }[]; vw: number; vh: number; floor: number };
 
-const TRAIL = 0.42;      // iz uzunluğu, sn
-const ZS = 0.45;         // derinlik ölçeği: z=-1 → 0.55, z=1 → 1.45
+const TRAIL = 0.42;   // trail length, s
+const ZS = 0.45;   // depth scale: z=-1 → 0.55, z=1 → 1.45
 const ZMAX = 1.45;
-const EN = (() => { try { return new URLSearchParams(location.search).get("gate") === "en"; } catch { return false; } })();   // ?gate=en tanıtım kaydı (Gate.tsx)
+const EN = (() => { try { return new URLSearchParams(location.search).get("gate") === "en"; } catch { return false; } })();   // ?gate=en promo recording (Gate.tsx)
 const THOUGHTS = ["Hmm…", "What should we focus on today?", "Any free time on the calendar?", "A coffee would be nice.", "Notes piling up?", "Shall we finish that project?"];
 
 const RGB = PLAYGROUNDS_COLORS.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
@@ -31,16 +31,16 @@ const bez = (a: V, b: V, c: V, d: V, u: number): V => {
   const m = 1 - u, A = m * m * m, B = 3 * m * m * u, C = 3 * m * u * u, D = u * u * u;
   return { x: A * a.x + B * b.x + C * c.x + D * d.x, y: A * a.y + B * b.y + C * c.y + D * d.y, z: A * a.z + B * b.z + C * c.z + D * d.z };
 };
-// Parça parça sabit bakış: [başlangıç u, gx, gy]
+// Fixed gaze in pieces: [start u, gx, gy]
 const gazeAt = (u: number, keys: [number, number, number][]): [number, number] | null => {
   let g: [number, number] | null = null;
   for (const [k, x, y] of keys) if (u >= k) g = [x, y];
   return g;
 };
 
-// Yazının harf konumları ve üst kenarları (H biriminde, yazı merkezine göre)
+// Letter positions and top edges of the text (in H units, relative to the text centre)
 function measure(mark: HTMLElement, gate: HTMLElement): Metrics {
-  // Harfler ayrı span (açılışta tek tek yükselirler): konumlar transform'suz offset'lerden okunur, animasyon sürerken de doğru
+  // Letters are separate spans (they rise one by one on opening): positions are read from offsets without transform, so they are right while the animation runs too
   const cs = getComputedStyle(mark);
   const H = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) || H * 0.88;
   const gr = gate.getBoundingClientRect();
@@ -93,7 +93,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
     size();
     const ro = new ResizeObserver(() => { M = measure(el, gate); setR(Math.round(M.r * M.H * ZMAX)); size(); });
     ro.observe(gate); ro.observe(el);
-    // Ekrana taşmasın, forma girmesin (H biriminde sınırla)
+    // Keep it off the edge of the screen and out of the form (clamp in H units)
     const clampV = (p: V): V => {
       const s = (1 + ZS * p.z) * M.r * 0.56;
       const minX = (s * M.H + 6 - M.cx) / M.H, maxX = (M.vw - s * M.H - 6 - M.cx) / M.H;
@@ -106,7 +106,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
     const orbit = () => ({ rx: Math.min(M.W / 2 + M.r * 0.45, (M.vw / 2 - M.r * M.H * 0.6) / M.H), ry: 0.5, yc: -0.08 });
     const orbitAt = (th: number): V => { const o = orbit(); return { x: o.rx * Math.cos(th), y: o.yc + o.ry * Math.sin(th), z: Math.sin(th) }; };
 
-    // Zaman çizelgesi: hareket zamanın saf fonksiyonu (iz geçmişi aynı fonksiyondan örneklenir)
+    // Timeline: motion is a pure function of time (the trail history is sampled from the same function)
     const segs: Seg[] = [];
     let tEnd = 0, cur: V = sitAt(6), last: string[] = [], lastGreet = -99;
     const push = (dur: number, f: Seg["f"]) => { const s = { t0: tEnd, dur, until: tEnd + dur, f }; segs.push(s); tEnd += dur; const e = f(1, tEnd); cur = { x: e.x, y: e.y, z: e.z }; };
@@ -116,7 +116,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
       const a = cur, b = to;
       const d = Math.hypot(b.x - a.x, b.y - a.y, (b.z - a.z) * 1.5);
       const dur = o.dur ?? Math.min(1.8, Math.max(0.7, 0.55 + d * 0.28));
-      const arc = o.arc ?? rnd(-0.6, -0.25) * Math.min(1.5, d);   // yukarı doğru kavis
+      const arc = o.arc ?? rnd(-0.6, -0.25) * Math.min(1.5, d);   // curve upward
       const dz = o.dz ?? rnd(-0.6, 0.6);
       const c1 = { x: lerp(a.x, b.x, 0.3), y: lerp(a.y, b.y, 0.3) + arc, z: lerp(a.z, b.z, 0.3) + dz };
       const c2 = { x: lerp(a.x, b.x, 0.7), y: lerp(a.y, b.y, 0.7) + arc * 0.7, z: lerp(a.z, b.z, 0.7) + dz * 0.6 };
@@ -131,7 +131,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
         fly(at, { dz: 0.3 });
         wave(at);
       },
-      greetHere: () => {   // tıklanınca: olduğu yerde döner, arkadaysa öne çıkar
+      greetHere: () => {   // on click: spins in place, comes forward if it is behind
         const at = clampV({ ...cur, z: Math.max(cur.z, 0.5) });
         if (Math.hypot(at.x - cur.x, at.y - cur.y, at.z - cur.z) > 0.05) fly(at, { dur: 0.45, arc: -0.1, dz: 0 });
         wave(at);
@@ -154,7 +154,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
         fly(sitAt(i), { arc: -0.8 });
         const d1 = rnd(3.2, 4.4);
         hold(d1, sitAt(i), (u) => ({ sq: landSq(u, d1), gaze: gazeAt(u, [[0, 0, 0.6], [0.22, -1, 0.1], [0.48, 1, 0.1], [0.74, 0, -0.2]]), y: sitAt(i).y }));
-        if (Math.random() < 0.6) {   // harften harfe zıpla
+        if (Math.random() < 0.6) {   // hop from letter to letter
           const j = i >= 8 ? i - 2 : i + 2, a = sitAt(i), b = sitAt(j);
           push(0.55, (u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) - Math.sin(Math.PI * u) * 0.45, z: a.z, sq: 1 - 0.08 * Math.sin(Math.PI * u), gaze: [Math.sign(b.x - a.x), 0] }));
           hold(1.6, b, (u) => ({ sq: landSq(u, 1.6), gaze: [0, 0.3] }));
@@ -192,9 +192,9 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
         fly(at);
         hold(4.2, at, (u, t) => ({ sleep: u < 0.86, y: at.y + Math.sin(t * 1.1) * 0.05, rot: u < 0.86 ? Math.sin(t * 1.1) * 6 : 0,
           bubble: u > 0.15 && u < 0.86 ? { kind: "think", text: "z z z" } : null }));
-        push(0.5, (u) => ({ ...at, y: at.y - Math.sin(Math.PI * u) * 0.35, sq: 1 - 0.1 * Math.sin(Math.PI * u) }));   // uyanır, sıçrar
+        push(0.5, (u) => ({ ...at, y: at.y - Math.sin(Math.PI * u) * 0.35, sq: 1 - 0.1 * Math.sin(Math.PI * u) }));   // wakes up, hops
       },
-      stare: () => {   // yaklaşıp sana bakar
+      stare: () => {   // comes closer and looks at you
         const at = clampV({ x: (Math.random() < 0.5 ? 1 : -1) * M.W * 0.18, y: 0.1, z: 1 });
         fly(at, { dz: 0.4 });
         hold(2.2, at, (u, t) => ({ gaze: null, rot: Math.sin(t * 1.6) * 7 * Math.min(1, u * 5) }));
@@ -208,10 +208,10 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
       for (const p of pool) { x -= W8[p]; if (x <= 0) { k = p; break; } }
       ACTS[k](); last = [k, ...last].slice(0, 2);
     };
-    // Açılış: harfler oturunca "o"nun arkasından kafasını uzatır, öne süzülüp selam verir
+    // Opening: when the letters settle it peeks out from behind the "o", glides forward and greets
     {
       const L = letter(6), z = -0.28, s = 1 + ZS * z, down = { x: L.x, y: L.top + M.r * s * 0.7, z }, up = { x: L.x, y: L.top + M.r * s * 0.12, z };
-      // Harfler yerine oturana kadar görünmez bekler, sonra yükselirken belirir
+      // Stays invisible until the letters settle, then appears as they rise
       cur = down; hold(1.25, down, () => ({ op: 0 })); push(0.8, (u) => ({ ...down, y: lerp(down.y, up.y, inOut3(u)), op: Math.min(1, Math.max(0, (u - 0.5) / 0.35)) }));
       hold(1.1, up, (u) => ({ gaze: gazeAt(u, [[0, -1, 0], [0.5, 1, 0]]) }));
       ACTS.greet(); last = ["greet"];
@@ -231,7 +231,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
     const sparks: { x: number; y: number; z: number; t: number; vx: number; vy: number }[] = [];
     let raf = 0, t0 = 0, prevLook = "";
     const step = (now: number) => {
-      if (!fig.current || !bub.current) return;   // kapanırken ref'ler etkiden önce düşer
+      if (!fig.current || !bub.current) return;   // on close refs drop before the effect
       if (!t0) t0 = now;
       const t = still ? 2.2 : (now - t0) / 1000;
       if (cmd.current === "greet" || cmd.current === "leave") {
@@ -243,7 +243,7 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
       while (segs.length > 2 && segs[1].until < t - TRAIL - 0.1) segs.shift();
       const s = sample(t);
       const p = proj(s);
-      // Hız: ekran px/sn
+      // Speed: screen px/s
       const q = proj(sample(t - 1 / 60));
       const v = Math.hypot(p.x - q.x, p.y - q.y) * 60;
       const vk = Math.min(1, v / 1400);
@@ -257,17 +257,17 @@ export function GateRou({ name, mark }: { name: string; mark: React.RefObject<HT
       f.style.zIndex = s.z < -0.05 ? "1" : "3";
       f.style.opacity = String((s.op ?? 1) * (1 - Math.max(0, -s.z - 0.5) * 0.5));
       f.style.filter = depthBlur > 0.05 ? `blur(${depthBlur.toFixed(2)}px) saturate(${(1 - depthBlur * 0.06).toFixed(2)})` : "";
-      // Bakış: sahne istiyorsa oraya, yoksa imlece (yoksa sana)
+      // Gaze: at the scene if it wants, otherwise at the pointer (otherwise at you)
       let g = s.gaze ?? null;
       if (!g) { if (pointer) { const dx = pointer[0] - p.x, dy = pointer[1] - p.y, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 260); g = [(dx / d) * k, (dy / d) * k]; } else g = [0, 0.15]; }
-      // Balon Rou'nun başının üstünde durur ama onunla küçülmez
-      const bw = (bub.current!.firstElementChild as HTMLElement).offsetWidth / 2 + 10;   // ekrandan taşmasın
+      // The bubble stays above Rou's head but does not shrink with it
+      const bw = (bub.current!.firstElementChild as HTMLElement).offsetWidth / 2 + 10;   // so it does not overflow the screen
       bub.current!.style.transform = `translate(${Math.min(M.vw - bw, Math.max(bw, p.x))}px, ${p.y - rs * p.sc * 0.5}px)`;
       f.style.setProperty("--gx", g[0].toFixed(2)); f.style.setProperty("--gy", g[1].toFixed(2));
       const lk = JSON.stringify([s.mood ?? "idle", s.bubble ?? null, !!s.sleep]);
       if (lk !== prevLook) { prevLook = lk; setLook({ mood: s.mood ?? "idle", bubble: s.bubble ?? null, sleep: !!s.sleep }); }
 
-      // Kuyruklu yıldız izi: hızlı anlarda geçmiş yol yoğun örneklenir; arkadaki kısmı yazının ardında kalır
+      // Comet trail: in fast moments the past path is sampled densely; the part behind stays behind the text
       for (const c of ctx) c.clearRect(0, 0, M.vw, M.vh);
       let pp = p, pt = t;
       for (let i = 1; i <= 96; i++) {

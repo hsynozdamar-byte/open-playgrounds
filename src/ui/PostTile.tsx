@@ -7,12 +7,12 @@ import { autoOf, isStale, runTag } from "./Auto";
 import { sharerOf } from "../../shared/stages.mjs";
 import { DraftPost, PostPreview } from "./Preview";
 
-// Bir çıktının kartı: üstte ne zaman ve durumu, altında gönderi platformda nasıl görünüyorsa öyle (görsel, video, metin).
-// Kartın tamamı tıklanır: işin kartı (Drawer) açılır, çıktının tamamı, onay, düzenleme, paylaşım orada. Kartta metin birkaç satırla kesilir. Otomasyon geçmişi ve Gönderiler aynı kartı kullanır.
+// A card for one output: when and status on top, below it the post as it looks on the platform (image, video, text).
+// The whole card is clickable: it opens the task card (Drawer) with the full output, approval, editing and sharing. Text is cut to a few lines. Automation history and Posts use the same card.
 const ICON: Partial<Record<Run["status"], typeof Check>> = { posted: Check, approved: Check, acted: Check, ready: Eye, failed: AlertTriangle, working: RefreshCw };
 const cap = (x: string) => x.replace(/^./, (c) => c.toLocaleUpperCase("en-US"));
 
-// Saat geçtiyse onaylanınca hemen paylaşılır (server/share.mjs).
+// If the time has passed, it is shared right after approval (server/share.mjs).
 function shareNote(ctx: Ctx, task: Task) {
   if (!task.autoSlot || !task.day) return "Awaiting your approval";
   const d = new Date(), now = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -22,7 +22,7 @@ function shareNote(ctx: Ctx, task: Task) {
 }
 
 export function PostTile({ ctx, task, run: latest, title }: { ctx: Ctx; task: Task; run?: Run; title?: string }) {
-  // Revize hazırlanırken önceki çıktı soluk görünür, üstünde "Preparing revision"; kart listeden düşmez.
+  // While a revision is prepared the previous output looks faded with "Preparing revision" on top; the card stays in the list.
   const revising = latest?.status === "working" && !isStale(latest);
   const run = revising ? ctx.state.runs.find((r) => r.taskId === task.id && r !== latest) ?? latest : latest;
   const st: Run["status"] | "none" = run ? (isStale(run) ? "failed" : run.status) : "none";

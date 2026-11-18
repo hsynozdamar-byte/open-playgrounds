@@ -5,9 +5,9 @@ import { ChevronLeft, ChevronRight, FolderOpen, Image, Plus, X } from "lucide-re
 import type { Project } from "../types";
 import type { Ctx } from "../lib";
 
-// Projenin medya kütüphanesi: diskteki bir ya da birkaç klasörün videoları ve görselleri (server/library.mjs).
-// Her birini izleyip İyi ya da Kötü dersin; otomasyonlar gönderi hazırlarken yalnız iyileri kullanır.
-// key: işaretlerin anahtarı (ilk klasörde klasöre göre yol, diğerlerinde "klasör::yol"); rel: klasör içindeki yol.
+// The project's media library: videos and images from one or more folders on disk (server/library.mjs).
+// You watch each one and say Good or Bad; automations use only the good ones when preparing posts.
+// key: the key of the marks (path relative to the folder for the first folder, "folder::path" for the others); rel: path inside the folder.
 type Item = { key: string; rel: string; dir: string; kind: "video" | "image"; size: number; at: string };
 type Kind = "all" | "video" | "image";
 const KINDS: [Kind, string][] = [["all", "All"], ["video", "Video"], ["image", "Photo"]];
@@ -18,7 +18,7 @@ const src = (p: string, rel: string, kind: "file" | "thumb") => `/lib/${kind}?p=
 const base = (rel: string) => rel.split("/").pop() ?? rel;
 const folder = (rel: string) => rel.split("/").slice(0, -1).join(" / ");
 
-// Klasörün kısa adı: son iki anlamlı parça ("public" gibi ara klasörler atlanır); tam yol üstüne gelince görünür.
+// Short name of the folder: the last two meaningful parts (middle folders like "public" are skipped); the full path shows on hover.
 const dirName = (d: string) => d.replace(/\/+$/, "").split("/").filter((x) => x && x !== "public").slice(-2).join(" / ");
 
 export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
@@ -32,7 +32,7 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
   const [adding, setAdding] = useState(!dirs.length);
   const [missing, setMissing] = useState<string[]>([]);
   const marks = project.media ?? {};
-  // Dosya bir gönderide kullanıldı mı: gönderinin sahne (clip) ya da slayt (image) anahtarlarından. Paylaşıldı > onayda > taslakta.
+  // Has the file been used in a post: from the keys of the post's scenes (clip) or slides (image). Shared > in approval > in draft.
   const used = useMemo(() => {
     const m = new Map<string, { st: "posted" | "ready" | "draft"; at: string }>();
     const rank = { posted: 3, ready: 2, draft: 1 } as const;
@@ -64,18 +64,18 @@ export function MediaCard({ ctx, project }: { ctx: Ctx; project: Project }) {
     return c;
   }, [items, marks, kind]);
   const kinds = useMemo(() => ({ all: items?.length ?? 0, video: items?.filter((x) => x.kind === "video").length ?? 0, image: items?.filter((x) => x.kind === "image").length ?? 0 }), [items]);
-  // Hiç bakılmamış yoksa açılışta Hepsi gösterilir.
+  // If nothing is unviewed, All is shown on open.
   const f = filter === "new" && items && count.new === 0 ? "all" : filter;
   const shown = (items ?? []).filter((it) => (kind === "all" || it.kind === kind) && (f === "all" || (marks[it.key] ?? "new") === f));
 
-  // Klasör ekle: ilk klasör mediaDir'e, sonrakiler mediaDirs'e.
+  // Add folder: the first goes to mediaDir, the later ones to mediaDirs.
   const addDir = (v: string) => ctx.mutate((st) => {
     const p = st.projects.find((x) => x.id === project.id);
     const d = v.trim();
     if (!p || !d || p.mediaDir === d || p.mediaDirs?.includes(d)) return;
     if (!p.mediaDir) p.mediaDir = d; else (p.mediaDirs ??= []).push(d);
   });
-  // Klasörü çıkar: dosyalar diskte kalır. İlk klasör çıkarsa sıradaki ilk olur; onun işaretlerinin anahtarı "klasör::yol"dan yola döner.
+  // Remove folder: files stay on disk. If the first folder is removed the next becomes first; the key of its marks goes back from "folder::path" to path.
   const removeDir = (d: string) => ctx.mutate((st) => {
     const p = st.projects.find((x) => x.id === project.id);
     if (!p) return;
@@ -175,7 +175,7 @@ function Viewer({ pid, list, k, marks, onMark, onGo, onClose }: { pid: string; l
   const i = Math.max(0, list.findIndex((x) => x.key === k));
   const it = list[i] ?? list[0];
   const go = (d: number) => list.length && onGo(list[(i + d + list.length) % list.length].key);
-  // İşaretleyince sıradaki bakılmamışa geçer (yoksa yerinde kalır).
+  // Marking moves on to the next unviewed one (if none, it stays in place).
   const pick = (v: "good" | "bad") => {
     const was = marks[it.key];
     onMark(it.key, v);

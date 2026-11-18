@@ -1,7 +1,7 @@
 import type { State, Task } from "./types";
 import { accountOf, platformName, taskRef } from "../shared/social.mjs";
 
-// Elle eklenen gönderinin (task.post) neye göre hazırlanacağı: Rou'nun prompt'una giden parçaların özeti (server/prepare.mjs).
+// What a hand-added post (task.post) is prepared from: summary of the parts that go into Rou's prompt (server/prepare.mjs).
 export const TOPIC_MIN = 3;
 export const topicOk = (t?: string) => (t ?? "").replace(/\s+/g, " ").trim().length >= TOPIC_MIN;
 

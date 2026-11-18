@@ -27,26 +27,26 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const { state: s, route } = ctx;
   const t = today();
   const lens = route.lens;
-  // Kim filtresi: herkes, sen, Rou. Tercih tarayıcıda kalır.
+  // Who filter: everyone, you, Rou. The preference stays in the browser.
   const [who, setWhoState] = useState<Who | "all">(() => { try { const v = localStorage.getItem("pg-who"); return v === "me" || v === "claude" ? v : "all"; } catch { return "all"; } });
-  const setWho = (v: Who | "all") => { setWhoState(v); try { localStorage.setItem("pg-who", v); } catch { /* yok */ } };
+  const setWho = (v: Who | "all") => { setWhoState(v); try { localStorage.setItem("pg-who", v); } catch { /* no storage */ } };
   const lensed = s.tasks.filter(inLens(lens));
   const mine = who === "all" ? lensed : lensed.filter((x) => whoOf(s, x) === who);
   const blocksToday = s.blocks.filter(inLens(lens)).filter((b) => tsDay(b.start) === t);
   const firstMin = (x: Task) => Math.min(...blocksToday.filter((b) => b.taskId === x.id).map((b) => tsMin(b.start)), 1440);
-  // Sıra: yapılıyor → elle sıralanan → saatine göre → saatsiz.
+  // Order: in progress → hand-ordered → by time → untimed.
   const rank = (x: Task) => (x.status === "doing" ? -1 : x.order ?? 1000 + firstMin(x));
 
-  // Bugün bitirilen iş, günü dün ya da tarihsiz olsa da bugünün işidir (Gecikenler'den bitirilen iş Tamamlananlar'a düşer).
+  // A task finished today is today's task even if its day is yesterday or undated (a task finished from Late falls into Done).
   const doneToday = (x: Task) => x.status === "done" && !!x.doneAt && iso(new Date(x.doneAt)) === t;
   const todays = mine.filter((x) => x.day === t || x.status === "doing" || doneToday(x) || blocksToday.some((b) => b.taskId === x.id));
-  // İşler kimin elindeyse orada: senin işlerin sürüklenebilir listede; Rou'nun işleri (otomasyon ya da atanmış) kendi gruplarında.
+  // Tasks are where whoever has them is: yours in the draggable list; Rou's tasks (automation or assigned) in their own groups.
   const isBot = (x: Task) => whoOf(s, x) !== "me";
   const open = todays.filter((x) => x.status !== "done" && !isBot(x)).sort((a, b) => rank(a) - rank(b));
   const ready = (x: Task) => s.runs.some((r) => r.taskId === x.id && (r.status === "ready" || r.status === "approved"));
   const autos = mine.filter((x) => x.status !== "done" && isBot(x) && (x.day === t || ready(x) || (!autoOf(s, x) && !!x.day && x.day < t))).sort((a, b) => ((a.day ?? "") + (a.autoSlot ?? "")).localeCompare((b.day ?? "") + (b.autoSlot ?? "")));
-  // Bugün yalnız bugünün (ve gecikenlerin) işleri; ileri günün hazır/onaylı işleri kendi gün başlığında durur
-  // (bugünün altında yarının işleri de kalmasın, yarının kendi başlığı var).
+  // Today has only today's (and late) tasks; ready/approved tasks of a later day stay under their own day heading
+  // (tomorrow's tasks should not stay under today, tomorrow has its own heading).
   const later = (x: Task) => !!x.day && x.day > t;
   const rouList = autos.filter((x) => !later(x));
   const ahead = [...new Set(autos.filter(later).map((x) => x.day!))].sort().map((d) => ({ d, list: autos.filter((x) => x.day === d) }));
@@ -63,11 +63,11 @@ export function Today({ ctx }: { ctx: Ctx }) {
   ].sort((a, b) => b.sort.localeCompare(a.sort));
   const overdue = mine.filter((x) => x.day && x.day < t && x.status !== "done" && x.status !== "doing" && !autos.includes(x));
   const [showDone, setShowDoneState] = useState(() => { try { return localStorage.getItem("pg-done-open") !== "0"; } catch { return true; } });
-  const setShowDone = (v: boolean) => { setShowDoneState(v); try { localStorage.setItem("pg-done-open", v ? "1" : "0"); } catch { /* yok */ } };
+  const setShowDone = (v: boolean) => { setShowDoneState(v); try { localStorage.setItem("pg-done-open", v ? "1" : "0"); } catch { /* no storage */ } };
   const [over, setOver] = useState<string | null>(null);
 
   const planned = blocksToday.reduce((n, b) => n + spanMin(b.start, b.end), 0);
-  // Özetteki "takvimde": yalnız senin saatlerin (Rou'nun işleri senin zamanını almaz).
+  // "On the calendar" in the summary: only your times (Rou's tasks do not take your time).
   const mineMin = blocksToday.filter((b) => { const x = b.taskId && s.tasks.find((y) => y.id === b.taskId); return !x || whoOf(s, x) === "me"; }).reduce((n, b) => n + spanMin(b.start, b.end), 0);
   const ids = new Set(mine.map((x) => x.id));
   const focus = s.sessions.filter((y) => ids.has(y.taskId) && localTs(new Date(y.start)).slice(0, 10) === t).reduce((m, y) => m + (new Date(y.end).getTime() - new Date(y.start).getTime()) / 1000, 0);
@@ -78,7 +78,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
   const inbox = inboxNew(s, lens).length;
   const w = lens === ALL ? null : worldOf(s, lens);
 
-  // Listeye bırakılan iş: bugüne alınır ve bırakıldığı satırın önüne yerleşir.
+  // A task dropped on the list: moves to today and is placed before the row it was dropped on.
   const drop = (id: string, before: string | null) =>
     ctx.mutate((st) => {
       const moved = st.tasks.find((x) => x.id === id);
@@ -95,7 +95,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
 
   return (
     <div className="home">
-      {/* Odak: zamanlayıcı en başta, yanında günün özeti. */}
+      {/* Focus: the timer first, the day's summary next to it. */}
       <div className="hometimer"><FocusTimer ctx={ctx} /></div>
       <motion.section className="card hero" {...card(0)}>
         <div className="herotext">
@@ -117,9 +117,9 @@ export function Today({ ctx }: { ctx: Ctx }) {
       </motion.section>
 
 
-      {/* Bugün: solda işlerin listesi, sağda saatleri. Aynı işler iki yerde tekrar etmez. */}
+      {/* Today: the task list on the left, their times on the right. The same tasks do not repeat in two places. */}
       <motion.section className="card tasks todaycard" {...card(2)}>
-        {/* Bugün (2026-10-29): solda iş ekleme + Sen/Rou grupları (hepsi aynı görünüm), sağda ayrı panelde günün saatleri. */}
+        {/* Today (2026-10-29): on the left adding tasks + You/Rou groups (all the same look), on the right in a separate panel the day's hours. */}
         <div className="todaygrid">
         <div className="tlist">
           <div className="thead">
@@ -191,7 +191,7 @@ export function Today({ ctx }: { ctx: Ctx }) {
               <ul className="list">{list.map((x) => <TaskRow key={x.id} task={x} ctx={ctx} o={{ world: lens === ALL, project: true, card: true }} />)}</ul>
             </div>
           ))}
-          {/* Tamamlananlar: bugün biten işler ve bugün paylaşılan gönderiler tek listede; paylaşılanın yanında gönderiye giden düğme. */}
+          {/* Done: tasks finished today and posts shared today in one list; next to a shared one a button to the post. */}
           {completed.length > 0 && (
             <div className="tgroup tdone">
               <button className="tgrouphead tfold" onClick={() => setShowDone(!showDone)} aria-expanded={showDone}>
@@ -243,7 +243,7 @@ function Kpi({ n, label }: { n: number | string; label: string }) {
   );
 }
 
-// Günün şekli: 00–24 arası bloklar dünya renginde, şu an bir çizgi.
+// Shape of the day: blocks from 00 to 24 in the world's colour, a line for now.
 function DayStrip({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] }) {
   const A = 0, B = 24 * 60;
   const nowM = new Date().getHours() * 60 + new Date().getMinutes();
@@ -270,7 +270,7 @@ function DayStrip({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   );
 }
 
-// Günün şu anı: şimdi ne var, sıradaki ne zaman, süresi dolan ve bugün teslim olan. Satıra basınca iş açılır.
+// The day's now: what is on now, when the next is, what is overdue and what is due today. Pressing a row opens the task.
 function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] }) {
   const s = ctx.state;
   const t = today();
@@ -278,13 +278,13 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   const n = new Date();
   const nowM = n.getHours() * 60 + n.getMinutes();
   const task = (id?: string | null) => (id ? s.tasks.find((x) => x.id === id) : undefined);
-  // Rou'nun yaptığı otomasyon işleri senin saatin değil: "şimdi/sıradaki/saati geçti"ye girmez, ayrı satırda özetlenir.
+  // Rou's automation tasks are not your time: they do not count in "now/next/overdue", they are summarised in a separate row.
   const bot = (id?: string | null) => { const x = task(id); const a = x && autoOf(s, x); return !!a && a.who !== "me"; };
   const live = blocks.filter((b) => task(b.taskId)?.status !== "done" && !bot(b.taskId)).sort((a, b) => a.start.localeCompare(b.start));
   const waiting = s.tasks.filter(inLens(ctx.route.lens)).filter((x) => x.status !== "done" && bot(x.id)).map((x) => {
     const st = stagesOf(s, autoOf(s, x)!, x, runOfTask(s.runs, x.id));
     const cur = st.steps.find((y) => y.key === st.current);
-    // Hazırlanamayan da senden bekleniyor (Gönderiler'in "Onayını bekliyor"u gibi): yeniden hazırlat ya da revize et.
+    // One that could not be prepared is also expected of you (like "Waiting for your approval" in Posts): prepare again or revise.
     if (!st.busy && runOfTask(s.runs, x.id)?.status === "failed") return { x, what: "Error" };
     return !st.busy && cur?.who === "You" ? { x, what: cur.key === "voice" ? "Voice" : cur.key === "approve" ? "Approval" : "Action" } : null;
   }).filter(Boolean) as { x: Task; what: string }[];
@@ -292,9 +292,9 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   const next = live.find((b) => tsMin(b.start) > nowM);
   const ended = live.filter((b) => (tsMin(b.end) || 1440) <= nowM && s.timer?.taskId !== b.taskId);
   const due = s.tasks.filter(inLens(ctx.route.lens)).filter((x) => x.deadline === t && x.status !== "done");
-  // Üç grup: senden beklenenler, senin saatlerin, Rou'nun bugünkü işleri. Her satır: saat · başlık · durum.
+  // Three groups: expected of you, your times, Rou's tasks today. Each row: time · title · status.
   type Row = { k: string; time: string; day?: string; title: string; meta: string; tone?: string; id?: string | null; sub?: string; auto?: boolean };
-  // Satırın altı: hangi dünya › proje; otomasyon işiyse otomasyonun adı da (başlıktan farklıysa).
+  // Under the row: which world › project; for an automation task the automation's name too (if different from the title).
   const where = (x?: Task) => { if (!x) return ""; const w = s.worlds.find((y) => y.id === x.worldId); const p = x.projectId ? s.projects.find((y) => y.id === x.projectId) : undefined; return [w?.name, p?.name].filter(Boolean).join(" › "); };
   const hmOf = (ts: string) => ts.slice(11, 16);
   const mine: Row[] = [];
@@ -302,14 +302,14 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   ended.forEach((b) => mine.push({ k: `ended-${b.id}`, time: hmOf(b.start), title: task(b.taskId)?.title ?? "", meta: "Time is up", tone: "over", id: b.taskId }));
   if (next) mine.push({ k: "next", time: hmOf(next.start), title: task(next.taskId)?.title ?? next.title ?? "", meta: `${dur(tsMin(next.start) - nowM)} sonra`, id: next.taskId });
   live.filter((b) => tsMin(b.start) > nowM && b !== next).slice(0, 3).forEach((b) => mine.push({ k: `later-${b.id}`, time: hmOf(b.start), title: task(b.taskId)?.title ?? b.title ?? "", meta: dur(tsMin(b.end) - tsMin(b.start)), id: b.taskId }));
-  // Saate konmuş iş ikinci kez "Bugün teslim" satırı olarak çıkmaz; teslim notu saatli satıra eklenir.
+  // A task put on a time does not appear a second time as a "Due today" row; the due note is added to the timed row.
   due.forEach((x) => {
     const row = mine.find((r) => r.id === x.id);
     if (row) { if (!/Due today/.test(row.meta)) row.meta = `${row.meta} · Due today`; return; }
     mine.push({ k: `due-${x.id}`, time: "", title: x.title, meta: "Due today", tone: "due", id: x.id });
   });
-  // Gönderiler'le aynı dil (iki sayfa arasında kopukluk olmasın): başlık gönderinin konusu,
-  // altında otomasyonun adı; bugün değilse günü de yazılır (yarının gönderileri bugünkü gibi duruyordu).
+  // Same language as Posts (so the two pages do not feel disconnected): the title is the post's topic,
+  // the automation's name under it; if not today the day is written too (tomorrow's posts looked like today's).
   const isAhead = (x: Task) => !!x.day && x.day > t;
   const dayOf = (x: Task) => (x.day && x.day < t ? cap(relDay(x.day)) : undefined);
   const asks: Row[] = waiting.filter((w) => !isAhead(w.x)).sort((a, b) => `${a.x.day ?? ""}${a.x.autoSlot ?? ""}`.localeCompare(`${b.x.day ?? ""}${b.x.autoSlot ?? ""}`)).map((w) => {
@@ -319,7 +319,7 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
   const rou: Row[] = s.tasks.filter(inLens(ctx.route.lens)).filter((x) => x.day === t && x.status !== "done" && bot(x.id) && !waiting.some((w) => w.x.id === x.id))
     .sort((a, b) => (a.autoSlot ?? "").localeCompare(b.autoSlot ?? ""))
     .map((x) => { const a = autoOf(s, x)!; const topic = x.topic?.title?.trim(); return { k: `bot-${x.id}`, time: x.autoSlot ?? "", title: topic || x.title, sub: [where(x), topic && topic !== x.title ? x.title : ""].filter(Boolean).join(" · "), auto: true, meta: whereText(stagesOf(s, a, x, runOfTask(s.runs, x.id)), runOfTask(s.runs, x.id)), tone: "bot", id: x.id }; });
-  // İleri günlerde onay bekleyenler bugünün altında değil, kendi gün başlığında (Gönderiler'in Yarın sütunu gibi).
+  // Later days' posts waiting for approval are not under today but under their own day heading (like the Tomorrow column in Posts).
   const aheadAsks = waiting.filter((w) => isAhead(w.x));
   const aheadDays = [...new Set(aheadAsks.map((w) => w.x.day!))].sort();
   const toRow = (w: { x: Task; what: string }): Row => {
@@ -339,7 +339,7 @@ function TodayNow({ ctx, blocks }: { ctx: Ctx; blocks: Ctx["state"]["blocks"] })
       ) : (
         groups.map((g) => (
           <section key={g.k} className={`tngroup is-${g.k}`}>
-            {/* Her grup kendi çerçevesinde, simgeli; satırlar ayrı kartlar (2026-11-01). */}
+            {/* Each group in its own frame, with an icon; rows are separate cards (2026-11-01). */}
             <h3 className="tnh"><span className="tnhi"><g.Icon size={14} /></span>{g.title}<span>{g.rows.length}</span></h3>
             {g.rows.map((r) => (
               <button key={r.k} className={`tnrow ${r.tone ? `is-${r.tone}` : ""}`} onClick={() => r.id && ctx.open(r.id)} disabled={!r.id}>

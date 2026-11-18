@@ -21,9 +21,9 @@ import { ColorPick } from "./Fields";
 
 type View = Ctx["route"]["view"];
 
-// Sol panel: marka (= ana sayfa), sayfalar, dünyalar. Seçilen dünya her sayfayı süzer.
-// Dünya listesi yalnız gerçekten taşıyorsa kaydırılır; taşmıyorsa seçili çerçeve kayarken hiçbir yeri kırpılmaz.
-// Dünya listesi yatay kayar; hangi kenarda gizli dünya varsa o kenar solar.
+// Left panel: brand (= home), pages, worlds. The selected world filters every page.
+// The world list scrolls only when it really overflows; if not, nothing is clipped while the selected frame slides.
+// The world list scrolls sideways; the edge with a hidden world fades.
 function useScrollEdges(active: string) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
@@ -38,7 +38,7 @@ function useScrollEdges(active: string) {
     check();
     return () => (ro.disconnect(), el.removeEventListener("scroll", check));
   }, []);
-  // Seçili dünya görünür alanda kalsın.
+  // Keep the selected world in the visible area.
   useEffect(() => {
     ref.current?.querySelector(".railitem.on")?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [active]);
@@ -53,7 +53,7 @@ export function Rail(ctx: Ctx) {
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const editing = state.worlds.find((w) => w.id === editId) ?? null;
-  // Dünya ayarları her yerden açılabilir: openWorldSettings(id).
+  // World settings can be opened from anywhere: openWorldSettings(id).
   useEffect(() => {
     const h = (e: Event) => setEditId((e as CustomEvent<string>).detail);
     const n = () => setAdding(true);
@@ -61,7 +61,7 @@ export function Rail(ctx: Ctx) {
     addEventListener("pg-world-new", n);
     return () => (removeEventListener("pg-world-settings", h), removeEventListener("pg-world-new", n));
   }, []);
-  // Dünyaların sırası sürükleyerek değişir. Sürüklerken sıra yerelde tutulur, bırakınca kaydedilir.
+  // Worlds are reordered by dragging. While dragging the order is kept locally, saved on drop.
   const [order, setOrder] = useState<World[] | null>(null);
   const shown = order ? order.map((w) => state.worlds.find((x) => x.id === w.id) ?? w).filter((w) => state.worlds.some((x) => x.id === w.id)) : state.worlds;
   const saveOrder = () => {
@@ -71,7 +71,7 @@ export function Rail(ctx: Ctx) {
     if (ids.join() === state.worlds.map((w) => w.id).join()) return;
     mutate((s) => void s.worlds.sort((a, b) => (ids.indexOf(a.id) + 1 || 1e9) - (ids.indexOf(b.id) + 1 || 1e9)));
   };
-  // Profil kendi başına bir sayfa: açıkken üstte hiçbir dünya (ve Playgrounds) seçili görünmez; birine basınca profilden çıkılıp Odak'a geçilir.
+  // Profile is a page of its own: while it is open no world (nor Playgrounds) looks selected at the top; pressing one leaves the profile for Focus.
   const onProfile = route.view === "profile";
   const leave = onProfile ? { view: "focus" as View, project: undefined } : {};
   const count = (id: string) => state.tasks.filter((x) => (id === ALL || x.worldId === id) && x.status !== "done" && x.day && x.day <= t).length;
@@ -105,7 +105,7 @@ export function Rail(ctx: Ctx) {
           </button>
         </div>
       </LayoutGroup>
-      {/* Mobilde sol panelin altı (Profil, Çöp Kutusu, Yedekler) gizli; Profil buradan açılır, diğer ikisi Profil sayfasında. */}
+      {/* On mobile the bottom of the left panel (Profile, Trash, Backups) is hidden; Profile opens from here, the other two are on the Profile page. */}
       <button className={`mprofile ${route.view === "profile" ? "on" : ""}`} onClick={() => go({ view: "profile", project: undefined })} aria-label="Profile" title="Profile">
         <span className="proav" aria-hidden>{(readMe().name || readMe().email || "Y").slice(0, 1).toLocaleUpperCase("en")}</span>
       </button>
@@ -185,7 +185,7 @@ export function Rail(ctx: Ctx) {
   );
 }
 
-// Fareyle hemen sürüklenir; dokunmatikte çubuk kaydırılabildiği için önce basılı tutmak gerekir.
+// Dragging starts at once with a mouse; on touch the bar can scroll, so a press and hold comes first.
 function WorldItem({ world, onDone, children }: { world: World; onDone: () => void; children: React.ReactNode }) {
   const controls = useDragControls();
   const ref = useRef<HTMLDivElement>(null);
@@ -195,7 +195,7 @@ function WorldItem({ world, onDone, children }: { world: World; onDone: () => vo
   const liftedRef = useRef(false);
   liftedRef.current = lifted;
   const cancel = () => clearTimeout(hold.current.t);
-  // Basılı tutup kaldırınca sayfa kaymasın.
+  // Do not let the page scroll after a press and hold.
   useEffect(() => {
     const el = ref.current;
     const stop = (e: TouchEvent) => liftedRef.current && e.preventDefault();
@@ -221,7 +221,7 @@ function WorldItem({ world, onDone, children }: { world: World; onDone: () => vo
       onPointerMove={(e) => e.pointerType !== "mouse" && Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > 8 && cancel()}
       onPointerUp={() => (cancel(), !moved.current && setLifted(false))}
       onPointerCancel={() => (cancel(), setLifted(false))}
-      // Sürükleyip bırakınca dünya ayrıca seçilmesin.
+      // After a drag and drop the world must not also be selected.
       onClickCapture={(e) => moved.current && (e.stopPropagation(), (moved.current = false))}
       onContextMenu={(e) => e.preventDefault()}
       whileDrag={{ scale: 1.06, zIndex: 2 }}
@@ -233,14 +233,14 @@ function WorldItem({ world, onDone, children }: { world: World; onDone: () => vo
 }
 
 function Item({ on, onClick, label, hint, n, color, home, children }: { on: boolean; onClick: () => void; label: string; hint?: string; n: number; color?: string; home?: boolean; children: React.ReactNode }) {
-  // Dar ekranda çubuk kayabilir: seçili dünya görünür kalsın.
+  // On a narrow screen the bar can scroll: keep the selected world visible.
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (on) ref.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, [on]);
   return (
     <button ref={ref} className={`railitem ${on ? "on" : ""} ${home ? "ishome" : ""}`} onClick={onClick} title={home ? "All worlds" : hint ? `${label}: ${hint}` : label} style={color ? { ["--w" as string]: color } : undefined}>
-      {/* Kritik sönümlü: hedefi geçmez, kenardaki öğeye gelirken taşıp kesik görünmez. */}
+      {/* Critically damped: it does not overshoot, so an item at the edge does not overflow and look cut off. */}
       {on && <motion.span layoutId="rail-ring" className="ring" transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }} />}
       <motion.span className="orbwrap" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.92 }}>{children}</motion.span>
       <span className="name">{label}</span>
@@ -251,7 +251,7 @@ function Item({ on, onClick, label, hint, n, color, home, children }: { on: bool
 
 type WorldDraft = { name: string; color: string; color2?: string; description: string };
 
-// Yeni dünya ve dünya ayarları aynı formu kullanır. Düzenlemede altta "Dünyayı sil" var.
+// New world and world settings use the same form. When editing there is "Delete world" at the bottom.
 function WorldForm({ world, used = [], stats, onClose, onSave, onDelete }: { world?: World; used?: string[]; stats?: string; onClose: () => void; onSave: (d: WorldDraft) => void; onDelete?: () => void }) {
   const [name, setName] = useState(world?.name ?? "");
   const [color, setColor] = useState(world?.color ?? SWATCHES.find((c) => !used.includes(c)) ?? SWATCHES[0]);
@@ -322,7 +322,7 @@ function WorldForm({ world, used = [], stats, onClose, onSave, onDelete }: { wor
 export const openNewWorld = () => dispatchEvent(new Event("pg-world-new"));
 export const openWorldSettings = (id: string) => dispatchEvent(new CustomEvent("pg-world-settings", { detail: id }));
 
-// Silme: dünyanın projeleri, işleri, blokları, oturumları, notları ve otomasyonları birlikte gider. Geri al hepsini geri koyar.
+// Delete: the world's projects, tasks, blocks, sessions, notes and automations go together. Undo puts them all back.
 function takeWorld(s: State, id: string) {
   const tasks = new Set(s.tasks.filter((t) => t.worldId === id).map((t) => t.id));
   const autos = new Set(s.automations.filter((a) => a.worldId === id).map((a) => a.id));

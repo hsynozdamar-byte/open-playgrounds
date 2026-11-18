@@ -10,8 +10,8 @@ import { Orb } from "./Orb";
 import { StatusMark } from "./StatusMark";
 import { toast } from "./Toast";
 
-// Haftalık gözden geçirme (docs/PLAN.md akış E): dünya başına planlanan ve çalışılan süre,
-// biten işler, kaçan deadline'lar, kalanları gelecek haftaya taşıma.
+// Weekly review (docs/PLAN.md flow E): time planned and worked per world,
+// finished tasks, missed deadlines, moving what is left to next week.
 export function weekReview(s: State, lens: Lens, start: string, now = today()) {
   const end = addDays(start, 6);
   const inWeek = (d: string | null | undefined) => !!d && d >= start && d <= end;
@@ -24,7 +24,7 @@ export function weekReview(s: State, lens: Lens, start: string, now = today()) {
   }).filter((x) => x.planned || x.worked);
   const done = tasks.filter((t) => t.status === "done" && t.doneAt && inWeek(localDay(t.doneAt)));
   const missed = tasks.filter((t) => t.status !== "done" && inWeek(t.deadline) && t.deadline! < now);
-  // Taşınacaklar: bu haftaya planlanmış, bitmemiş, kendi kendine tekrar açılmayan işler.
+  // To move: tasks planned this week, not done, that do not reopen by themselves.
   const left = tasks.filter((t) => t.status !== "done" && !t.autoId && inWeek(t.day));
   return { start, end, worlds, done, missed, left };
 }
@@ -33,7 +33,7 @@ const localDay = (isoTime: string) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-// Kalanlar gelecek haftanın pazartesisine; ileri saatleri de onlarla gider. Geri al hepsini eski gününe döndürür.
+// What is left goes to next week's Monday; later times go with them. Undo returns all of them to their old day.
 export function moveLeft(s: State, ids: string[], to: string) {
   for (const id of ids) {
     const t = s.tasks.find((x) => x.id === id);

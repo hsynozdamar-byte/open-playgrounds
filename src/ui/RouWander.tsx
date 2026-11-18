@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { RouMascot } from "./Rou";
 
-// Masaüstünde üst çubuktaki Rou çok nadiren yerinden kalkıp ekranda birkaç noktaya süzülür. İmleç Rou'nun düğmesine
-// gelince (ya da gezen Rou'ya tıklanınca, sohbet açılınca) hızla yerine döner. Mobilde, dokunmatikte ve hareket
-// azaltılmışsa hiç çıkmaz. Deneme için konsolda: dispatchEvent(new Event("pg-rou-wander")).
-const FIRST = [60, 150], NEXT = [150, 320];          // sn: ilk çıkış ve sonraki çıkışlar arası
+// On desktop Rou in the top bar very rarely lifts off its place and floats to a few points on screen. When the pointer reaches Rou's button
+// (or the wandering Rou is clicked, or the chat opens) it quickly returns. On mobile, touch and reduced motion
+// it never leaves. To test, in the console: dispatchEvent(new Event("pg-rou-wander")).
+const FIRST = [60, 150], NEXT = [150, 320];   // seconds: first outing and gap between later ones
 const SIZE = 44;
 const rnd = ([a, b]: number[]) => a + Math.random() * (b - a);
 const ease = (x: number) => (x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2);
@@ -20,7 +20,7 @@ export function RouWander({ home, onAway }: { home: React.RefObject<HTMLElement 
   const ok = () => matchMedia("(hover: hover) and (pointer: fine) and (min-width: 721px)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches;
   const homeAt = () => { const r = home.current?.querySelector(".rou")?.getBoundingClientRect() ?? home.current!.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
 
-  // Zamanlayıcı: nadiren çık
+  // Timer: leave rarely
   useEffect(() => {
     let tm = 0;
     const go = () => {
@@ -43,7 +43,7 @@ export function RouWander({ home, onAway }: { home: React.RefObject<HTMLElement 
     return () => { clearTimeout(tm); removeEventListener("pg-rou-wander", go); };
   }, [on]);
 
-  // Hareket ve dönüş
+  // Movement and return
   useEffect(() => {
     if (!on) return;
     let raf = 0, px = st.current.x;
@@ -64,14 +64,14 @@ export function RouWander({ home, onAway }: { home: React.RefObject<HTMLElement 
         s.i++; leg = s.legs[s.i]; if (!leg) { goHome(); raf = requestAnimationFrame(step); return; }
       }
       const u = Math.max(0, Math.min(1, (now - leg.t0) / leg.dur)), k = s.back ? u * u * (3 - 2 * u) : ease(u);
-      // yol hafif kavisli: düz çizgi değil, yay
+      // the path is slightly curved: an arc, not a straight line
       const bend = s.back ? 0 : Math.sin(u * Math.PI) * 60 * (s.i % 2 ? 1 : -1);
       const dx = leg.x1 - leg.x0, dy = leg.y1 - leg.y0, L = Math.hypot(dx, dy) || 1;
       s.x = leg.x0 + dx * k - (dy / L) * bend; s.y = leg.y0 + dy * k + (dx / L) * bend;
       const vx = s.x - px; px = s.x;
       const float = s.back ? 0 : Math.sin(now * 2.6) * 4;
       const lean = Math.max(-20, Math.min(20, vx * 1.6));
-      const sc = s.back ? 1 - 0.32 * k : 0.68 + 0.32 * Math.min(1, (now - s.legs[0].t0) / 0.4);   // 30 px'lik yerinden çıkarken büyür, dönerken küçülür
+      const sc = s.back ? 1 - 0.32 * k : 0.68 + 0.32 * Math.min(1, (now - s.legs[0].t0) / 0.4);   // grows when leaving its 30 px place, shrinks when returning
       el.current!.style.transform = `translate(${s.x - SIZE / 2}px, ${s.y - SIZE / 2 + float}px) scale(${sc}) rotate(${lean}deg)`;
       raf = requestAnimationFrame(step);
     };

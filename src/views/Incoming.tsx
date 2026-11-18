@@ -4,8 +4,8 @@ import { type Ctx, ALL } from "../lib";
 import { FEEDS, isFeed } from "../../shared/social.mjs";
 import { AccountTile, openAccountForm } from "../ui/Social";
 
-// Gelenler: Gönderiler'in tersi. Dünyalara eklenen Gmail, Slack, Google Takvim, ClickUp hesapları burada kurulur;
-// okunanlar Defter'e not olarak düşer. Okuma bağlantısı henüz yazılmadı, kaynaklar yalnız kayıtlı.
+// Incoming: the opposite of Posts. Gmail, Slack, Google Calendar, ClickUp accounts added to worlds are set up here;
+// what is read lands in the Notebook as notes. The reading connection is not written yet, sources are only saved.
 type Src = Account & { world: World };
 export const incomingSources = (ctx: Ctx): Src[] =>
   ctx.state.worlds.filter((w) => ctx.route.lens === ALL || w.id === ctx.route.lens).flatMap((w) => (w.accounts ?? []).filter((a) => isFeed(a.platform)).map((a) => ({ ...a, world: w })));

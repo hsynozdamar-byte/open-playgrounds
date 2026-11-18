@@ -1,13 +1,13 @@
 import type { World } from "../types";
 import { AgentOrb, family, PlaygroundsOrb, WorldOrb } from "./fluid/FluidOrb";
 
-// Soft Fluid kimliği (src/ui/fluid): organik leke, kenar ana renk, içten tamamlayıcı ton akar, bir yanda kenar ışığı.
-// Dünya lekesi: dünyanın renginden; akış yönü, kıvrım ve dağılım dünyanın kimliğinden gelir (her dünya kendi şeklinde).
+// Soft Fluid look (src/ui/fluid): an organic blob, edge in the main colour, a complementary tone flowing in from inside, rim light on one side.
+// World blob: from the world's colour; flow direction, folds and spread come from the world's identity (each world has its own shape).
 export function Orb({ world, size = 40 }: { world: World; size?: number; blob?: boolean }) {
   return <span className="orb sph" style={{ ["--sz" as string]: `${size}px` }} aria-hidden><WorldOrb id={world.id} colors={{ primary: world.color, secondary: world.color2 }} size="100%" /></span>;
 }
 
-// Logo, karşılamadaki dev leke ve profil: çok renkli Playgrounds lekesi. world verilirse (Rou'nun gövdesi) asistan lekesi o renkte.
+// Logo, the big blob on the welcome screen and the profile: a multi-colour Playgrounds blob. With world set (Rou's body) the assistant blob takes that colour.
 export function Sphere({ size, className = "", world, interactive }: { size: string; className?: string; world?: string; phase?: number; interactive?: boolean }) {
   return (
     <span className={`sph ${className}`} style={{ ["--sz" as string]: size }} aria-hidden>
@@ -16,7 +16,7 @@ export function Sphere({ size, className = "", world, interactive }: { size: str
   );
 }
 
-// Playgrounds logosu = ana sayfa.
+// The Playgrounds logo = home page.
 export function Logo({ size = 38 }: { size?: number }) {
   return (
     <span className="logowrap" style={{ width: `var(--logo, ${size}px)`, height: `var(--logo, ${size}px)` }} aria-label="Playgrounds">

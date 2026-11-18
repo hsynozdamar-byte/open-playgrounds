@@ -7,8 +7,8 @@ import { uid } from "../store";
 import { toast } from "./Toast";
 import { binIt } from "../trashOps";
 
-// Projenin kaynakları: not, yüklenen metin dosyası, bağlantı. İçerik uygulamanın verisinde durur, diskteki bir yola bağlanmaz.
-// "Hazırlarken kullan" açıksa Claude bu projede hazırlarken (otomasyon çıktısı, gönderi) bunları okur.
+// Project notes: a note, an uploaded text file or a link. Content stays in the app data and is never tied to a path on disk.
+// With "Use when preparing" on, the assistant reads them when it prepares something for this project (automation output, post).
 const MAX_FILE = 200_000;
 const TEXT = /\.(md|markdown|txt|csv|json)$/i;
 const ICON: Record<SourceKind, typeof FileText> = { note: StickyNote, file: FileText, link: Link2 };
@@ -52,7 +52,7 @@ export function SourcesCard({ ctx, project }: { ctx: Ctx; project: Project }) {
         <span className="n">{list.length || ""}</span>
       </div>
       <p className="empty srcnote">A style guide, a note or a link; Rou reads them when preparing for this project.</p>
-      {/* Kaynaklar kutu kutu; ilk kutu ekleme. Kutuya basınca altında düzenlenir. */}
+      {/* Notes as boxes; the first box adds one. Clicking a box edits it below. */}
       <ul className="strip srcstrip">
         <AddTile items={[{ label: "Add note", onClick: () => setAdding("note") }, { label: "Upload file", onClick: () => file.current?.click() }, { label: "Add link", onClick: () => setAdding("link") }]} />
         {list.map((s) => {

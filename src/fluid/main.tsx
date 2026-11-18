@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { type AgentState, FluidOrb, type FluidOrbProps } from "../ui/fluid/FluidOrb";
 import "./fluid.css";
 
-// Fluid Orb önizleme: ortada büyük orb, altında canlı parametreler, sonra üç varyasyon (Playgrounds, World, Agent).
+// Fluid Orb preview: a big orb in the middle, live parameters below it, then three variations (Playgrounds, World, Agent).
 
 type P = Required<Pick<FluidOrbProps, "speed" | "intensity" | "fluidity" | "separation" | "grain" | "blur">> & { size: number; animated: boolean };
 const DEF: P = { speed: 1, intensity: 0.5, fluidity: 0.6, separation: 0.6, grain: 0.6, blur: 0.55, size: 420, animated: true };
@@ -20,7 +20,7 @@ function App() {
   const [wc, setWc] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("fo-world") || "") as string[]; } catch { return ["#22c8e6", "#3d5afe", "#b892ff"]; } });
   const [third, setThird] = useState(true);
   const [state, setState] = useState<AgentState>("idle");
-  useEffect(() => { try { localStorage.setItem("fo-params2", JSON.stringify(p)); localStorage.setItem("fo-world", JSON.stringify(wc)); } catch { /* yalnız tercih */ } }, [p, wc]);
+  useEffect(() => { try { localStorage.setItem("fo-params2", JSON.stringify(p)); localStorage.setItem("fo-world", JSON.stringify(wc)); } catch { /* preferences only */ } }, [p, wc]);
   const { size, ...motion } = p;
   const worldColors = third ? wc : wc.slice(0, 2);
 

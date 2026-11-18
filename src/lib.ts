@@ -2,7 +2,7 @@ import type { Block, InboxItem, Project, Session, State, Task, World } from "./t
 import { uid } from "./store";
 import { addDays, mkTs, today, tsDay } from "./date";
 
-export type Lens = string; // "all" ya da dünya id
+export type Lens = string; // "all" or a world id
 export type Mutate = (fn: (s: State) => void) => void;
 export type Route = { view: "focus" | "calendar" | "inbox" | "projects" | "posts" | "browser" | "profile"; lens: Lens; project?: string };
 export type Ctx = { state: State; mutate: Mutate; route: Route; go: (r: Partial<Route>) => void; open: (taskId: string | null) => void };
@@ -77,7 +77,7 @@ export function parseQuick(s: State, raw: string, fallbackWorld: string): Parsed
       const d = parseDay(tok.slice(1));
       if (d !== undefined) { out.deadline = d; continue; }
     }
-    // "14:00", "14.30" saat; "5.10" (tek haneli gün, ay ≤ 12) tarih olarak okunur.
+    // "14:00", "14.30" are times; "5.10" (single-digit day, month <= 12) is read as a date.
     const tm = tok.match(/^(\d{1,2})([:.])(\d{2})$/);
     const asDate = tm && tm[2] === "." && tm[1].length === 1 && +tm[3] >= 1 && +tm[3] <= 12;
     if (tm && !asDate && +tm[1] < 24 && +tm[3] < 60) { out.time = +tm[1] * 60 + +tm[3]; continue; }
@@ -90,7 +90,7 @@ export function parseQuick(s: State, raw: string, fallbackWorld: string): Parsed
     words.push(tok);
   }
   if (projectWord) {
-    // Rou bazen projeyi kimliğiyle yazar (+nepe1u): kimlik de eşleşir, adı kimlik olan boş proje açılmaz (2026-11-07).
+    // Rou sometimes writes the project by its id (+nepe1u): the id matches too, and no empty project named after the id is created (2026-11-07).
     const hit = s.projects.find((p) => p.id === projectWord) ?? s.projects.find((p) => p.worldId === out.worldId && norm(p.name).startsWith(norm(projectWord!)));
     if (hit) out.projectId = hit.id;
     else out.newProject = projectWord;
@@ -99,10 +99,10 @@ export function parseQuick(s: State, raw: string, fallbackWorld: string): Parsed
   return out;
 }
 
-// Ayrıştırılmış satırı duruma uygular; saat varsa takvim bloğu da açar.
+// Applies a parsed line to the state; a time also opens a calendar block.
 export function addParsed(s: State, p: Parsed, preset: Partial<Task> = {}) {
   if (!p.title) return null;
-  // Sayfanın projesi yalnız aynı dünyadaysa geçerli (@başkadünya yazıldıysa proje düşer).
+  // The page's project only applies in the same world (if @otherworld was typed, the project is dropped).
   const presetProject = preset.projectId && s.projects.find((x) => x.id === preset.projectId)?.worldId === p.worldId ? preset.projectId : null;
   let projectId = p.projectId ?? presetProject;
   if (p.newProject) {
@@ -124,7 +124,7 @@ export const SOURCE_LABEL: Record<string, string> = { gmail: "Gmail", slack: "Sl
 export const STATUS_LABEL: Record<Task["status"], string> = { todo: "To do", doing: "In progress", waiting: "Waiting", done: "Done" };
 export const PSTATUS_LABEL: Record<Project["status"], string> = { active: "Active", paused: "Paused", done: "Done" };
 
-// Bir işe takvimde ilk boş yeri bulur (09:00'dan itibaren, 15 dk adım).
+// Finds the first free slot on the calendar for a task (from 09:00, 15 min steps).
 export function freeSlot(s: State, day: string, len: number) {
   const busy = s.blocks.filter((b) => tsDay(b.start) === day).map((b) => [b.start, b.end]);
   const nowM = day === today() ? Math.ceil((new Date().getHours() * 60 + new Date().getMinutes()) / 15) * 15 : 9 * 60;
@@ -137,6 +137,6 @@ export function freeSlot(s: State, day: string, len: number) {
 
 export const inboxNew = (s: State, lens: Lens) => s.inbox.filter((i: InboxItem) => i.state === "new" && (lens === ALL || i.worldId === lens || i.worldId === null));
 
-// Gecikme: deadline geçmişse ya da planlandığı gün geçip iş bitmemişse.
+// Late: the deadline has passed, or the planned day has passed and the task is not done.
 export const lateKind = (t: Task, now = today()): "deadline" | "day" | null =>
   t.status === "done" ? null : t.deadline && t.deadline < now ? "deadline" : t.day && t.day < now ? "day" : null;

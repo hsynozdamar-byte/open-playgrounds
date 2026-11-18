@@ -16,10 +16,10 @@ import { Select } from "./Select";
 import { ColorPick, Stepper, TimeField } from "./Fields";
 import { SWATCHES } from "../../shared/world.mjs";
 
-// Otomasyon formu her yerden açılır:
-//   openAutoForm({})                         yeni
-//   openAutoForm({ id })                     düzenle
-//   openAutoForm({ fromTask }) / ({ fromNote })  bir işi ya da notu otomasyona çevir (Claude taslağı doldurur)
+// The automation form opens from anywhere:
+//   openAutoForm({})                         new
+// openAutoForm({ id })                     edit
+// openAutoForm({ fromTask }) / ({ fromNote })  turn a task or note into an automation (the assistant fills the draft)
 type FormReq = { id?: string; worldId?: string; projectId?: string | null; accountId?: string; fromTask?: string; fromNote?: string; text?: string };
 const NOTE_HINT: Record<string, string> = { text: "How: e.g. warm, short", image: "How: e.g. square, 1080 px", video: "How: e.g. 15 s, vertical", other: "Short note" };
 export const openAutoForm = (r: FormReq) => dispatchEvent(new CustomEvent("pg-auto-form", { detail: r }));
@@ -49,11 +49,11 @@ export function AutoFormHost({ ctx }: { ctx: Ctx }) {
   return <AutoForm key={JSON.stringify(req)} ctx={ctx} req={req} onClose={() => setReq(null)} />;
 }
 
-// Formun başlangıç değerleri: var olan otomasyon, dönüştürülen iş ya da not, ya da boş.
+// Starting values of the form: an existing automation, a converted task or note, or empty.
 function initial(ctx: Ctx, req: FormReq): { d: Draft; describe: string } {
   const s = ctx.state;
   const a = req.id ? s.automations.find((x) => x.id === req.id) : undefined;
-  // accountId "": bilerek hesapsız (düz metin); undefined: yeni, projenin ilk hesabı önerilir.
+  // accountId "": deliberately no account (plain text); undefined: new, the project's first account is suggested.
   if (a) return { d: { ...a, accountId: a.accountId ?? "", steps: structuredClone(stepsOf(a)) }, describe: "" };
   const base: Draft = { title: "", worldId: req.worldId ?? dflt(ctx.route.lens, s), projectId: req.projectId ?? null, ...(req.accountId ? { accountId: req.accountId } : {}), days: [0, 1, 2, 3, 4, 5, 6], times: ["09:00"], minutes: 30, who: "claude", action: "", steps: [{ id: uid(), kind: "text", tool: "claude" }] };
   const task = req.fromTask ? s.tasks.find((x) => x.id === req.fromTask) : undefined;
@@ -74,15 +74,15 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
   const a = req.id ? s.automations.find((x) => x.id === req.id) : undefined;
   const init = useRef(initial(ctx, req)).current;
   const [d, setD] = useState<Draft>(init.d);
-  // Elle değiştirilen alanlar: Claude doldururken bunlara dokunmaz. İşten gelen saat de işin bloğuyla aynı kalsın diye sabittir.
+  // Hand-edited fields: the assistant does not touch them while filling. A time that comes from a task is fixed too so it stays the same as the task's block.
   const touched = useRef(new Set<keyof Draft>(req.fromTask && init.d.times.length ? ["times"] : []));
   const set = (p: Partial<Draft>) => { Object.keys(p).forEach((k) => touched.current.add(k as keyof Draft)); setD((x) => ({ ...x, ...p })); };
   const [describe, setDescribe] = useState(init.describe);
   const [ai, setAi] = useState<"idle" | "busy" | "done">("idle");
   const [confirm, setConfirm] = useState(false);
-  // Dünya belliyse (o dünyanın sayfasından açıldı, iş/nottan geldi, düzenleniyor ya da elle seçildi) Claude onu değiştirmez.
+  // If the world is known (opened from that world's page, came from a task/note, is being edited or was picked by hand) the assistant does not change it.
   const [picked, setPicked] = useState(false);
-  // Satır içi yeni proje: null kapalı, metin açık. Eklenen proje seçili dünyada açılır ve hemen seçilir.
+  // Inline new project: null closed, text open. The added project is created in the selected world and selected at once.
   const [newProj, setNewProj] = useState<string | null>(null);
   const addProject = () => {
     const name = newProj?.trim();
@@ -100,10 +100,10 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
   const formats = social ? formatsOf(social.platform) : [];
   const format = social ? (d.format && formats.includes(d.format) ? d.format : formats[0]) : undefined;
   const w = worldOf(s, d.worldId);
-  // Otomasyon her zaman bir projeye bağlıdır (projenin tekrar eden görevi).
+  // An automation is always tied to a project (the project's repeating task).
   const ok = !!d.title.trim() && !!d.projectId && d.days.length > 0 && (d.who === "me" || !!d.action.trim());
   const source = req.fromTask ? "task" : req.fromNote ? "note" : null;
-  // Seri rengi seçerken aynı hesabın ya da projenin diğer serilerinin renkleri görünür (birbirinden uzak ton seçilsin).
+  // When choosing the series colour the colours of the other series of the same account or project are shown (so a distant tone is chosen).
   const siblings = s.automations.filter((x) => x.id !== a?.id && x.color && ((social && x.accountId === social.id) || (d.projectId && x.projectId === d.projectId)));
 
   useEffect(() => {
@@ -112,8 +112,8 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
     return () => removeEventListener("keydown", k);
   }, [onClose]);
 
-  // Claude ile doldur: tarifi otomasyon alanlarına çevirir. İşten/nottan gelince ya da sayfadaki kutudan gelince kendiliğinden çalışır.
-  // Form kapanınca süren doldurma kesilir (sunucu da Claude'u durdurur).
+  // Fill with the assistant: turns the description into automation fields. Runs by itself when it comes from a task/note or from the box on the page.
+  // When the form closes a running fill is cut off (the server also stops the assistant).
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   const fill = async (text = describe) => {
@@ -126,7 +126,7 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
     setD((x) => {
       const next = { ...x };
       for (const [k, v] of Object.entries(r.draft) as [keyof Draft, never][]) if (!touched.current.has(k) && !(k === "steps" && !(v as unknown[]).length)) next[k] = v;
-      // Dünya sabitse Claude'un önerdiği proje yalnız o dünyadansa geçer (sunucu da bunu sağlar).
+      // If the world is fixed, a project the assistant suggests passes only if it is in that world (the server ensures this too).
       if (worldFixed) next.worldId = x.worldId;
       if (touched.current.has("projectId")) next.projectId = x.projectId;
       if (!touched.current.has("who")) next.who = req.fromTask && r.draft.who === "claude" && !/yaz|hazırla|üret|gönderi|post|içerik|write|prepare|draft|make|content/i.test(text) ? x.who : r.draft.who;
@@ -153,7 +153,7 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
         if (!x) return;
         const reschedule = !same(x.days, fields.days) || x.times.join() !== fields.times.join();
         Object.assign(x, fields);
-        // Bugünün ve ilerinin başlanmamış işleri yeni ayara uyar; saatler değiştiyse bugünkü işler yeniden açılır.
+        // Not-yet-started tasks of today and later follow the new setting; if the times changed today's tasks are reopened.
         st.tasks.forEach((k) => {
           if (k.autoId !== x.id || k.status === "done" || !k.day || k.day < t) return;
           Object.assign(k, { title: x.title, worldId: x.worldId, projectId: x.projectId, by: x.who });
@@ -169,7 +169,7 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
       }
       const auto: Automation = { id: newId, ...fields, status: "active", horizon: null, createdAt: new Date().toISOString() };
       st.automations.push(auto);
-      // İşten dönüştürüldüyse: o iş otomasyonun ilk işi olur (aynı saate ikinci iş açılmaz).
+      // If converted from a task: that task becomes the automation's first task (no second task is opened at the same time).
       const task = req.fromTask ? st.tasks.find((x) => x.id === req.fromTask) : undefined;
       if (task) {
         Object.assign(task, { autoId: auto.id, title: auto.title, worldId: auto.worldId, projectId: auto.projectId, by: auto.who });
@@ -181,7 +181,7 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
         if (slot && !b) st.blocks.push({ id: uid(), taskId: task.id, worldId: auto.worldId, title: "", start: mkTs(task.day!, toMin(slot)), end: mkTs(task.day!, toMin(slot) + auto.minutes), kind: "plan" });
         st.blocks.forEach((x) => x.taskId === task.id && (x.worldId = auto.worldId));
       }
-      // Nottan geldiyse not arşivlenir ve otomasyona bağlanır.
+      // If it came from a note the note is archived and linked to the automation.
       const note = req.fromNote ? st.inbox.find((x) => x.id === req.fromNote) : undefined;
       if (note) Object.assign(note, { state: "done", autoId: auto.id });
     });
@@ -193,7 +193,7 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
     const gone0 = new Set(s.tasks.filter((t) => t.autoId === a.id && t.status === "todo" && t.day && t.day >= today() && !s.runs.some((r) => r.taskId === t.id)).map((t) => t.id));
     binIt(ctx, "auto", a.title, { automations: [{ ...a, horizon: null }], tasks: s.tasks.filter((t) => gone0.has(t.id)), blocks: s.blocks.filter((b) => b.taskId && gone0.has(b.taskId)) }, (st) => {
       st.automations = st.automations.filter((x) => x.id !== a.id);
-      // Henüz başlanmamış bugünkü/ilerideki işleri gider; geçmiş işler ve çıktılar kalır.
+      // Today's/later tasks not yet started go away; past tasks and outputs stay.
       const gone = new Set(st.tasks.filter((t) => t.autoId === a.id && t.status === "todo" && t.day && t.day >= today() && !st.runs.some((r) => r.taskId === t.id)).map((t) => t.id));
       st.tasks = st.tasks.filter((t) => !gone.has(t.id));
       st.blocks = st.blocks.filter((b) => !b.taskId || !gone.has(b.taskId));
@@ -224,7 +224,7 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
           <div>
             <dt>Where</dt>
             <dd>
-              {/* Dünya ve proje ayrı seçici (tek listede ikisini birden seçmek zordu); proje listesinin sonunda yeni proje. */}
+              {/* World and project are separate pickers (choosing both in one list was hard); a new project at the end of the project list. */}
               <div className="wherepick">
                 <Select className="ppick" style={{ ["--w" as string]: w.color }} label="World" disabled={ai === "busy"}
                   value={d.worldId} groups={[{ options: s.worlds.map((x) => ({ value: x.id, label: x.name, color: x.color })) }]}
@@ -432,8 +432,8 @@ function AutoForm({ ctx, req, onClose }: { ctx: Ctx; req: FormReq; onClose: () =
   );
 }
 
-// Tarayıcıda çalışsın: Rou Playgrounds'un tarayıcısında, otomasyonun dünyasının oturumunda çalışır. Hazırlıkta yalnız okur ve önerir, onaylanınca yapar.
-// automation.browser yalnız "tarayıcıda" işaretidir (eski kayıtlarda Chrome'un kimliği durur; sunucu Playgrounds'un tarayıcısını kullanır).
+// Run in the browser: Rou works in Playgrounds' browser, in the session of the automation's world. When preparing it only reads and suggests, when approved it acts.
+// automation.browser is only an "in the browser" flag (old records hold a Chrome id; the server uses Playgrounds' browser).
 const IN_APP = { id: "pb", name: "Playgrounds" };
 function ChromePick({ browser, folder, title, onChange }: { browser?: Automation["browser"]; folder: string; title: string; onChange: (p: { browser?: Automation["browser"]; folder?: string }) => void }) {
   return (

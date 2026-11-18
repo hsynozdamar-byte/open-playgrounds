@@ -10,9 +10,9 @@ import { platformsOf } from "../../shared/stages.mjs";
 import { toast } from "./Toast";
 import { X } from "lucide-react";
 
-// Otomasyonların ürettiği işler (2026-11-01): Sırada (önümüzdeki 14 gün, henüz açılmamışlar dahil) · Hazırlanan (Rou hazırlıyor,
-// onay bekliyor, paylaşılacak, hata) · Tamamlanan (son 14 gün). Sıradakiler seçilip toplu hazırlatılır; her satır işin ayrıntısını
-// açar (açılmamış gün o an görev olur, hazırlanmaz). Proje sayfasında ve otomasyon penceresinde aynı bileşen.
+// Tasks made by automations (2026-11-01): Queued (next 14 days, including ones not yet opened) · Preparing (Rou is preparing,
+// waiting for approval, to be shared, error) · Done (last 14 days). Queued ones can be selected and prepared in bulk; each row opens
+// the task's details (a day not yet opened becomes a task then, it is not prepared). The same component on the project page and in the automation window.
 type Row = { key: string; a: Automation; day: string; slot: string; task?: Task; run?: Run; title: string; line: string; tone?: string };
 const SPAN = 14;
 
@@ -65,7 +65,7 @@ export function AutoRuns({ ctx, autos, single }: { ctx: Ctx; autos: Automation[]
         <h4 className="pbhead">{title}<span>{rows.length || ""}</span>
           {pick && pickable.length > 0 && <button className="arsall" title="Pick several and prepare them now" onClick={() => setSel(sel.size === pickable.length ? new Set() : new Set(pickable.map((r) => r.key)))}>{sel.size === pickable.length ? "Clear selection" : "Select all"}</button>}
         </h4>
-        {/* Seçim yapınca toplu hazırlatma bu sütunun içinde, başlığın altında küçük bir satır. */}
+        {/* When a selection is made the bulk prepare is inside this column, a small row under the title. */}
         {pick && sel.size > 0 && (
           <div className="arsel">
             <b>{sel.size} selected</b>

@@ -14,20 +14,20 @@
   --font: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --rail: 208px;
-  --top: 84px; /* yüzen üst bar: 12 boşluk + 60 yükseklik + 12 boşluk */
+  --top: 84px; /* floating top bar: 12 gap + 60 height + 12 gap */
   --r: 14px;
-  /* Yüzey: akışkan zemin üstünde neredeyse dolu, hafif buzlu panel. Okunurluk önce: yazı ve gri öğeler düz beyazdaki gibi durur. */
+  /* Surface: nearly solid, lightly frosted panel over the fluid ground. Legibility first: text and gray elements look as on plain white. */
   --surface: rgb(255 255 255 / 0.95);
   --surface-fx: blur(20px) saturate(1.3);
-  /* Yazı ölçeği: her yerde bu 8 basamak. */
-  --fs-1: 11px;   /* rozet, sayaç, küçük etiket */
-  --fs-2: 12.5px; /* meta, ipucu */
-  --fs-3: 13.5px; /* düğme, ikincil metin */
-  --fs-4: 14.5px; /* gövde */
-  --fs-5: 16px;   /* vurgulu metin, bölüm başlığı */
-  --fs-6: 20px;   /* pencere başlığı */
-  --fs-7: 26px;   /* mobil sayfa başlığı */
-  --fs-8: 32px;   /* sayfa başlığı */
+  /* Type scale: these 8 steps everywhere. */
+  --fs-1: 11px;   /* badge, counter, small label */
+  --fs-2: 12.5px; /* meta, hint */
+  --fs-3: 13.5px; /* button, secondary text */
+  --fs-4: 14.5px; /* body */
+  --fs-5: 16px;   /* emphasized text, section title */
+  --fs-6: 20px;   /* window title */
+  --fs-7: 26px;   /* mobile page title */
+  --fs-8: 32px;   /* page title */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -63,20 +63,20 @@ textarea { resize: none; field-sizing: content; }
 @media (max-width: 1240px) { .railitem:not(.ishome) .name { display: none; } .railitem:not(.ishome) { padding: 0 8px; } }
 @keyframes brandflow { to { background-position: 300% 0; } }
 .count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: #fff; font-size: var(--fs-1); font-weight: 650; display: inline-grid; place-items: center; }
-main { padding: 0 12px 120px; } /* her sayfa sol bara 12px, sağ kenara 12px: üst bar ile aynı hiza */
+main { padding: 0 12px 120px; } /* every page: 12px from the left rail, 12px from the right edge: same alignment as the top bar */
 
-/* ---------- Sol panel: marka, sayfalar, dünyalar ---------- */
+/* ---------- Left panel: brand, pages, worlds ---------- */
 .chrome { display: contents; }
-/* Üst bar ve sol menü kenarlara yapışmaz: yüzen, yuvarlak paneller. */
+/* The top bar and left menu do not stick to the edges: floating, rounded panels. */
 .topbar { position: fixed; top: 12px; left: 12px; right: 12px; height: 60px; z-index: 7; display: flex; align-items: center; padding: 0 14px 0 8px; background: color-mix(in srgb, var(--panel) 86%, transparent); backdrop-filter: blur(16px) saturate(1.4); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.03), 0 10px 30px -14px rgb(0 0 0 / 0.14); }
 .rail { position: fixed; left: 12px; top: var(--top); bottom: 12px; width: calc(var(--rail) - 12px); z-index: 6; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.03), 0 10px 30px -14px rgb(0 0 0 / 0.14); padding: 12px 10px; overflow-y: auto; scrollbar-width: none; }
 .worlds { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: visible; scrollbar-width: none; }
-/* Taşınca kaydırılır; 3 px pay seçili çerçevenin gölgesi ve köşeleri kenarda kırpılmasın diye. */
+/* Scrolls when it overflows; 3 px of room so the selected frame's shadow and corners are not clipped at the edge. */
 .wlist { display: contents; }
 .witem { position: relative; display: flex; flex: none; touch-action: pan-x; -webkit-touch-callout: none; user-select: none; }
 .witem.is-lifted .railitem { background: var(--panel); box-shadow: 0 8px 20px -8px rgb(0 0 0 / 0.3), 0 0 0 1px var(--line); cursor: grabbing; }
 .railitem { position: relative; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 7px; border-radius: 12px; flex: none; }
-/* Seçili öğede hover zemini yok: kayan çerçevenin arkasında düz kenarlı gri şerit kalmasın. */
+/* No hover background on the selected item: no flat-edged gray strip behind the sliding frame. */
 .railitem:not(.on):hover { background: var(--hover); }
 .railitem .ring { position: absolute; inset: 0; border-radius: 12px; background: color-mix(in srgb, var(--w, var(--accent)) 13%, var(--hover)); }
 .railitem.ishome { width: calc(var(--rail) - 21px); margin-right: 12px; height: 44px; }
@@ -98,9 +98,9 @@ main { padding: 0 12px 120px; } /* her sayfa sol bara 12px, sağ kenara 12px: ü
 .pageitem .tl { position: relative; flex: 1; }
 .pageitem .n { position: relative; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: var(--fs-1); font-weight: 650; display: grid; place-items: center; }
 
-/* ---------- Abstract Fluid: akışkan leke ----------
-   Dört yumuşak renk katmanı (b1–b4) üst üste biner; her biri kendi yolunda süzülür ve şekil değiştirir, bütün leke yavaşça döner.
-   Kenarlar yumuşak (katman bulanıklığı), üstünde tanecik (--grain). Çizgi, parlama, gölge yok. Boyut --sz, hız --sp, faz --ph. */
+/* ---------- Abstract Fluid: fluid blob ----------
+      Four soft color layers (b1–b4) overlap; each drifts and changes shape on its own path, the whole blob turns slowly.
+      Soft edges (layer blur), grain on top (--grain). No line, glare or shadow. Size --sz, speed --sp, phase --ph. */
 :root { --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 1.6 -0.3'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --fe: cubic-bezier(0.45, 0, 0.55, 1); }
 .logowrap { position: relative; display: inline-block; flex: none; }
@@ -108,7 +108,7 @@ main { padding: 0 12px 120px; } /* her sayfa sol bara 12px, sağ kenara 12px: ü
   --c1: #ff4fd8; --c2: #3b5bff; --c3: #22d8f0; --c4: #ffd447; }
 .sph.is-world { --c1: var(--w); --c2: oklch(from var(--w) calc(l - 0.06) c calc(h + 38)); --c3: oklch(from var(--w) calc(l + 0.1) c calc(h - 40)); --c4: oklch(from var(--w) 0.93 calc(c * 0.55) calc(h - 70)); }
 .sph span { position: absolute; pointer-events: none; }
-/* Soft Fluid (src/ui/fluid): leke kendi tuvalinde çizilir, .sph kutusunu doldurur */
+/* Soft Fluid (src/ui/fluid): the blob is drawn on its own canvas and fills the .sph box */
 .fluid { position: relative; display: inline-block; flex: none; vertical-align: middle; border-radius: 50%;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--fa) 70%, transparent), color-mix(in srgb, var(--fb) 40%, transparent) 60%, transparent); }
 .fluid:has(canvas[width]) { background: none; }
@@ -117,16 +117,16 @@ main { padding: 0 12px 120px; } /* her sayfa sol bara 12px, sağ kenara 12px: ü
 .fluid-eyes { position: absolute; left: 50%; top: 47%; translate: -50% -50%; display: flex; gap: calc(var(--s) * .12); }
 .fluid-eyes i { width: calc(var(--s) * .065); height: calc(var(--s) * .12); border-radius: 99px; background: #15161d; opacity: .85; }
 
-/* Akışkan zemin (App .wash): uygulamanın arkasında çok yumuşak, yavaş akan renk alanları ve tanecik. Bir dünya seçiliyse
-   alan onun rengine döner (--w); hepsi seçiliyken kürenin renkleri. Cam paneller bunu bulanık gösterir. */
+/* Fluid ground (App .wash): behind the app, very soft, slowly flowing color fields and grain. When a world is selected
+      the field turns to its color (--w); with all selected, the sphere's colors. Glass panels show it blurred. */
 .wash { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-/* Renk alanları 4'te 1 boyutta çizilip GPU'da 4 kat büyütülür (yumuşak gradyan aynı görünür, raster 16 kat az; WebKit'te dünya geçişi takılıyordu). */
+/* Color fields are drawn at 1/4 size and scaled up 4x on the GPU (the soft gradient looks the same, 16x fewer pixels; the world switch stuttered in WebKit). */
 .wash i { position: absolute; border-radius: 50%; opacity: 0.6; scale: 4; will-change: translate, scale; }
 .wash .f1 { width: 20vw; height: 20vw; left: 4vw; top: -4vw; background: radial-gradient(closest-side, var(--f1, #8ff7f2), transparent); animation: fluidA 31s var(--fe) infinite; }
 .wash .f2 { width: 18.5vw; height: 18.5vw; right: 3.75vw; top: calc(-6vh + 27.75vw); background: radial-gradient(closest-side, var(--f2, #ffc4b4), transparent); animation: fluidB 37s var(--fe) infinite; }
 .wash .f3 { width: 17.5vw; height: 17.5vw; left: 40.25vw; bottom: -11.75vw; background: radial-gradient(closest-side, var(--f3, #c9a4f5), transparent); opacity: 0.5; animation: fluidC 43s var(--fe) infinite; }
 .wash.is-world { --f1: oklch(from var(--w) 0.9 calc(c * 0.55) calc(h + 40)); --f2: oklch(from var(--w) 0.88 calc(c * 0.5) calc(h - 30)); --f3: oklch(from var(--w) 0.82 calc(c * 0.6) h); }
-/* Tanecik tek, sabit katman: dünya değişince yeniden kurulmaz */
+/* One fixed grain layer: it is not rebuilt when the world changes */
 .wash-grain { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: var(--grain); background-size: 180px; }
 .is-switching .wash i { animation-play-state: paused; }
 @keyframes fluidA { 50% { translate: 14vw 10vh; scale: 4.48; } }
@@ -150,7 +150,7 @@ h1::first-letter { text-transform: uppercase; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 12px 12px; box-shadow: 0 1px 0 rgb(16 24 40 / 0.02), 0 1px 3px rgb(16 24 40 / 0.04); }
 .card .sechead { margin-bottom: 8px; }
 .empty { color: var(--ink-3); font-size: var(--fs-4); padding: 8px; line-height: 1.5; list-style: none; }
-/* Kart içinde boş durum metni başlıkla aynı kenarda başlar (kart 12 + başlık 8). */
+/* Empty-state text in a card starts on the same edge as the title (card 12 + title 8). */
 .card > .empty { padding: 2px 8px 4px; font-size: var(--fs-3); }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 10px; font-size: var(--fs-3); background: color-mix(in srgb, var(--ink) 7%, var(--panel)); white-space: nowrap; text-decoration: none; color: var(--ink); font-weight: 550; }
 .btn:hover { background: color-mix(in srgb, var(--hover) 60%, var(--line)); }
@@ -179,7 +179,7 @@ h1::first-letter { text-transform: uppercase; }
 .tag.dl { color: var(--danger); }
 .k { font-size: var(--fs-1); color: var(--ink-3); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; margin-left: auto; }
 
-/* ---------- Hızlı ekleme ---------- */
+/* ---------- Quick add ---------- */
 .quick { border-radius: 10px; margin-top: 2px; }
 .quick .qrow { display: flex; align-items: center; gap: 10px; padding: 8px; }
 .quick .plus { width: 19px; text-align: center; color: var(--ink-3); font-size: var(--fs-6); line-height: 1; flex: none; display: inline-grid; place-items: center; }
@@ -194,7 +194,7 @@ h1::first-letter { text-transform: uppercase; }
 .quick.is-focus .plus { color: var(--w, var(--accent)); }
 .qhint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 0 8px 8px 37px; font-size: var(--fs-2); }
 
-/* ---------- İş satırı ---------- */
+/* ---------- Task row ---------- */
 .list { list-style: none; padding: 0; }
 .row { position: relative; display: flex; align-items: flex-start; gap: 11px; padding: 9px 8px; border-radius: 10px; cursor: pointer; }
 .row:hover { background: color-mix(in srgb, var(--hover) 85%, transparent); }
@@ -240,7 +240,7 @@ h1::first-letter { text-transform: uppercase; }
 @keyframes eq { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
 @media (hover: none) { .play { opacity: 1; } }
 
-/* ---------- Zamanlayıcı ---------- */
+/* ---------- Timer ---------- */
 .ringsvg { transform: rotate(-90deg); display: block; }
 .ringsvg .track { fill: none; stroke: color-mix(in srgb, var(--w) 16%, transparent); stroke-width: 4; }
 .ringsvg .fill { fill: none; stroke: var(--w); stroke-width: 4; stroke-linecap: round; }
@@ -263,7 +263,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .ttitle { display: block; font-size: var(--fs-4); font-weight: 620; line-height: 1.3; overflow-wrap: anywhere; }
 .tclock { font-size: var(--fs-6); font-variant-numeric: tabular-nums; flex: none; font-weight: 500; }
 
-/* ---------- Bugün ---------- */
+/* ---------- Today ---------- */
 .today { display: grid; grid-template-columns: minmax(0, 680px) minmax(0, 340px); gap: 48px; justify-content: center; }
 .nudge { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: var(--r); background: var(--panel); border: 1px solid var(--line); font-size: var(--fs-4); text-align: left; }
 .nudge b { color: var(--accent); }
@@ -286,7 +286,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .adcell.over, .traydrop.over { background: color-mix(in srgb, var(--w, var(--accent)) 10%, transparent); }
 .chip, .flag { font-size: var(--fs-2); font-weight: 600; padding: 3px 7px; border-radius: 6px; text-align: left; line-height: 1.3; overflow-wrap: anywhere; }
 
-/* Durum işareti (ui/StatusMark.tsx): SVG, dünya renginde. */
+/* Status mark (ui/StatusMark.tsx): SVG, in the world's color. */
 .smark { display: inline-block; flex: none; vertical-align: -3px; margin-right: 6px; }
 .chip { background: color-mix(in srgb, var(--w) 6%, var(--panel)); color: var(--ink); border: 1px solid var(--line); cursor: grab; display: flex; align-items: flex-start; gap: 0; }
 .chip .smark { margin-top: 1px; }
@@ -308,7 +308,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .blk.is-split { padding: 4px 5px 4px 6px; }
 .blk.is-split .btx { display: block; white-space: nowrap; text-overflow: ellipsis; }
 .blk.is-split .bm { display: none; }
-/* Yan yana bloklar dar: durum işareti ve tekrar ikonu yer kaplamaz, başlık sığdığı kadar satıra iner; kısa blok da başlığı üstte tutar, komşularıyla aynı çizgide. */
+/* Side-by-side blocks are narrow: the status mark and repeat icon take no room, the title drops to as many lines as it needs; a short block also keeps the title at the top, on the same line as its neighbors. */
 .blk.is-split .bt > :not(.btx) { display: none; }
 .blk.is-split:not(.short) .btx { display: -webkit-box; white-space: normal; overflow-wrap: anywhere; }
 .blk.is-split.short { justify-content: flex-start; }
@@ -320,7 +320,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .blk .bt { font-size: var(--fs-2); font-weight: 650; line-height: 1.25; display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
 .blk .bt > :not(.btx) { flex: none; }
 .blk .bt .smark { margin: 0; }
-/* Tek kelime blok genişliğinden uzunsa da başı görünsün, sonu "…" ile kesilsin. */
+/* If a single word is longer than the block width, its start still shows and the end is cut with "…". */
 .blk .btx { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: var(--lines, 1); -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .blk .bm { font-size: var(--fs-1); color: var(--ink-3); overflow: hidden; font-variant-numeric: tabular-nums; white-space: nowrap; text-overflow: ellipsis; flex: none; }
 .blk .h { position: absolute; left: 0; right: 0; height: 6px; cursor: ns-resize; z-index: 2; }
@@ -408,7 +408,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .k-waiting .kdot { background: #e0a32b; }
 .k-done .kdot { background: #1fae68; }
 
-/* ---------- İş ayrıntısı (sağ panel) ---------- */
+/* ---------- Task detail (right panel) ---------- */
 .scrim { position: fixed; inset: 0; z-index: 20; background: rgb(0 0 0 / 0.22); }
 .scrim.center { display: grid; place-items: center; padding: 16px; }
 .drawer { position: fixed; inset: 0; margin: auto; height: fit-content; max-height: min(86vh, 820px); z-index: 21; width: min(560px, calc(100vw - 32px)); overflow-y: auto; background: var(--panel); border-radius: 20px; box-shadow: 0 24px 70px rgb(0 0 0 / 0.22); padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 16px; }
@@ -429,7 +429,7 @@ li.done .box { background: var(--w); border-color: var(--w); }
 .ppick svg { flex: none; color: var(--ink-3); }
 .ppick .sellab { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; }
 .ppick .sellab > b { min-width: 0; }
-/* Ok kutunun sağ kenarında sabit: yazı ne kadar uzun olursa olsun yeri değişmez, yazı sığmazsa kısalır. */
+/* The arrow is fixed at the right edge of the box: its place does not change however long the text is; the text shortens if it does not fit. */
 .ppick .sellab { flex: 1; }
 .ppick .selchev { margin-left: auto; margin-right: 0; }
 .selchev { flex: none; color: var(--ink-3); transition: transform .18s cubic-bezier(.2,.8,.2,1); }
@@ -505,7 +505,7 @@ li:hover .rm { opacity: 1; }
 .dfoot.is-leave > span { margin-right: auto; color: var(--ink); font-weight: 600; }
 .dfoot.is-leave .btn.ghost { margin-left: 0; }
 
-/* Yeni dünya */
+/* New world */
 .modal { width: min(460px, 100%); background: var(--panel); border-radius: 20px; padding: 20px; box-shadow: 0 24px 70px rgb(0 0 0 / 0.22); display: flex; flex-direction: column; gap: 16px; }
 .newworld { display: flex; align-items: center; gap: 14px; }
 .big { font-size: var(--fs-6); font-weight: 700; letter-spacing: -0.02em; width: 100%; min-width: 0; }
@@ -548,14 +548,14 @@ li:hover .rm { opacity: 1; }
   .ppctl { align-items: flex-start; }
 }
 
-/* ---------- Ana sayfa (Bugün) ---------- */
+/* ---------- Home (Today) ---------- */
 .home { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: "hero timer" "today today" "bottom bottom"; gap: 12px; align-items: start; }
 .hometimer { grid-area: timer; min-width: 0; display: grid; align-self: stretch; }
 .hometimer .focuscard { margin: 0; }
 .todaycard { grid-area: today; min-width: 0; }
 .todaycard .cardhead .link { margin-left: 4px; }
-/* Takvimin sağ kenarı, üstteki iki kartın arasındaki boşluğun ortasına denk gelir.
-   .home kolonları 1.25fr/1fr (5/9), boşluk 12px; kart yatay iç boşluğu 12px + 1px kenar → (100% + 14px) * 5/9 - 7px. */
+/* The calendar's right edge lines up with the middle of the gap between the two cards above.
+      .home columns are 1.25fr/1fr (5/9), gap 12px; card horizontal padding 12px + 1px border → (100% + 14px) * 5/9 - 7px. */
 .todaygrid { display: grid; grid-template-columns: calc((100% + 14px) * 5 / 9 - 7px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .tlist { min-width: 0; }
 .tplan { min-width: 0; position: sticky; top: var(--top); border-left: 1px solid var(--line); padding-left: 8px; }
@@ -586,7 +586,7 @@ li:hover .rm { opacity: 1; }
 .calendar.embedded .grid { height: min(62vh, 640px); }
 .calendar.embedded .chead { display: none; }
 
-/* Yıl sayacı */
+/* Year counter */
 
 @media (max-width: 1180px) {
   .home { grid-template-columns: minmax(0, 1fr); grid-template-areas: "timer" "hero" "today" "bottom"; }
@@ -609,12 +609,12 @@ li:hover .rm { opacity: 1; }
 .dsnow { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); box-shadow: 0 0 0 2px var(--panel); }
 .dslabels { display: flex; justify-content: space-between; margin-top: 5px; font-size: var(--fs-1); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
-/* Sayılar, saatler, süreler: Geist Mono */
+/* Numbers, times, durations: Geist Mono */
 .tclock, .gutter span, .gut, .meta .tm, .play .pc, .lines b, .blk .bm, .dslabels, .draft span, .ch b, .count, .badge, .cardhead .n, .sechead .n, .khead .n { font-family: var(--mono); letter-spacing: -0.02em; }
 
 .wname, .ppname { font-weight: 600; letter-spacing: -0.04em; }
 
-/* ---------- İkon düğmeleri, hizalama ---------- */
+/* ---------- Icon buttons, alignment ---------- */
 .btn svg, .seg button svg { flex: none; }
 .iconbtn { width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: 9px; color: var(--ink-3); flex: none; }
 .iconbtn:hover { background: var(--hover); color: var(--ink); }
@@ -672,7 +672,7 @@ li:hover .rm { opacity: 1; }
 .fctl { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .fctl .btn { height: 40px; padding: 0 18px; border-radius: 12px; }
 .fhint { font-size: var(--fs-4); color: var(--ink-3); }
-/* Boşta ve çalışırken kart aynı yükseklikte kalsın: alt satır ve mod satırı sabit. */
+/* Idle and running, the card keeps the same height: the bottom row and the mode row are fixed. */
 .fslot { min-height: 40px; display: flex; align-items: center; justify-content: center; margin: 0; }
 .plens { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; font-size: var(--fs-2); color: var(--ink-3); min-height: 34px; }
 .plens.free { margin: 0; }
@@ -687,12 +687,12 @@ li:hover .rm { opacity: 1; }
 @media (max-width: 1000px) { .focus { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { .bigclock { font-size: 44px; } }
 
-/* Defter: silme */
+/* Notebook: delete */
 .iconbtn.del:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 14px; padding: 8px 8px 8px 16px; border-radius: 14px; background: var(--ink); color: var(--panel); font-size: var(--fs-4); box-shadow: 0 14px 40px -10px rgb(0 0 0 / 0.4); }
 .toast .btn { background: color-mix(in srgb, var(--panel) 16%, transparent); color: var(--panel); }
 
-/* Defter: kategoriler */
+/* Notebook: categories */
 
 .c-note { --cc: #475569; }
 .c-idea { --cc: #9a2fe0; }
@@ -738,7 +738,7 @@ li:hover .rm { opacity: 1; }
 .ncat { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px 0 8px; border-radius: 12px; color: color-mix(in srgb, var(--cc, var(--accent)) 82%, var(--ink)); background: color-mix(in srgb, var(--cc, var(--accent)) 13%, var(--panel)); font-size: var(--fs-2); font-weight: 600; cursor: pointer; }
 .ncat select { appearance: none; -webkit-appearance: none; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; field-sizing: content; padding: 0; }
 .nsrc { font-weight: 550; color: var(--ink-2); }
-/* Tarih kartın sağ kenarında (alttaki Arşivle ile aynı çizgi); düzenle/sil hover'da tarihin yerine gelir. */
+/* The date sits at the card's right edge (same line as Archive below); edit/delete replace the date on hover. */
 .nctop { position: relative; }
 .ntime { margin-left: auto; color: var(--ink-2); transition: opacity 0.15s; }
 .ntools { position: absolute; right: -6px; top: 50%; translate: 0 -50%; display: flex; gap: 2px; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
@@ -754,7 +754,7 @@ li:hover .rm { opacity: 1; }
 .nbody .ncode { margin: 2px 0; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 5%, var(--panel)); font: 500 var(--fs-2)/1.55 var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ncard p { font-size: var(--fs-4); line-height: 1.55; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
 .ncard .sugg { color: var(--ai); font-weight: 550; }
-/* Notun düzenli metni: ara başlık, liste, yapılacak kutuları. */
+/* The note's formatted text: subheading, list, to-do boxes. */
 .nbody { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-4); line-height: 1.55; color: var(--ink-2); overflow-wrap: anywhere; }
 .nbody p { white-space: normal; }
 .nbody h4 { margin-top: 4px; font-size: var(--fs-3); font-weight: 650; color: var(--ink); }
@@ -788,14 +788,14 @@ li:hover .rm { opacity: 1; }
   .nbcol { display: contents; }
 }
 
-/* Bugün kartının başı: seçili dünya */
+/* Top of the Today card: selected world */
 
-/* Dünya ayarları */
+/* World settings */
 .wdel { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, var(--danger) 7%, var(--panel)); }
 .wdel p { font-size: var(--fs-3); color: var(--ink-2); line-height: 1.45; }
 .btn.dangerfill { background: var(--danger); color: #fff; }
 
-/* Sayfa başı kartı (Takvim, Defter, Projeler): Bugün kartıyla aynı dil */
+/* Page-top card (Calendar, Notebook, Projects): same language as the Today card */
 .pagehead { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 22px 20px; margin-bottom: 12px; align-items: center; }
 .phtext { min-width: 0; }
 .pagehead h1 { margin-top: 2px; font-size: var(--fs-8); font-weight: 600; letter-spacing: -0.04em; }
@@ -804,10 +804,10 @@ li:hover .rm { opacity: 1; }
 
 @media (max-width: 720px) { .pagehead { padding: 18px; } .pagehead h1 { font-size: var(--fs-7); } }
 
-/* Gecikme */
+/* Late */
 .meta .st.late { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); padding: 1px 7px; border-radius: 6px; font-weight: 600; }
 
-/* Proje durumu */
+/* Project status */
 .pst { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-1); font-weight: 600; color: var(--ink-3); white-space: nowrap; }
 .pst i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .ps-active { color: #12a150; }
@@ -817,12 +817,12 @@ li:hover .rm { opacity: 1; }
 .plate { font-style: normal; color: var(--danger); font-weight: 600; }
 .prest { display: block; margin: 14px 2px 10px; }
 
-/* Bugün: bu hafta kartı */
+/* Today: this week card */
 .wd { font-size: var(--fs-1); color: var(--ink-3); white-space: nowrap; }
 
 @media (max-width: 720px) { .pageitem { font-size: var(--fs-2); padding: 0 2px; } }
 
-/* İşin altında: alt görevler ve odak kayıtları */
+/* Under the task: subtasks and focus sessions */
 .subtoggle { display: inline-flex; flex-wrap: wrap; row-gap: 0; max-width: 100%; text-align: left; align-items: center; font: inherit; margin: 0; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); gap: 6px; }
 .subtoggle > * { white-space: nowrap; }
 .subtoggle:hover { background: var(--hover); color: var(--ink); }
@@ -844,7 +844,7 @@ li:hover .rm { opacity: 1; }
 
 .drawer .flabel { text-transform: none; letter-spacing: 0; font-size: var(--fs-3); font-weight: 600; color: var(--ink-2); }
 
-/* Tekrarlayan işler ve Claude çıktıları */
+/* Repeating tasks and Claude outputs */
 .meta .rp { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); }
 .st.ready { color: var(--accent); }
 .blk .rep { flex: none; margin-top: 2px; color: var(--ink-3); }
@@ -872,7 +872,7 @@ li:hover .rm { opacity: 1; }
 .chips .whohint { align-self: center; font-size: var(--fs-2); }
 @media (max-width: 720px) { .kcol { min-height: 0; padding-bottom: 8px; } }
 
-/* Otomasyonlar */
+/* Automations */
 .autos > .card { margin-bottom: 12px; }
 .acwhere { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: var(--fs-2); font-weight: 600; color: var(--ink-3); }
 .acwhere:hover { color: var(--ink); }
@@ -886,7 +886,7 @@ li:hover .rm { opacity: 1; }
 
 .autorows .t em { font-style: normal; color: var(--ink-3); font-size: var(--fs-2); }
 .autorows .d { color: var(--ink-3); font-weight: 550; }
-/* Otomasyon formu */
+/* Automation form */
 .autoform { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .afhead { display: flex; align-items: center; }
 .afhead .x { margin-left: auto; }
@@ -906,7 +906,7 @@ li:hover .rm { opacity: 1; }
 .pageitem .tl .sm { display: none; }
 @media (max-width: 720px) { .pageitem .tl .lg { display: none; } .pageitem .tl .sm { display: inline; } }
 
-/* Otomasyonlar v2: oluşturma kutusu + liste/ayrıntı */
+/* Automations v2: creation box + list/detail */
 .autotoday { margin-bottom: 12px; }
 .automd { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 12px; align-items: stretch; }
 .autolist2 { padding: 14px 8px 8px; align-self: start; }
@@ -956,7 +956,7 @@ li:hover .rm { opacity: 1; }
   .mobonly { display: inline-flex; align-self: flex-start; }
   .autodetail { padding: 16px; }
 }
-/* Formdaki Claude kutusu */
+/* Claude box in the form */
 .aibar { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); color: var(--accent); }
 .aibar input { flex: 1; min-width: 0; height: 32px; border: 0; background: none; font-size: var(--fs-4); color: var(--ink); }
 .aibar input:focus { outline: none; }
@@ -967,19 +967,19 @@ li:hover .rm { opacity: 1; }
 .props dd .whohint { font-size: var(--fs-2); margin-top: 6px; line-height: 1.45; }
 .imgtoggle { display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; font-size: var(--fs-3); color: var(--ink-2); cursor: pointer; }
 .imgtoggle input { width: 16px; height: 16px; accent-color: var(--ink); }
-/* Proje panosu: sütunlar eşit boy, uzun listede sütun içinde kayar */
+/* Project board: columns of equal height, scrolling inside the column in a long list */
 
 .kcol > .list { flex: 1; max-height: min(62vh, 640px); overflow-y: auto; scrollbar-width: thin; }
 @media (max-width: 720px) { .kcol > .list { max-height: none; } }
 
-/* Pencere (form, iş kartı) açıkken bildirim alttaki düğmeleri örtmesin: üste çıkar. */
+/* While a window (form, task card) is open, the notification must not cover the buttons at the bottom: it moves to the top. */
 body:has(.scrim) .toast { bottom: auto; top: 20px; }
 .readyrows li { align-items: center; }
 .readyrows .t em { font-style: normal; color: var(--ink-3); }
 .readyrows .rst { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-2); font-weight: 600; color: var(--accent); }
 .readyrows .rst.working { color: var(--ink-3); }
 .kempty { list-style: none; margin: 4px 8px; padding: 14px 10px; border: 1.5px dashed var(--line); border-radius: 10px; font-size: var(--fs-2); color: var(--ink-3); text-align: center; }
-/* Günü geçmiş, bitmemiş iş: takvimde kırmızı kenar + "Gecikti" */
+/* A task past its day and not done: red edge on the calendar + "Late" */
 .blk.is-late { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, var(--panel)); }
 .blk.is-late .smark { color: var(--danger); }
 .blk .latetag { font-weight: 650; color: var(--danger); font-family: inherit; }
@@ -996,12 +996,12 @@ body:has(.scrim) .toast { bottom: auto; top: 20px; }
 .welcome h1 { font-size: var(--fs-8); font-weight: 600; letter-spacing: -0.04em; }
 .welcome p { max-width: 60ch; font-size: var(--fs-5); line-height: 1.55; color: var(--ink-2); }
 
-/* ---------- Sayfa ikonları ve mobil alt dünya çubuğu ---------- */
+/* ---------- Page icons and the mobile bottom worlds bar ---------- */
 .pageitem .pi { position: relative; flex: none; color: var(--ink-3); transition: color 0.15s; }
 .pageitem:hover .pi, .pageitem.on .pi { color: var(--ink); }
 :where(button, a, [tabindex]):focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-radius: 10px; }
 @media (max-width: 720px) {
-  /* Üstte sayfalar (ikon + ad), altta dünyalar: başparmakla dünya değiştirilir. */
+  /* Pages on top (icon + name), worlds below: the world is switched with the thumb. */
   .topbar { position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 12; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(14px); border-top: 1px solid var(--line); }
   .rail { margin-top: 0; }
   .pageitem { flex-direction: column; height: 50px; gap: 3px; font-size: var(--fs-1); }
@@ -1012,7 +1012,7 @@ body:has(.scrim) .toast { bottom: auto; top: 20px; }
   .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
 
-/* ---------- Defter: hiza, boş durum, mobil çipler ---------- */
+/* ---------- Notebook: alignment, empty state, mobile chips ---------- */
 
 .nbbar > svg { color: var(--cc, var(--ink-3)); }
 .nbbar .muted { font-size: var(--fs-3); }
@@ -1031,30 +1031,30 @@ body:has(.scrim) .toast { bottom: auto; top: 20px; }
   .cadd span { display: none; }
 }
 @media (max-width: 720px) {
-  /* backdrop-filter sabit konumlu alt çubuğu içine hapseder; bulanıklık yalnız sekmelerde. */
+  /* backdrop-filter traps a fixed-position bottom bar inside it; the blur is only on the tabs. */
   .chrome { padding: 0; background: none; backdrop-filter: none; border-bottom: 0; }
   .rail { padding: 8px 12px; background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
 }
 
-/* ---------- Sayfa başı hiyerarşisi: bağlam → başlık → açıklama ---------- */
+/* ---------- Page-top hierarchy: context → title → description ---------- */
 
-/* ---------- Defter: tek iç boşluk (16px), düz boş durum kartı ---------- */
+/* ---------- Notebook: single inner padding (16px), plain empty-state card ---------- */
 
 .nbitem { padding: 0 10px; }
 
 @media (max-width: 860px) { .notebook { gap: 12px; } }
 
-/* ---------- Başlık satırı: küre + başlık ---------- */
+/* ---------- Title row: sphere + title ---------- */
 .titlerow { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .titlerow h1 { margin: 0; min-width: 0; }
 .torb { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; }
-/* Logo 40px kutuda 30px; görünen küre kartın içerik kenarına otursun. */
+/* Logo is 30px in a 40px box; the visible sphere should sit on the card's content edge. */
 .pagehead .titlerow > .torb:first-child { margin-left: -5px; }
 button.torb:hover { background: var(--hover); }
 
 @media (max-width: 720px) { .torb { width: 34px; height: 34px; } .pagehead .sub { padding-left: 0; } }
 
-/* Boş Defter: masaüstünde yatay ve kompakt; alt kenarı sol menü kartıyla aynı hizada (Inbox.tsx). */
+/* Empty Notebook: horizontal and compact on desktop; its bottom edge lines up with the left menu card (Inbox.tsx). */
 .nbempty .et { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 @media (min-width: 861px) {
   .nbempty { flex-direction: row; align-items: center; justify-content: flex-start; gap: 14px; padding: 20px 24px; text-align: left; }
@@ -1072,8 +1072,8 @@ button.torb:hover { background: var(--hover); }
 .rou.is-think .rou-face { animation: rouScan 1.6s ease-in-out infinite; transition: none; }
 .rou.is-think .eye { height: calc(var(--s) * 0.2); }
 .rou.is-lively.is-happy { animation: rouHop 0.6s cubic-bezier(.3,1.6,.5,1) 2; }
-/* Canlı Rou (üst çubuk, sohbet başlığı, karşılama): boşta nefes alır, ara sıra çömelip zıplar, yayvan iner ve jöle gibi titreyip durulur;
-   üstüne gelince sıkışıp sallanır, düşünürken yoğrulur. Sohbet başlığındaki ve karşılamadaki Rou da böyle; listedekiler yalnız akar ve göz kırpar. */
+/* Lively Rou (top bar, chat header, welcome): breathes when idle, now and then crouches and hops, lands flat and wobbles like jelly before settling;
+      squishes and shakes on hover, kneads while thinking. The Rou in the chat header and the welcome screen does this too; the ones in the list only flow and blink. */
 .rou.is-lively { transform-origin: 50% 92%; animation: rouBoing 6s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
 @keyframes rouBoing {
   0%, 100% { transform: scale(1, 1); }
@@ -1095,9 +1095,9 @@ button.torb:hover { background: var(--hover); }
 @keyframes rouBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 @keyframes rouScan { 0%, 100% { transform: translate(-68%, -55%); } 50% { transform: translate(-32%, -55%); } }
 @keyframes rouHop { 50% { transform: translateY(-14%) scale(1.04, 0.97); } }
-/* Gövde: koyu karakter + kendi renginde ışıklı kubbe (RouOrb, uMode 5). Gözler Rou'nun renginde ışır. */
+/* Body: dark character + a glowing dome in its own color (RouOrb, uMode 5). The eyes glow in Rou's color. */
 .rou-body .fluid { position: absolute; inset: 0; }
-/* Silüet: referans hayaletten çıkarılan maske */
+/* Silhouette: mask extracted from the reference ghost */
 .rou-body { -webkit-mask: url(/brand/rou-mask.svg) center / 100% 100% no-repeat; mask: url(/brand/rou-mask.svg) center / 100% 100% no-repeat; }
 .rou-face { top: 33.2%; gap: calc(var(--s) * 0.16); }
 .rou .eye { width: max(3px, calc(var(--s) * 0.053)); height: max(4px, calc(var(--s) * 0.072)); background: radial-gradient(70% 60% at 45% 35%, #5c585f, #2a282d 75%); box-shadow: inset 0 0 0 calc(var(--s) * 0.004) #1d1c20; box-shadow: none; }
@@ -1109,7 +1109,7 @@ button.torb:hover { background: var(--hover); }
 
 .roubtn { position: relative; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px 0 7px; margin-left: auto; border-radius: 14px; flex: none; }
 .roubtn:hover { background: var(--hover); }
-/* Gezen Rou (RouWander, yalnız masaüstü): yerindeki Rou gizlenir, kopyası ekranda süzülür */
+/* Wandering Rou (RouWander, desktop only): the Rou in place is hidden, its copy floats across the screen */
 .roubtn.is-away > .rou { visibility: hidden; }
 .rou-wander { position: fixed; left: 0; top: 0; z-index: 60; cursor: pointer; will-change: transform; filter: drop-shadow(0 8px 14px rgb(40 20 90 / 0.2)); }
 .roubtn .name { font-size: var(--fs-4); font-weight: 620; color: var(--ink); }
@@ -1118,10 +1118,10 @@ button.torb:hover { background: var(--hover); }
 .rouchat { position: fixed; z-index: 25; top: calc(var(--top) - 4px); right: 12px; width: min(820px, calc(100vw - 24px)); height: calc(100vh - var(--top) - 12px); display: grid; grid-template-columns: 232px minmax(0, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 24px 60px -18px rgb(16 24 40 / 0.35), 0 2px 6px rgb(16 24 40 / 0.06); overflow: hidden; }
 .rpane { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .rform { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-/* Rou listesi: başlığı sohbet başlığıyla, Yeni Rou düğmesi giriş bandıyla aynı hizada. */
+/* Rou list: its title lines up with the chat header, the New Rou button with the entry band. */
 .rlist { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--hover) 45%, var(--panel)); }
 .rpane .rchead { height: 62px; flex: none; }
-/* Sohbet kategorileri: başlığın altında tek satır sekme; sayılar küçük rozet. */
+/* Chat categories: a single row of tabs under the title; counts are small badges. */
 .rcats { flex: none; display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
 .rcats button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; font-size: var(--fs-3); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
 .rcats button:hover { background: var(--hover); }
@@ -1129,7 +1129,7 @@ button.torb:hover { background: var(--hover); }
 .rccount { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center; font-size: var(--fs-1); background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 .rcats button.is-on .rccount { background: rgb(255 255 255 / 0.22); color: inherit; }
 .rcempty { margin: 24px auto; color: var(--ink-3); font-size: var(--fs-3); text-align: center; }
-/* Değişiklikler sekmesi: Rou'nun yaptığı işlerin durumu */
+/* Changes tab: status of the work Rou did */
 .rchg { display: flex; flex-direction: column; gap: 20px; }
 .rchg section { display: flex; flex-direction: column; gap: 6px; }
 .rchg h4 { margin: 0 0 2px; font-size: var(--fs-3); font-weight: 650; color: var(--ink-2); }
@@ -1159,7 +1159,7 @@ button.torb:hover { background: var(--hover); }
 .rffield { display: flex; flex-direction: column; gap: 6px; }
 .rffield > span { font-size: var(--fs-2); font-weight: 600; color: var(--ink-2); }
 .rffield input, .rffield textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); font-size: var(--fs-4); line-height: 1.45; resize: vertical; }
-/* Boş alan da yazılacak metne yer açsın: field-sizing içeriğe göre büyütür, yer tutucu sayılmaz. */
+/* Empty space also makes room for the text to be written: field-sizing grows with the content, the placeholder does not count. */
 .rffield textarea { min-height: 140px; max-height: 45vh; }
 .rffield input:focus, .rffield textarea:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
 .rfcolors { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1211,7 +1211,7 @@ button.torb:hover { background: var(--hover); }
   .roubtn .name { display: none; }
   .rouscrim { background: rgb(0 0 0 / 0.22); }
   .rouchat { top: auto; left: 0; right: 0; bottom: 0; width: 100%; height: 86vh; border-radius: 20px 20px 0 0; grid-template-columns: none; grid-template-rows: auto minmax(0, 1fr); }
-  /* Mobilde Rou'lar üstte yatay şerit. */
+  /* On mobile the Rous are a horizontal strip on top. */
   .rlist { flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); }
   .rlhead { display: none; }
   .rlist ul { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 8px; gap: 4px; }
@@ -1222,28 +1222,28 @@ button.torb:hover { background: var(--hover); }
 @media (max-width: 720px) { .worlds { justify-content: safe center; } }
 @media (max-width: 720px) { .railitem, .railitem.ishome { width: 31px; } .addworld { margin: 0 0 0 3px; } .roubtn { margin-left: 2px; } }
 
-/* Yüzen üst barın üstündeki boşluk: kayan içerik orada buzlanır ve aşağı doğru yumuşakça söner; düz şerit yok, akışkan zemin kesilmez. */
+/* The space above the floating top bar: content scrolling there is frosted and fades softly downward; no flat strip, the fluid ground is not cut. */
 @media (min-width: 721px) {
   body::before { content: ""; position: fixed; z-index: 6; top: 0; left: 0; right: 0; height: calc(var(--top) - 6px); pointer-events: none;
     -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
     -webkit-mask: linear-gradient(#000 45%, transparent); mask: linear-gradient(#000 45%, transparent); }
 }
 @media (max-width: 720px) {
-  /* Mobilde düğmeler 2x2, Odak/Mola iki satır: yer baştan ayrılır, kart boşta da aynı boyda. */
+  /* On mobile the buttons are 2x2, Focus/Break take two rows: the space is reserved up front, the card is the same size when idle. */
   .fctl.fslot { display: grid; grid-template-columns: 1fr 1fr; width: 100%; max-width: 360px; }
   .fctl.fslot .btn { padding: 0 10px; justify-content: center; }
   .fslot { min-height: 88px; }
   .plens { min-height: 76px; align-content: center; }
 }
 
-/* Satırdaki kayıt/adım açacağı: belirgin bir hap. */
+/* Record/step opener in a row: a distinct pill. */
 
 .subtoggle b { font-weight: 600; color: var(--ink); }
 .subtoggle:hover, .subtoggle.is-open { border-color: color-mix(in srgb, var(--w, var(--accent)) 40%, var(--line)); background: color-mix(in srgb, var(--w, var(--accent)) 8%, var(--panel)); }
-/* Backlog satırı: tıklayınca açıldığı belli olsun. */
+/* Backlog row: it should be clear that it opens on click. */
 .ropen { flex: none; align-self: center; display: grid; place-items: center; color: var(--ink-3); opacity: 0.5; transition: opacity 0.15s, transform 0.15s, color 0.15s; }
 .row:hover .ropen { opacity: 1; color: var(--ink); transform: translateX(2px); }
-/* Takvim bloğunun menüsü */
+/* Calendar block menu */
 .blkmenu { position: fixed; z-index: 30; width: 248px; padding: 6px; display: flex; flex-direction: column; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px -10px rgb(0 0 0 / 0.25), 0 2px 6px rgb(0 0 0 / 0.06); animation: bmIn 0.14s ease-out; }
 @keyframes bmIn { from { opacity: 0; transform: translateY(-3px) scale(0.98); } }
 .bmhead { display: flex; gap: 9px; align-items: flex-start; padding: 8px 8px 10px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
@@ -1258,7 +1258,7 @@ button.torb:hover { background: var(--hover); }
 .blkmenu > button.is-danger:hover { background: color-mix(in srgb, #d93b3b 9%, transparent); }
 .blkmenu > button em { margin-left: auto; font-style: normal; font-size: var(--fs-2); font-weight: 500; color: var(--ink-3); }
 
-/* Süresi dolan: pomodoro/mola bitti (sayaç +aşım sayar) ve takvimde bugün saati geçmiş, bitmemiş blok. */
+/* Overdue: pomodoro/break finished (the timer counts overtime) and a calendar block today whose time has passed and is not done. */
 
 .bigring.is-over .fill { stroke: var(--over); animation: overPulse 1.6s ease-in-out infinite; }
 .bigring.is-over .bigphase, .bigring.is-over .bigclock { color: var(--over); }
@@ -1272,7 +1272,7 @@ button.torb:hover { background: var(--hover); }
 .blk.is-auto { border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
 .blk .autotag { font-weight: 650; color: var(--accent); font-family: inherit; white-space: nowrap; }
 
-/* Rou'nun önerdiği iş: mesajın altında onay kartı. */
+/* A task Rou proposed: an approval card under the message. */
 .rmwrap { display: flex; flex-direction: column; gap: 6px; }
 .rmwrap.user { align-items: flex-end; }
 .rmwrap.rou { align-items: flex-start; }
@@ -1288,7 +1288,7 @@ button.torb:hover { background: var(--hover); }
 .ract.is-done .rastate { color: #1a9a5c; }
 .ract.is-done, .ract.is-no { background: color-mix(in srgb, var(--hover) 60%, var(--panel)); box-shadow: none; }
 .ract.is-void { font-size: var(--fs-2); color: var(--ink-3); padding: 8px 12px; }
-/* Toplu öneri: adım listesi, her satır kutuyla seçilir. */
+/* Bulk proposal: step list, each row selected with a box. */
 .ract.rplan { width: min(100%, 460px); }
 .rpsteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; }
 .rpsteps button { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 8px; border: 0; border-radius: 10px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -1305,7 +1305,7 @@ button.torb:hover { background: var(--hover); }
 .rpnote { font-size: var(--fs-2); color: var(--ink-3); }
 .rabtns .push { margin-left: 0; margin-right: auto; }
 
-/* Ana sayfa: günün şu anı (Şimdi / Sıradaki / Süre doldu / Bugün teslim). */
+/* Home: the day's current moment (Now / Next / Time's up / Due today). */
 .tnow { display: flex; flex-direction: column; gap: 14px; margin: 4px -8px 16px; }
 .tngroup { display: flex; flex-direction: column; }
 .tngroup + .tngroup { position: relative; padding-top: 14px; }
@@ -1329,7 +1329,7 @@ button.torb:hover { background: var(--hover); }
 .tnempty { margin: 4px 0 16px; font-size: var(--fs-4); color: var(--ink-3); max-width: 34ch; text-align: center; line-height: 1.5; }
 @media (max-width: 520px) { .tnrow { grid-template-columns: 44px minmax(0, 1fr); row-gap: 2px; } .tnrow .tnm { grid-column: 2; } }
 
-/* Otomasyonlar: dünyaya göre gruplu liste, satırda proje; detayda dünya › proje belirgin. */
+/* Automations: list grouped by world, project on the row; in the detail, world › project is prominent. */
 .agroup + .agroup { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .aghead { display: flex; align-items: center; gap: 8px; padding: 4px 10px 6px; }
 .aghead b { font-size: var(--fs-3); font-weight: 650; }
@@ -1347,13 +1347,13 @@ button.torb:hover { background: var(--hover); }
 .acwhere2 .nop { color: var(--ink-3); font-weight: 500; }
 .readyrows .t small { display: block; font-size: var(--fs-2); color: var(--ink-3); margin-top: 1px; }
 
-/* Takvim bloğunda "işi aç": sağ üstte, üzerine gelince ya da seçiliyken görünür. */
+/* "Open task" on a calendar block: top right, visible on hover or when selected. */
 .blk .bopen { position: absolute; top: 3px; right: 3px; z-index: 2; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: var(--panel); color: var(--ink-2); box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 0.08); opacity: 0; transition: opacity 0.15s; cursor: pointer; }
 .blk:hover .bopen, .blk.sel .bopen { opacity: 1; }
 .blk .bopen:hover { color: var(--ink); background: var(--hover); }
 @media (hover: none) { .blk .bopen { opacity: 1; } }
 .blk.short .bopen { top: 50%; transform: translateY(-50%); width: 20px; height: 20px; }
-/* Silme onayı: neyin nereden silineceğini söyler. */
+/* Delete confirmation: says what is deleted from where. */
 .bmconfirm, .delconfirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 7%, var(--panel)); }
 .bmconfirm b, .delconfirm b { font-size: var(--fs-3); font-weight: 650; }
 .bmconfirm p, .delconfirm p { font-size: var(--fs-2); color: var(--ink-2); line-height: 1.45; }
@@ -1367,7 +1367,7 @@ button.torb:hover { background: var(--hover); }
 .slotask { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 7%, var(--panel)); font-size: var(--fs-3); color: var(--ink-2); }
 .slotask span { flex: 1 1 180px; }
 
-/* Otomasyon adımları: ne · araç · nerede/nasıl */
+/* Automation steps: what · tool · where/how */
 .props .steps { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .steprow { display: grid; grid-template-columns: 22px 104px 96px minmax(0, 1fr) 28px; align-items: center; gap: 6px; width: 100%; }
 .steprow .stepn { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-1); font-weight: 650; color: var(--ink-2); background: var(--hover); }
@@ -1380,12 +1380,12 @@ button.torb:hover { background: var(--hover); }
   .steprow input { grid-column: 2 / 4; grid-row: 2; }
 }
 
-/* Onay kuyruğu satırı (listenin başında) */
+/* Approval queue row (at the top of the list) */
 .aqueue { margin-bottom: 8px; color: var(--ink); --w: var(--accent); }
 .aqueue > svg { flex: none; color: var(--accent); }
 .autolist2 .aqueue + .cardhead { border-top: 1px solid var(--line); padding-top: 12px; }
 
-/* Adımlar: numaralı, botun adımları vurgulu */
+/* Steps: numbered, the bot's steps highlighted */
 .adsteps { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; counter-reset: st; }
 .adsteps li { counter-increment: st; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 6px; border-radius: 9px; background: var(--hover); font-size: var(--fs-3); color: var(--ink-2); max-width: 100%; }
 .adsteps li::before { content: counter(st); width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: var(--fs-1); font-weight: 650; background: var(--panel); color: var(--ink-2); flex: none; }
@@ -1393,7 +1393,7 @@ button.torb:hover { background: var(--hover); }
 .adsteps li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .adsteps li.is-bot { background: color-mix(in srgb, var(--w) 10%, var(--panel)); }
 
-/* Geçmiş: güne göre gruplu tek satırlık özetler */
+/* History: one-line summaries grouped by day */
 .tline { display: flex; flex-direction: column; gap: 10px; }
 .tldate { font-size: var(--fs-2); font-weight: 600; color: var(--ink-3); margin: 0 10px 2px; }
 .tlday ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1418,14 +1418,14 @@ button.torb:hover { background: var(--hover); }
   .autoform .props > div:has(.steps) dt { line-height: 1.4; }
 }
 
-/* Dar yerde (telefon, Rou paneli) çıktı kartı: onay tek başına tam satır, diğerleri altında tek sıra. */
+/* In a narrow place (phone, Rou panel) the output card: approve alone on a full row, the others in a single row below. */
 
 @container (max-width: 480px) {
   .runact { gap: 4px; }
   .runact .btn.primary { flex-basis: 100%; height: 38px; }
   .runact .btn.ghost { padding: 0 8px; }
 }
-/* Bugün saat yokken boş alan ölü kalmasın: mesaj ortada durur. */
+/* When Today has no time, the empty space should not feel dead: the message stays in the middle. */
 .tnow:has(.tnempty) { flex: 1; justify-content: center; align-items: center; }
 
 /* ---------- Arama (⌘K) ---------- */
@@ -1463,7 +1463,7 @@ button.torb:hover { background: var(--hover); }
   .pesc { display: none; }
 }
 
-/* Dar ekranda dünyalar yalnız küre: seçili dünyanın adı görünür, hangi dünyada olduğun belli olsun. */
+/* On a narrow screen worlds are only spheres: the selected world's name shows, so it is clear which world you are in. */
 @media (max-width: 1240px) {
   .railitem.on:not(.ishome) { padding: 0 12px 0 7px; }
   .railitem.on:not(.ishome) .name { display: block; }
@@ -1473,7 +1473,7 @@ button.torb:hover { background: var(--hover); }
   .railitem.on:not(.ishome) .name { font-size: var(--fs-3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 }
 
-/* Mobil alt çubuk: solda belirgin ana sayfa, ortada üstteki sekmelerle aynı dilde dünya kanalı, sağda Rou. */
+/* Mobile bottom bar: a distinct home on the left, the worlds channel in the middle in the same language as the tabs above, Rou on the right. */
 @media (max-width: 720px) {
   .topbar { gap: 8px; padding-inline: 10px; }
   .railitem.ishome { --logo: 34px; width: 48px; height: 48px; flex: none; border-radius: 15px; }
@@ -1481,26 +1481,26 @@ button.torb:hover { background: var(--hover); }
   .railitem.ishome .badge { top: 1px; right: 1px; }
   .worlds { flex: 0 1 auto; margin-inline: auto; padding: 3px; gap: 2px; border-radius: 14px; background: var(--hover); }
   .railitem:not(.ishome) { height: 40px; border-radius: 11px; }
-  .railitem:not(.ishome) .ring { border-radius: 11px; background: var(--panel); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }   /* kenar çizgisi yok: yanlarda stroke gibi duruyordu */
+  .railitem:not(.ishome) .ring { border-radius: 11px; background: var(--panel); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }   /* no border line: it looked like a stroke on the sides */
   .railitem:not(.ishome) .orbwrap { opacity: 0.88; }
   .railitem.on:not(.ishome) .orbwrap { opacity: 1; }
   .addworld { width: 34px; height: 34px; margin: 0 2px 0 2px; border: 0; color: var(--ink-3); }
   .roubtn { margin-left: 0; }
 }
 
-/* ---------- Koyu tema: katmanlar ayrışsın ---------- */
+/* ---------- Dark theme: layers should separate ---------- */
 @media (prefers-color-scheme: dark) {
   .scrim, .rouscrim { background: rgb(0 0 0 / 0.55); }
   @media (min-width: 721px) { .rouscrim { background: none; } }
   .modal, .drawer, .palette, .rouchat, .blkmenu, .toast { border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--line)); box-shadow: 0 24px 70px -12px rgb(0 0 0 / 0.7); }
   .card { box-shadow: none; }
-  /* Seçili sekme kanaldan açık dursun (üstteki sayfalar ve alttaki dünyalar). */
+  /* The selected tab should be lighter than the channel (pages on top and worlds below). */
   @media (max-width: 720px) {
     .pageitem .pill-bg, .railitem:not(.ishome) .ring { background: color-mix(in srgb, var(--ink) 13%, var(--panel)); box-shadow: 0 1px 2px rgb(0 0 0 / 0.4); }
   }
 }
 
-/* Dar takvim bloğu: tekrar ikonu yer kaplamasın; tek satırda başlık harf harf kısalsın ("X…" değil "X gönderi…"). */
+/* Narrow calendar block: the repeat icon takes no room; on a single line the title shortens letter by letter ("X…" not "X post…"). */
 .blk:not(.ghost) { container-type: inline-size; }
 @container (max-width: 140px) {
   .blk .bt { gap: 5px; }
@@ -1509,7 +1509,7 @@ button.torb:hover { background: var(--hover); }
 }
 .blk.short .btx { display: block; white-space: nowrap; text-overflow: ellipsis; overflow-wrap: normal; }
 
-/* ---------- Hazırlayanların durum ışıkları ---------- */
+/* ---------- Status lights of the preparers ---------- */
 .agents { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .agents .cardhead { padding: 0 8px 6px; }
 .agents .link:disabled { opacity: 0.5; }
@@ -1558,7 +1558,7 @@ button.torb:hover { background: var(--hover); }
 .bkempty { padding: 12px 0; font-size: var(--fs-4); }
 @media (max-width: 720px) { .railfoot { display: none; } }
 
-/* ---------- Hafta özeti ---------- */
+/* ---------- Week summary ---------- */
 .review { width: min(640px, 100%); max-height: 88vh; overflow-y: auto; gap: 18px; }
 .rvsec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .rvsec h3 { font-size: var(--fs-4); font-weight: 650; display: flex; align-items: baseline; gap: 6px; }
@@ -1594,7 +1594,7 @@ button.torb:hover { background: var(--hover); }
   .rvleft .btn { align-self: stretch; }
 }
 .toast { left: 0; right: 0; margin-inline: auto; width: max-content; max-width: calc(100vw - 24px); }
-/* Sosyal gönderi önizlemesi (src/ui/Preview.tsx): platformdaki yerleşim, uygulamanın renkleriyle. */
+/* Social post preview (src/ui/Preview.tsx): the layout on the platform, in the app's colors. */
 .pvwrap { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .run .pvwrap p { display: block; overflow: visible; -webkit-line-clamp: unset; cursor: auto; margin-top: 0; }
 .pv { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); max-width: 460px; overflow: hidden; }
@@ -1672,7 +1672,7 @@ button.torb:hover { background: var(--hover); }
 .run .pvwrap .pvreview ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .run .pvwrap .pvissues { list-style: none; font-size: var(--fs-2); color: var(--danger); display: flex; flex-direction: column; gap: 2px; }
 
-/* Paylaşım hesapları (src/ui/Social.tsx) ve Kaynaklar (src/ui/Sources.tsx), proje sayfasında */
+/* Posting accounts (src/ui/Social.tsx) and Notes (src/ui/Sources.tsx), on the project page */
 .acct, .srcs { margin-bottom: 14px; }
 .srcs { margin: 14px 0 0; }
 .acct .cardhead .link { display: inline-flex; align-items: center; gap: 3px; }
@@ -1736,7 +1736,7 @@ button.torb:hover { background: var(--hover); }
 .accact .btn { display: inline-flex; align-items: center; gap: 4px; }
 .accact .link { margin-left: 0; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-2); }
 
-/* Hesap penceresi ve proje formu */
+/* Account window and project form */
 .accform { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
 .mtitle { font-size: var(--fs-6); font-weight: 650; letter-spacing: -0.02em; }
 .msub { font-size: var(--fs-2); margin-top: 2px; }
@@ -1750,7 +1750,7 @@ button.torb:hover { background: var(--hover); }
 .fld > span { font-size: var(--fs-2); font-weight: 600; color: var(--ink-2); }
 .fld em { font-style: normal; font-weight: 500; color: var(--ink-3); }
 .fld input, .fld textarea, .fld select, .srcnew input, .srcnew textarea, .srcbody input, .srcbody textarea { width: 100%; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: var(--fs-3); }
-/* Metin kutuları büyütülebilir ama okunamayacak kadar küçülmez, sayfayı da kaplamaz. */
+/* Text boxes can be enlarged but do not shrink to unreadable, and do not cover the page. */
 .fld textarea, .srcnew textarea, .srcbody textarea { height: auto; min-height: 64px; max-height: 50vh; padding: 8px 10px; line-height: 1.5; resize: vertical; }
 .srcbody textarea { min-height: 120px; }
 .pfaccs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -1763,7 +1763,7 @@ button.torb:hover { background: var(--hover); }
 .accadd { display: inline-flex; align-items: center; gap: 5px; }
 .dlpick { height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; font-size: var(--fs-3); }
 
-/* Kaynaklar */
+/* Sources */
 .srclist { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; margin: 6px 4px 0; }
 .srcrow { border-radius: 12px; border: 1px solid var(--line); }
 .srcrow.is-off .srct b, .srcrow.is-off .srcicon { color: var(--ink-3); }
@@ -1782,7 +1782,7 @@ button.torb:hover { background: var(--hover); }
 .srcnew { display: flex; flex-direction: column; gap: 6px; margin: 8px 4px 0; padding: 10px; border-radius: 12px; background: var(--hover); }
 .srcs .empty { margin: 0; }
 
-/* Otomasyon formunda hesap seçimi; yeni proje ve ayrıntılı iş */
+/* Account choice in the automation form; new project and detailed task */
 .accpick { max-width: 100%; }
 .fmtseg { margin-top: 8px; }
 .pcard.new { font-size: var(--fs-4); font-weight: 550; color: var(--ink-2); align-items: center; }
@@ -1797,7 +1797,7 @@ button.torb:hover { background: var(--hover); }
   .srcuse { order: 3; margin-left: 25px; }
 }
 
-/* Gönderiler akışı (Otomasyonlar › Gönderiler) */
+/* Posts feed (Automations › Posts) */
 .adgrid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .feedacc { margin: 0 0 14px; }
 .feedacc button.on { background: var(--ink); color: var(--panel); }
@@ -1808,7 +1808,7 @@ button.torb:hover { background: var(--hover); }
 .rshow { align-self: stretch; }
 .rvideo { display: block; margin-top: 8px; max-width: 240px; max-height: 420px; border-radius: 10px; background: #000; }
 
-/* Hesaplar: dünya kartı, durum, proje seçimi, Chrome bağlama */
+/* Accounts: world card, status, project choice, Chrome linking */
 .accgroup { display: flex; align-items: baseline; gap: 8px; margin: 2px 8px 0; font-size: var(--fs-3); font-weight: 650; color: var(--ink); }
 .accgroup span { font-size: var(--fs-2); font-weight: 500; color: var(--ink-3); }
 .accfields > .accgroup { margin: 0; }
@@ -1847,7 +1847,7 @@ button.torb:hover { background: var(--hover); }
 .brlist b { font-size: var(--fs-3); font-weight: 650; }
 .brlist span { font-size: var(--fs-2); color: var(--ink-3); font-family: var(--mono); }
 
-/* Marka */
+/* Brand */
 .brand { margin: 14px 0; }
 .brandnote { font-size: var(--fs-2); margin: -4px 8px 10px; }
 .brandrows { margin: 0 8px; }
@@ -1876,14 +1876,14 @@ button.torb:hover { background: var(--hover); }
 .pillars .accchip { height: 28px; }
 .pillars input { flex: 1 1 120px; min-width: 0; height: 28px; border: 0; padding: 0 7px; background: none; font-size: var(--fs-3); }
 
-/* Çıktı: paylaşım */
+/* Output: sharing */
 .rstate.posted { color: #12895a; }
 .rposted { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: var(--fs-3); font-weight: 600; color: #12895a; }
 .rperr { margin: 0; }
 .postconfirm { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
 .run.r-posted { border-color: color-mix(in srgb, #1fae68 30%, var(--line)); }
 
-/* Gönderi düzenleyici */
+/* Post editor */
 .peditor { display: flex; flex-direction: column; gap: 12px; }
 .peditor .fld > span { display: flex; align-items: center; gap: 8px; }
 .pecount { margin-left: auto; font-family: var(--mono); font-size: var(--fs-1); font-weight: 500; color: var(--ink-3); }
@@ -1915,7 +1915,7 @@ button.torb:hover { background: var(--hover); }
 .petpl .tp-paper { background: #f2eee6; color: #16140f; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); }
 .petpl .tp-bold { background: var(--c, #3b86e8); color: #fff; }
 
-/* Stüdyo */
+/* Studio */
 .studio { gap: 12px; }
 .sthead { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .sthead .sub { margin-top: 2px; font-size: var(--fs-3); }
@@ -1933,7 +1933,7 @@ button.torb:hover { background: var(--hover); }
 .ststeps b { font-size: var(--fs-3); font-weight: 650; }
 .ststeps b::before { content: counter(st) ". "; color: var(--ink-3); }
 .ststeps span { font-size: var(--fs-2); color: var(--ink-2); line-height: 1.45; }
-/* Aşama özeti: dört kutu, tıklayınca liste süzülür */
+/* Stage summary: four boxes, clicking filters the list */
 .ststages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .ststage { --c: var(--ink); display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--hover); border: 1px solid transparent; text-align: left; }
 .ststage b { font-size: 22px; line-height: 1.1; font-weight: 650; color: var(--c); font-variant-numeric: tabular-nums; }
@@ -1947,12 +1947,12 @@ button.torb:hover { background: var(--hover); }
 .stprep > svg { color: var(--accent); flex: none; }
 .stprep > span { flex: 1; min-width: 0; line-height: 1.4; }
 .stprep b { color: var(--ink); font-weight: 600; }
-/* Hafta: yedi gün sütunu, gönderiler kart */
+/* Week: seven day columns, posts as cards */
 .stweek { display: flex; flex-direction: column; gap: 10px; }
 .stadd { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: -4px 0 -6px -8px; }
 .stadd .addrow { width: auto; }
-/* Gönderiler › otomasyon çipleri: süzgeç ve otomasyonların listesi tek satırda; sığmayan yana kayar. */
-/* Otomasyon çipleri tek satır: taşarsa yatay kayar (kaydırma çubuğu gizli), taşan kenar solar (.is-l / .is-r). */
+/* Posts › automation chips: the filter and the list of automations on one row; what does not fit scrolls sideways. */
+/* Automation chips on one row: if they overflow they scroll horizontally (scrollbar hidden), the overflowing edge fades (.is-l / .is-r). */
 .afilts { --fl: 0px; --fr: 0px; position: relative; display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fl), #000 calc(100% - var(--fr)), transparent); mask-image: linear-gradient(to right, transparent, #000 var(--fl), #000 calc(100% - var(--fr)), transparent); }
 .afilts::-webkit-scrollbar { display: none; }
 .afilts.is-l { --fl: 40px; }
@@ -1982,7 +1982,7 @@ button.torb:hover { background: var(--hover); }
 .sturgent { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .stcard { --c: var(--ink-3); width: 100%; display: flex; flex-direction: column; gap: 5px; padding: 9px 10px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); text-align: left; }
 @media (hover: hover) { .stcard:hover { border-color: color-mix(in srgb, var(--ink) 22%, var(--line)); } }
-/* Süzgeç ya da hafta değişince kartlar sıçramadan belirir. */
+/* When the filter or the week changes, cards appear without jumping. */
 .stcard { animation: stIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
 @keyframes stIn { from { opacity: 0; transform: translateY(4px); } }
 @media (prefers-reduced-motion: reduce) { .stcard { animation: none; } }
@@ -2004,7 +2004,7 @@ button.torb:hover { background: var(--hover); }
 .stcard.st-ready { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .stcard.st-ghost { background: color-mix(in srgb, var(--panel) 70%, transparent); border-style: dashed; }
 .stcard .stlab { --c: inherit; }
-/* Açılan gönderi: haftanın altında tam genişlik */
+/* Opened post: full width under the week */
 .stpicked { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 16px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
 .stphead { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
 .stphead > div { flex: 1; min-width: 0; }
@@ -2044,7 +2044,7 @@ button.torb:hover { background: var(--hover); }
   .stbox { padding: 14px 12px; }
 }
 
-/* Hafta gezgini (Paylaşım planı ve Haftayı planla) */
+/* Week navigator (Sharing plan and Plan the week) */
 .wknav { display: flex; align-items: center; gap: 4px; margin-left: -6px; }
 .wknav p { display: flex; align-items: baseline; gap: 8px; min-width: 196px; justify-content: center; margin: 0; padding: 0 8px; font-size: var(--fs-4); }
 .wknav p b { font-weight: 650; }
@@ -2052,14 +2052,14 @@ button.torb:hover { background: var(--hover); }
 .wknav .iconbtn { border: 1px solid var(--line); color: var(--ink-2); }
 .wknav .link { margin-left: 8px; font-size: var(--fs-3); }
 
-/* Haftayı planla */
+/* Plan the week */
 .scrim.center:has(.planweek) { padding-top: var(--top); }
 .planweek { width: min(860px, calc(100vw - 32px)); max-height: calc(100dvh - var(--top) - 16px); }
 .pwsum { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 8px 8px 14px; border-radius: 12px; background: var(--hover); }
 .pwsum p { margin: 0 auto 0 0; display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-4); }
 .pwsum p b { font-weight: 650; }
 .pwsum p span { font-size: var(--fs-3); color: var(--ink-3); }
-/* Plan özeti: gönderiler metin olarak gün gün (Gönderiler'de açılır kutu, proje sayfasında kart). */
+/* Plan summary: posts as text, day by day (a popover in Posts, a card on the project page). */
 .pspop { position: fixed; z-index: 120; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 60px -16px rgb(0 0 0 / 0.3), 0 2px 6px rgb(0 0 0 / 0.06); overflow: hidden; }
 .pspop .pslist { overflow-y: auto; overscroll-behavior: contain; min-height: 0; margin: 0 -6px; padding: 0 6px; }
 .psphead { display: flex; align-items: flex-start; gap: 8px; padding-left: 4px; }
@@ -2122,7 +2122,7 @@ button.torb:hover { background: var(--hover); }
 .pwst.st-posted, .pwst.st-approved { color: #15803d; background: color-mix(in srgb, #16a34a 12%, transparent); }
 .pwrow.is-locked .pwst { background: var(--panel); }
 .pwadd { display: flex; flex-direction: column; gap: 10px; flex: none; padding: 12px; border-radius: 12px; border: 1px dashed var(--line); }
-/* Form açıkken pencere bütün olarak kayar: liste ve form birbirini sıkıştırmaz. */
+/* When the form is open the window scrolls as a whole: the list and the form do not squeeze each other. */
 .planweek:has(.pwadd) { overflow-y: auto; }
 .planweek:has(.pwadd) .pwlist { flex: none; overflow: visible; }
 .pwaddgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
@@ -2156,7 +2156,7 @@ button.torb:hover { background: var(--hover); }
 .sthead .adtext { flex: 1 1 240px; }
 .sthead .adtext h2 { white-space: nowrap; }
 
-/* Chrome otomasyonu: formdaki seçim ve çıktıdaki öneriler (src/ui/RunItems.tsx) */
+/* Chrome automation: the choice in the form and the suggestions in the output (src/ui/RunItems.tsx) */
 .chpick { display: flex; flex-direction: column; gap: 8px; }
 .chpick .whohint { margin-top: 0; }
 .chfolder { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-3); }
@@ -2196,11 +2196,11 @@ button.torb:hover { background: var(--hover); }
 .chpick > .seg { align-self: flex-start; }
 .ritems .delconfirm p { display: block; -webkit-line-clamp: unset; overflow: visible; cursor: default; }
 
-/* Kanaldaki mesajın konuşanı. */
+/* The speaker of a message in the channel. */
 .rmwho { font-size: var(--fs-2); font-weight: 600; color: var(--ink-3); padding: 0 4px; margin-bottom: -2px; }
 .roudot { position: absolute; top: 8px; left: 29px; width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--panel); }
 
-/* Rou'nun hafızası: sohbet penceresinde ayrı görünüm. */
+/* Rou's memory: a separate view in the chat window. */
 .rchead .iconbtn.is-on { background: var(--hover); color: var(--ink); }
 .rmem { gap: 12px; }
 .rmemhint { font-size: var(--fs-3); line-height: 1.5; color: var(--ink-3); }
@@ -2221,7 +2221,7 @@ button.torb:hover { background: var(--hover); }
 .rchange-more:hover { color: var(--ink); background: var(--hover); }
 .rundo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 8px 12px; border-radius: 12px; background: var(--hover); font-size: var(--fs-3); }
 .rundo > span { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; }
-/* Rou ekleri ve sesli komut */
+/* Rou attachments and voice commands */
 .rcinput .rcattach { flex: none; width: 36px; height: 36px; margin-left: -8px; color: var(--ink-3); }
 .rcinput .rcattach:hover { color: var(--ink); }
 .rcmic.is-rec { background: var(--danger, #e5484d); color: #fff; animation: rcpulse 1.4s ease-in-out infinite; }
@@ -2242,7 +2242,7 @@ button.torb:hover { background: var(--hover); }
 .rmfiles audio { width: 240px; max-width: 100%; }
 .rmdoc { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; font-size: var(--fs-3); color: var(--ink-2); }
 .rpane.is-drop { outline: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: -8px; }
-/* Rou listesi daraltılmış: yalnız maskotlar (masaüstü). Sohbet alanı aynı genişlikte kalır. */
+/* Rou list collapsed: only the mascots (desktop). The chat area keeps the same width. */
 @media (min-width: 721px) {
   .rouchat { transition: width 0.2s ease, grid-template-columns 0.2s ease; }
   .rouchat.is-narrow { width: min(616px, calc(100vw - 24px)); grid-template-columns: 68px minmax(0, 1fr); }
@@ -2261,7 +2261,7 @@ button.torb:hover { background: var(--hover); }
 .rcrec i { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: rcblink 1s ease-in-out infinite; }
 @keyframes rcblink { 50% { opacity: 0.3; } }
 
-/* Dünya listesi: çok dünya olunca yatay kayar, + ve Rou hep yerinde kalır. Gizli dünya olan kenar solar. */
+/* World list: scrolls horizontally with many worlds, + and Rou always stay in place. The edge with hidden worlds fades. */
 .worlds { flex: 0 1 auto; min-width: 0; }
 .wlist { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; scroll-padding-inline: 24px; padding: 3px; margin: -3px; }
 .wlist::-webkit-scrollbar { display: none; }
@@ -2274,7 +2274,7 @@ button.torb:hover { background: var(--hover); }
   .addworld { flex: none; }
 }
 
-/* Projeler: dünya başlığı içeriği yönetmesin. Küçük küre + ad + sayı, açıklama adın hizasında; boş dünyada ince ekleme satırı. */
+/* Projects: the world header should not drive the content. Small sphere + name + count, description aligned with the name; a thin add row in an empty world. */
 .wsec:not(.solo) { margin-bottom: 28px; }
 .wsec:not(.solo) .whead { align-items: flex-start; gap: 10px; margin-bottom: 10px; }
 .wsec:not(.solo) .worb { margin-top: 1px; }
@@ -2287,8 +2287,8 @@ button.torb:hover { background: var(--hover); }
 @media (max-width: 720px) { .pcard.new { align-items: flex-start; padding-inline: 16px; } }
 @media (min-width: 721px) { .worlds { margin-right: 8px; } }
 
-/* Projeler › Hepsi: dünya başına bir kart; başlık satırı + aynı sütunlara oturan proje satırları. */
-/* Dünyalar ızgarada: aynı sıradaki kartların üstü ve altı hizalı, geniş ekranda tek uzun satır olmaz */
+/* Projects › All: one card per world; a title row + project rows that sit in the same columns. */
+/* Worlds in a grid: the tops and bottoms of cards in the same row line up, on a wide screen it is not one long row */
 .wgroups { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; align-items: stretch; }
 .wgroups > * { margin: 0; min-width: 0; }
 .wgroups > .wempty { grid-column: 1 / -1; }
@@ -2330,7 +2330,7 @@ button.torb:hover { background: var(--hover); }
 .wechip:hover { color: var(--ink); border-color: color-mix(in srgb, var(--w) 45%, var(--line)); }
 .wechip:hover b { color: var(--w); }
 
-/* Marka işaretleri: hesap kartında, seçim kutularında ve düzenleme penceresinde. */
+/* Brand marks: in the account card, the choice boxes and the edit window. */
 .brandic { flex: none; display: block; }
 .plattiles button .brandic { margin-bottom: 6px; }
 .platag { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--hover); font-size: var(--fs-3); }
@@ -2339,12 +2339,12 @@ button.torb:hover { background: var(--hover); }
 .withbrand { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
 .chips button .brandic { margin-right: 5px; display: inline-block; vertical-align: -2px; }
 
-/* Koyu zeminde koyu marka renkleri (Slack moru gibi) kaybolmasın. */
+/* Dark brand colors (like Slack purple) must not disappear on a dark ground. */
 @media (prefers-color-scheme: dark) { .brandic { color: color-mix(in oklab, var(--bc, currentColor) 72%, #fff) !important; } }
 
-/* ---------- Karşılama (src/ui/Gate.tsx) ----------
-   Hafif renkli, yavaş akan zemin; ortada Playgrounds yazısı, etrafında Rou (GateRou) yaşar; altında tek kapsül giriş (alanlar + düğme).
-   Derinlik: Rou ve izi yazının arkasındayken z 1 (yazı z 2), önündeyken z 3; form en üstte (z 4). Mobilde yazı kalan alanda ortalanır, form alt bantta. */
+/* ---------- Welcome (src/ui/Gate.tsx) ----------
+      Lightly colored, slowly flowing ground; the Playgrounds wordmark in the middle, Rou (GateRou) lives around it; a single capsule sign-in below (fields + button).
+      Depth: z 1 while Rou and its trail are behind the text (text z 2), z 3 in front; the form on top (z 4). On mobile the text is centered in the remaining space, the form in the bottom band. */
 .gate { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; background: #fbfaff; color: #0d1117;
   padding: 24px 24px max(24px, env(safe-area-inset-bottom)); }
 .gate-bg { position: absolute; inset: -12%; z-index: 0; pointer-events: none; opacity: 0.55; }
@@ -2353,7 +2353,7 @@ button.torb:hover { background: var(--hover); }
 .gate-bg i:nth-child(2) { right: -12%; top: -6%; background: radial-gradient(closest-side, #a7b4ff, transparent); animation-duration: 2s, 31s; animation-delay: .15s, -9s; }
 .gate-bg i:nth-child(3) { left: 18%; bottom: -24%; background: radial-gradient(closest-side, #8fe8f7, transparent); animation-duration: 2s, 29s; animation-delay: .3s, -15s; }
 .gate-bg i:nth-child(4) { right: 6%; bottom: -18%; background: radial-gradient(closest-side, #ffd98a, transparent); opacity: 0.8; animation-duration: 2s, 34s; animation-delay: .45s, -4s; }
-/* Açılış: renkler sırayla açılır (0-2.5 sn), harfler 0.35 sn'den itibaren 50 ms arayla yükselir, Rou ~1.3 sn'de çıkar, alt yazı ve form en son */
+/* Opening: colors open in turn (0-2.5 s), letters rise from 0.35 s at 50 ms intervals, Rou comes out at ~1.3 s, the subtitle and form last */
 @keyframes gateBloom { from { opacity: 0; scale: 0.55; } }
 .gate-mark .gch { display: inline-block; letter-spacing: 0; margin-right: -0.065em; animation: gateCh 1s cubic-bezier(.23, 1, .32, 1) calc(0.35s + var(--i) * 0.05s) both; }
 @keyframes gateCh { from { opacity: 0; transform: translateY(0.34em) scale(0.96); filter: blur(12px); } to { opacity: 1; transform: none; filter: blur(0); } }
@@ -2366,7 +2366,7 @@ button.torb:hover { background: var(--hover); }
 .gate-trail.is-front { z-index: 3; }
 .gate-rou-fig { position: absolute; left: 0; top: 0; cursor: pointer; pointer-events: auto; will-change: transform, filter; transform-origin: 50% 50%; }
 .gate-rou-fig .rou { display: block; filter: drop-shadow(0 12px 18px rgb(40 20 90 / 0.2)); }
-/* Bakışı sahne yönetir (imleç, etrafa bakma, düşünme) */
+/* The scene directs the gaze (cursor, looking around, thinking) */
 .gate-rou-fig .rou .rou-face, .gate-rou-fig .rou.is-think .rou-face { animation: none; transform: translate(calc(-50% + var(--gx, 0) * var(--s) * 0.09), calc(-50% + var(--gy, 0) * var(--s) * 0.07)); transition: transform 0.3s cubic-bezier(.3, .7, .4, 1); }
 .gate-rou-fig.is-sleep .rou .eye { height: max(1.5px, calc(var(--s) * 0.014)); border-radius: 2px; animation: none; transform: translateY(calc(var(--s) * 0.02)); }
 .gate-bubble-at { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 5; pointer-events: none; }
@@ -2374,7 +2374,7 @@ button.torb:hover { background: var(--hover); }
   font-size: 15px; font-weight: 620; white-space: nowrap; box-shadow: 0 6px 22px -8px rgb(20 24 40 / 0.28), 0 0 0 1px rgb(13 17 23 / 0.06);
   opacity: 0; scale: 0.6; transform-origin: 20% 100%; transition: opacity .2s ease, scale .35s cubic-bezier(.3,1.6,.5,1); }
 .gate-bubble.on { opacity: 1; scale: 1; }
-/* Düşünce balonu: yuvarlak, altında iki küçük kabarcık */
+/* Thought bubble: round, with two small bubbles below */
 .gate-bubble.is-think { border-radius: 999px; font-weight: 560; color: rgb(13 17 23 / 0.75); transform-origin: 50% 100%; translate: -50% -14px; }
 .gate-bubble.is-think::before, .gate-bubble.is-think::after { content: ""; position: absolute; border-radius: 50%; background: inherit; box-shadow: 0 0 0 1px rgb(13 17 23 / 0.06); }
 .gate-bubble.is-think::before { width: 9px; height: 9px; left: 50%; bottom: -9px; }
@@ -2492,7 +2492,7 @@ button.torb:hover { background: var(--hover); }
   .owngrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Mobil Profil girişi (alt çubukta Rou'nun solunda) ve Profil sayfasındaki Çöp Kutusu / Yedekler satırları; masaüstünde bunlar sol panelin altında. */
+/* Mobile Profile entry (in the bottom bar, left of Rou) and the Trash / Backups rows on the Profile page; on desktop these are under the left panel. */
 .mprofile { display: none; }
 @media (max-width: 720px) {
   .mprofile { flex: none; display: grid; place-items: center; width: 38px; height: 38px; margin-left: 4px; border-radius: 12px; }
@@ -2506,16 +2506,16 @@ button.torb:hover { background: var(--hover); }
   .morerow + .morerow { border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; }
 }
 
-/* Paneller akışkan zeminin üstünde: neredeyse dolu yüzey; kenar ve gölge eskisi gibi. */
-/* Buzlanma yalnız sabit çubuklarda: her kartta backdrop-filter, hareket eden zemin yüzünden her karede yeniden bulanıklaşıp kasıyordu. */
+/* Panels sit on the fluid ground: a nearly solid surface; edge and shadow as before. */
+/* Frosting only on fixed bars: backdrop-filter on every card re-blurred each frame because of the moving ground and made it stutter. */
 .card, .cal, .pcard, .ncard, .composer, .now, .nudge, .nbempty { background: var(--surface); }
 .topbar, .rail { background: var(--surface); -webkit-backdrop-filter: var(--surface-fx); backdrop-filter: var(--surface-fx); }
-/* Okunurluk (akışkan zemin üstünde): seçiciler ve ikincil düğmeler gri leke gibi değil, net metinle. */
+/* Legibility (on the fluid ground): selectors and secondary buttons with clear text, not like gray blotches. */
 .ppick { background: var(--panel); color: var(--ink); border-color: color-mix(in srgb, var(--ink) 14%, var(--line)); }
 .ppick:not(:has(b)) { color: var(--ink); }
 .wpick { background: color-mix(in srgb, var(--w) 9%, var(--panel)); border-color: color-mix(in srgb, var(--w) 32%, var(--line)); }
 .ppick svg { color: var(--ink-2); }
-/* Güncelleme uyarısı (src/ui/Update.tsx): sağ altta, Rou ve bildirimlerin üstünde kalmaz; mobilde alt çubuğun üstünde. */
+/* Update notice (src/ui/Update.tsx): bottom right, does not stay above Rou and notifications; on mobile above the bottom bar. */
 .updbar { position: fixed; right: 16px; bottom: 16px; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 14px;
   background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 40px -12px rgb(16 24 40 / 0.28); font-size: var(--fs-3); font-weight: 550; color: var(--ink); }
 .updbar svg { color: var(--accent); flex: none; }
@@ -2523,7 +2523,7 @@ button.torb:hover { background: var(--hover); }
 @keyframes updspin { to { transform: rotate(360deg); } }
 @media (max-width: 720px) { .updbar { left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); } .updbar span { flex: 1; } }
 
-/* Profil > Hesap ve ayarlar: üç eşit kart. Etiket denetimin üstünde ya da hemen yanında; satırlar ikonlu liste. */
+/* Profile > Account and settings: three equal cards. The label above the control or right beside it; rows are an icon list. */
 .prosettings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .setcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .setcard { display: flex; flex-direction: column; padding: 6px 20px; min-width: 0; }
@@ -2541,7 +2541,7 @@ button.setrow:hover > span { color: var(--accent); }
 .setin { flex: 0 1 60%; min-width: 0; border: 0; background: none; padding: 6px 8px; margin-right: -8px; border-radius: 8px; color: var(--ink-2); font: inherit; font-size: var(--fs-4); text-align: right; }
 .setin::placeholder { color: var(--ink-3); }
 .setin:hover, .setin:focus { outline: none; background: var(--hover); color: var(--ink); }
-/* Çok satırlı ayar: etiket üstte, alan altta tam genişlik. */
+/* Multi-line setting: label on top, field below at full width. */
 .setrow.settext { flex-wrap: wrap; padding: 12px 0; cursor: default; }
 .setrow.settext textarea.setin { flex: 1 0 100%; margin: 0; text-align: left; resize: vertical; line-height: 1.45; white-space: pre-wrap; background: var(--hover); }
 .setout-card { padding: 0 16px; }
@@ -2557,7 +2557,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 @media (max-width: 1100px) { .prosettings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .prosettings { grid-template-columns: minmax(0, 1fr); gap: 20px; } }
 
-/* Medya kütüphanesi (src/ui/Media.tsx), proje sayfasında Bilgi'nin üstünde */
+/* Media library (src/ui/Media.tsx), above Notes on the project page */
 .media { margin: 14px 0 0; }
 .media .mfilter { margin-left: auto; }
 .media .mfilter .mc { font-size: var(--fs-1); font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -2606,7 +2606,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
   .mvstage video, .mvstage img { max-height: calc(100dvh - 32px - 120px); }
 }
 
-/* Bugün panosu (src/ui/Board.tsx): otomasyon işleri adım adım */
+/* Today board (src/ui/Board.tsx): automation tasks step by step */
 .bwhen { flex: none; min-width: 44px; font-size: var(--fs-3); font-weight: 600; color: var(--ink-2); }
 .bkind { flex: none; height: 22px; padding: 0 8px; border-radius: 6px; font-size: var(--fs-1); font-weight: 600; line-height: 22px; color: var(--ink-2); background: var(--hover); }
 .stx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -2635,7 +2635,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .arow2 .atext b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .arow2 .ameta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Otomasyon detayı (src/views/Automations.tsx Detail): akış, talimat, bugün, geçmiş */
+/* Automation detail (src/views/Automations.tsx Detail): flow, instruction, today, history */
 .adctl { flex: none; display: flex; align-items: center; gap: 8px; }
 .adctl .btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; }
 .adsec0 { border-top: 0; padding-top: 0; }
@@ -2665,7 +2665,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .bdone .tlrows { margin-top: 4px; }
 @media (max-width: 640px) { .adctl { order: -1; width: 100%; justify-content: flex-end; } .adflow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* Hesapsız gönderi taslağı (Preview.tsx DraftPost) ve iş hikâyesi (Auto.tsx Lifecycle) */
+/* Accountless post draft (Preview.tsx DraftPost) and task story (Auto.tsx Lifecycle) */
 .run .pv-draft { margin-top: 10px; max-width: 520px; }
 .pvdtext { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 8px; }
 .pvdtext p { font-size: var(--fs-4); line-height: 1.5; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; display: block; cursor: auto; }
@@ -2690,7 +2690,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .lbody .bnote, .lbody .bvoice { margin: 0; }
 .dsecbtn { align-self: flex-start; margin-top: 12px; }
 
-/* Odak › Bugün: otomasyon işleri ayrı grup; satırdaki adım çipi basınca çıktıyı satırın altında açar */
+/* Focus › Today: automation tasks are a separate group; the step chip on a row opens the output under the row when pressed */
 .tgrouphead { display: flex; align-items: baseline; gap: 7px; margin: 2px 8px 8px; font-size: var(--fs-3); font-weight: 650; color: var(--ink); }
 .tgrouphead svg { align-self: center; color: var(--ink-3); }
 .tgrouphead span { font-weight: 500; color: var(--ink-3); }
@@ -2702,8 +2702,8 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .autochip.is-you { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .autochip.is-busy { color: var(--ai); background: color-mix(in srgb, var(--ai) 12%, transparent); }
 .autochip.is-done { color: #16a34a; background: color-mix(in srgb, #16a34a 12%, transparent); }
-.autoinline { overflow: clip; overflow-clip-margin: 24px; margin-right: -42px; } /* açma okunun sütununu da kaplar: panelin sağ kenarı okun kenarıyla bir */
-/* Satırın parçası: ayrı kart değil, başlık sütununda ince bir çizgiyle devam eder. */
+.autoinline { overflow: clip; overflow-clip-margin: 24px; margin-right: -42px; } /* it also covers the opener arrow's column: the panel's right edge lines up with the arrow's edge */
+/* Part of the row: not a separate card, it continues in the title column with a thin line. */
 .row .rdisc { flex: none; align-self: flex-start; width: 30px; height: 30px; margin: -4px -2px 0 0; color: var(--ink-3); }
 .rdisc svg { transition: transform 0.2s; }
 .rdisc.is-open { color: var(--ink); background: var(--hover); }
@@ -2715,8 +2715,8 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .pvplat { margin-left: auto; display: inline-flex; gap: 10px; font-size: var(--fs-2); color: var(--ink-3); }
 .pvplat > span { display: inline-flex; align-items: center; gap: 5px; }
 
-/* Otomasyonlar sayfası (src/views/Automations.tsx): sekmeler + dünya › proje gruplu kartlar */
-/* Tüm otomasyonlar: tek kart, dünya başlıkları ızgarayı böler */
+/* Automations page (src/views/Automations.tsx): tabs + cards grouped by world › project */
+/* All automations: a single card, world headings split the grid */
 .agcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-items: stretch; }
 .acard2 { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); text-align: left; transition: border-color 0.15s, box-shadow 0.15s; }
 .acard2:hover { border-color: color-mix(in srgb, var(--w) 40%, var(--line)); box-shadow: 0 6px 20px -12px rgb(0 0 0 / 0.25); }
@@ -2732,7 +2732,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .acwho { margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); font-size: var(--fs-2); color: var(--ink-3); }
 .acnext { margin-left: auto; color: var(--ink-2); font-weight: 550; white-space: nowrap; }
 .achip.is-voice { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-/* Bugün: bitti satırı ve Yaklaşan */
+/* Today: done row and Upcoming */
 .uplist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 8px; }
 .uplist li { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 10px 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
 .upwhen { flex: none; width: 82px; display: flex; flex-direction: column; gap: 1px; }
@@ -2746,13 +2746,13 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .donelist li.is-open { grid-column: 1 / -1; }
 .donelist li.is-open .run { margin: 0; }
 @media (max-width: 640px) { .agcards, .uplist, .donelist { grid-template-columns: minmax(0, 1fr); } .upwhen { width: 72px; } .uplab { display: none; } .uplist .btn { width: 36px; padding: 0; justify-content: center; } }
-/* İş kartı: durum dört seçenek yan yana, seçili olan kendi renginde; Başla en sağda */
+/* Task card: four status options side by side, the selected one in its own color; Start on the far right */
 .stchips button.on.st-doing { background: var(--w, var(--accent)); border-color: var(--w, var(--accent)); color: #fff; }
 .stchips button.on.st-waiting { background: #b7791f; border-color: #b7791f; color: #fff; }
 .stchips button.on.st-done { background: #16a34a; border-color: #16a34a; color: #fff; }
 .stchips .play { margin-left: auto; height: auto; align-self: stretch; background: var(--ink) !important; border-color: var(--ink) !important; color: var(--panel) !important; }
 .stchips .play svg { color: var(--panel); fill: currentColor; }
-/* Medya: birden çok klasör, tür filtresi */
+/* Media: multiple folders, type filter */
 .mdirs { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px; }
 .mdirs li { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 30px; padding: 0 4px 0 10px; border-radius: 999px; background: var(--hover); }
 .mdirs li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-2); color: var(--ink-2); }
@@ -2764,20 +2764,20 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .media .cardhead .mkind { margin-left: auto; }
 .media .cardhead .mkind + .mfilter { margin-left: 8px; }
 
-/* Odak › Bugün: her iş kendi kartında; dünya › proje tek etiket, durum rozeti */
+/* Focus › Today: each task in its own card; world › project as a single label, status badge */
 .tlist .list { display: flex; flex-direction: column; gap: 8px; }
 .tlist .row { padding: 14px 16px; gap: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); align-items: flex-start; }
 .tlist .row:hover { background: var(--panel); border-color: color-mix(in srgb, var(--ink) 18%, var(--line)); box-shadow: 0 6px 18px -12px rgb(0 0 0 / 0.25); }
 .tlist .row .rtitle { font-weight: 550; }
 .tlist .row .meta { margin-top: 5px; row-gap: 6px; }
-/* Sol ikon başlığın ilk satırına ortalı (20px satır): uzun başlıkta kartın ortasında yüzmez. Yan düğme kartın ortasında. */
+/* The left icon is centered on the title's first line (20px line): in a long title it does not float in the middle of the card. The side button is in the middle of the card. */
 .tlist .row > .autotile, .tlist .row > .tsok { margin-top: -2px; }
 .tlist .row > .btn { align-self: center; }
-/* Durum hep aynı çip: Yapılacak, Yapılıyor, Beklemede, Gecikti aynı ölçüde, rengi durumdan. */
+/* The status is always the same chip: To do, In progress, Waiting, Late at the same size, color from the status. */
 .tlist .meta .st { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-weight: 600; }
 .tlist .meta .st.doing { background: color-mix(in srgb, var(--w) 12%, transparent); }
 .tlist .meta .st.waiting { background: color-mix(in srgb, #b7791f 12%, transparent); }
-/* Sol sütun hep 24px: tik (19px) otomasyon karosuyla aynı yerden başlar, başlıklar tek çizgide. */
+/* The left column is always 24px: the tick (19px) starts at the same place as the automation tile, titles on a single line. */
 .tlist .row > .check { margin-inline: 2.5px; }
 .wdp { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px 0 6px; border-radius: 6px; background: var(--hover); font-size: var(--fs-2); color: var(--ink-2); }
 .wdp > i { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--w) 80%, var(--ink) 20%); }
@@ -2787,7 +2787,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .tautos .list { gap: 8px; }
 .droplist.is-empty { min-height: 4px; }
 
-/* Görev kartı: kim yapacak */
+/* Task card: who does it */
 .whochips .whohint { flex-basis: 100%; font-size: var(--fs-2); color: var(--ink-3); line-height: 1.4; }
 .whosteps { display: flex; flex-wrap: wrap; gap: 6px; }
 .whostep { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); font-size: var(--fs-2); color: var(--ink-3); }
@@ -2796,18 +2796,18 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .whostep.is-now { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
 .st.who { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
 
-/* Takvim: henüz açılmamış otomasyon saati. Gerçek blok gibi, düz kenar, soluk. */
+/* Calendar: an automation time not yet opened. Like a real block, flat edge, faded. */
 .blk.ghost { text-align: left; align-items: stretch; cursor: pointer; box-shadow: none; border-color: color-mix(in srgb, var(--accent) 18%, var(--line)); background: color-mix(in srgb, var(--accent) 3%, var(--panel)); color: var(--ink-2); }
 .blk.ghost:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .blk.ghost .bt { font-weight: 600; align-items: flex-start; }
 .blk.ghost .rep { color: var(--accent); }
-/* Blok durumu: kendi satırında, sarar; kesilmez. */
+/* Block status: on its own row, wraps; not cut. */
 .blk .btag { flex: none; font-size: var(--fs-1); font-weight: 650; line-height: 1.3; }
 .blk .btag.is-late { color: var(--danger); }
 .blk .btag.is-ended { color: var(--ink-2); }
 .blk .btag.is-auto { color: var(--accent); }
 
-/* Odak: kim yapıyor filtresi */
+/* Focus: who-is-doing filter */
 .whofilter { display: flex; gap: 4px; margin: 0 8px 14px; padding: 3px; width: max-content; max-width: 100%; border-radius: 11px; background: var(--hover); }
 .whofilter button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 8px; font-size: var(--fs-2); font-weight: 600; color: var(--ink-2); }
 .whofilter button span { font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -2818,7 +2818,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .whostep.is-pick button:hover { color: var(--ink); background: var(--hover); }
 .whostep.is-pick button.on { color: var(--ink); background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); }
 
-/* Tarih seçici (ui/DatePick.tsx): tetikleyici + ay görünümü. */
+/* Date picker (ui/DatePick.tsx): trigger + month view. */
 .dpick { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--ink) 14%, var(--line)); background: var(--panel); font-size: var(--fs-3); color: var(--ink-3); white-space: nowrap; }
 .dpick svg { flex: none; color: var(--ink-3); }
 .dpick:hover, .dpick.on { border-color: color-mix(in srgb, var(--ink) 28%, var(--line)); }
@@ -2850,14 +2850,14 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .dpfoot .dpclear { margin-left: auto; color: var(--ink-3); }
 .dpfoot .dpongo.on { background: var(--ink); color: var(--panel); }
 
-/* Yeni proje: zaman ve ritim. */
+/* New project: time and rhythm. */
 .pftime { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .pftime .seg button { height: 28px; }
 .pfrhythm .chips { align-items: center; }
 .pfrhythm .pftimein { height: 32px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); font-size: var(--fs-3); font-family: var(--mono); }
 .pdl svg, .prdl svg { vertical-align: -2px; margin-right: 4px; }
 
-/* Otomasyon: "Nasıl çalışır" açılır penceresi (? düğmesi). */
+/* Automation: "How it works" popover (? button). */
 .howpop { position: relative; }
 .howpop .iconbtn.on { background: var(--hover); color: var(--ink); }
 .howbox { position: fixed; z-index: 30; width: min(340px, calc(100vw - 32px)); padding: 14px 16px 16px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 24px 60px -16px rgb(0 0 0 / 0.3), 0 2px 6px rgb(0 0 0 / 0.06); }
@@ -2870,7 +2870,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .howbox li b { font-size: var(--fs-3); font-weight: 650; }
 .howbox li span { font-size: var(--fs-2); line-height: 1.45; color: var(--ink-3); }
 
-/* Rou Chrome'da çalışırken canlı kutu (src/ui/Live.tsx) */
+/* Live box while Rou works in Chrome (src/ui/Live.tsx) */
 .livebox { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent); font-size: var(--fs-2); min-width: 0; }
 .livehead { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .livewhere { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -2892,13 +2892,13 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .dolink:hover { color: var(--ink); }
 .dolast summary { cursor: pointer; font-size: var(--fs-2); color: var(--ink-3); margin-bottom: 6px; }
 
-/* Gönderiler: otomasyondan gelen gönderinin otomasyonuna bağlantı */
+/* Posts: link from a post that came from an automation to its automation */
 .stauto { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; height: 30px; padding: 0 10px; border-radius: 9px; font-size: var(--fs-2); color: var(--ink-2); background: color-mix(in srgb, var(--ink) 5%, transparent); max-width: 100%; }
 .stauto b { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .stauto svg { flex: none; }
 @media (hover: hover) { .stauto:hover { background: color-mix(in srgb, var(--ink) 9%, transparent); } }
 
-/* İş kartı (2026-10-29): başlığın altında "ne yapılacak" alanı, ikonlu satırlar, tek parça Kim seçici. */
+/* Task card (2026-10-29): a "what to do" field under the title, rows with icons, a single-piece Who picker. */
 .brief { display: grid; gap: 6px; margin-top: -4px; padding-left: 36px; }
 .brief textarea { width: 100%; min-height: 72px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: var(--fs-4); line-height: 1.5; resize: vertical; background: color-mix(in srgb, var(--ink) 2%, var(--panel)); }
 .brief textarea:focus { outline: none; border-color: color-mix(in srgb, var(--w) 55%, var(--line)); background: var(--panel); }
@@ -2906,20 +2906,20 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .topicbox { gap: 0; }
 .topicbox .tlabel { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 2px; font-size: var(--fs-2); font-weight: 600; color: var(--ink-3); }
 .topicbox .tlabel em { font-style: normal; font-weight: 400; }
-/* Konu metin gibi okunur; üstüne gelince hafif zemin, tıklayınca düzenlenir. */
+/* The topic reads like text; a light background on hover, editable on click. */
 .brief.topicbox textarea { width: calc(100% + 16px); min-height: 0; margin: 0 -8px; padding: 4px 8px; border: 0; border-radius: 8px; background: none; field-sizing: content; resize: none; color: var(--ink-2); font-size: var(--fs-4); line-height: 1.5; }
 .brief.topicbox textarea.ttl { font-size: var(--fs-5); font-weight: 600; line-height: 1.35; color: var(--ink); }
 .brief.topicbox textarea:hover { background: var(--hover); }
 .brief.topicbox textarea:focus { background: color-mix(in srgb, var(--ink) 4%, var(--panel)); }
 .brief.topicbox textarea::placeholder { color: var(--ink-3); font-weight: 400; }
-/* Çekmecede çıktı tek kart: dış çerçeve yok, gönderi önizlemesi tam genişlik. */
+/* In the drawer the output is a single card: no outer frame, the post preview at full width. */
 .drawer .run { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .drawer .run .runmeta { margin-bottom: 10px; }
 .drawer .run .pv { max-width: none; }
 .drawer .dprops { display: block; padding-top: 0; }
 .drawer .props > .dgroup { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 8px; padding: 16px 0; }
 .drawer .dgroup:empty { display: none; }
-/* Özellikler tek yumuşak panel: gruplar çizgiyle değil boşlukla ayrılır, çipler çerçevesiz dolgu. */
+/* Properties are a single soft panel: groups are separated by space, not lines; chips are frameless fills. */
 .drawer .dprops { padding: 4px 14px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); border: 0; }
 .drawer .props > .dgroup { padding: 10px 0; }
 .drawer .dgroup + .dgroup { padding-top: 4px; }
@@ -2941,7 +2941,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
   .drawer .dgroup > div { grid-template-columns: 1fr; gap: 6px; }
 }
 
-/* İnce kaydırma çubuğu (2026-10-29): kenardan içeride, yuvarlak köşelerin (iş kartı, paneller) dışına taşmaz. */
+/* Thin scrollbar (2026-10-29): inset from the edge, does not overflow the rounded corners (task card, panels). */
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: transparent; margin: 18px; }
 ::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--ink) 22%, transparent); border: 4px solid transparent; background-clip: padding-box; border-radius: 99px; min-height: 40px; }
@@ -2964,7 +2964,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 }
 @media (max-width: 720px) { .drawer .props > .dgroup { gap: 16px; } }
 
-/* İş kartı alt bölümleri (2026-10-29): başlıklar tek sol kenarda, açılır bölümde ok sağda; alt görev ekleme satırı kutu sütununda. */
+/* Task card sections (2026-10-29): headings on a single left edge, the arrow on the right in a collapsible section; the add-subtask row in the box column. */
 .drawer .dsec { padding-top: 16px; }
 .drawer .dsechead { align-items: center; min-height: 24px; margin-bottom: 10px; }
 .drawer .dsechead.is-fold { margin-bottom: 0; }
@@ -2980,7 +2980,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .checkadd:focus-within { color: var(--ink); }
 .drawer .lines li { min-height: 34px; padding: 0; }
 .drawer .linkbtn { margin-top: 6px; }
-/* Çıktı metni: markdown, kapalıyken ~4 satır ve alttan solma. */
+/* Output text: markdown, about 4 lines when closed and fading at the bottom. */
 .run .rmd { margin-top: 6px; cursor: default; }
 .run .rmd .nbody { font-size: var(--fs-3); gap: 6px; }
 .run .rmd.is-clamped { max-height: 7.6em; overflow: hidden; cursor: pointer; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
@@ -2993,11 +2993,11 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .runact { align-items: center; row-gap: 4px; }
 .runact .btn.ghost { padding: 0 10px; }
 .runact > .btn.ghost:first-child { margin-left: -10px; }
-/* Açılır pencere varken arka plan kaymaz; pencerenin sonuna gelince kaydırma arkaya geçmez. */
+/* While a popup is open the background does not scroll; at the end of the window the scroll does not pass to the back. */
 .drawer, .leavebox, .modal { overscroll-behavior: contain; }
 .scrim { overscroll-behavior: contain; touch-action: none; }
 
-/* Bugün kartı (2026-10-29): iki sütunun da kendi başlığı; ekleme alanı en üstte; gruplar aynı görünüm; saatler ayrı panelde. */
+/* Today card (2026-10-29): both columns have their own title; the add field at the top; groups look the same; times in a separate panel. */
 .todaycard .todaygrid { gap: 20px; }
 .todaycard .thead { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 4px; margin-bottom: 12px; }
 .todaycard .thead h3 { font-size: var(--fs-5); font-weight: 680; letter-spacing: -0.015em; }
@@ -3032,7 +3032,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .tsmeta { font-size: var(--fs-2); color: var(--ink-3); }
 .tshared .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }
 
-/* Paylaşılan gönderi kartı (2026-10-29): durum kutusu; geniş alanda önizleme solda, durum ve işlemler sağda. */
+/* Shared post card (2026-10-29): status box; on a wide area the preview on the left, status and actions on the right. */
 .rpostedbox { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, #1a9a5c 8%, var(--panel)); }
 .rpok { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #1a9a5c; color: #fff; }
 .rptext { flex: 1; min-width: 0; display: grid; gap: 2px; }
@@ -3048,7 +3048,7 @@ button.setrow.setout:hover > span { color: #b5203a; }
   .drawer .run.r-posted:has(.pvwrap), .rbruns .run.r-posted:has(.pvwrap) { display: block; }
 }
 
-/* Takvim (2026-10-29): başlık, gün satırı ve saat ızgarası aynı kaydırma payını ayırır, sütun çizgileri hizalı kalır. */
+/* Calendar (2026-10-29): the title, the day row and the hour grid reserve the same scroll allowance, column lines stay aligned. */
 .cal .grid { scrollbar-gutter: stable; }
 .cal .chead, .cal .allday { overflow-y: hidden; scrollbar-gutter: stable; }
 .allday { min-height: 32px; }
@@ -3057,21 +3057,21 @@ button.setrow.setout:hover > span { color: #b5203a; }
 .traytabs button { flex: 1; justify-content: center; }
 .traytabs .tabn { font-weight: 500; color: var(--ink-3); font-size: var(--fs-2); }
 .dsave.is-busy { opacity: 1; cursor: default; background: color-mix(in srgb, var(--ink) 82%, var(--panel)); }
-/* Rou sohbeti açıkken arkadaki sayfa kaymaz; sohbetin listeleri sona gelince kaydırmayı arkaya geçirmez. */
-/* Yalnız sohbetin kendi kaydırıcıları kilitlenir. Eskiden bütün alt öğelere (*) veriliyordu: gönderi önizlemesindeki yatay
-   carousel de dikey tekerleği yutuyor, imleç önizlemenin üstündeyken sohbet kaymıyordu (2026-11-04). Yatay şeritler dikeyi geçirir. */
+/* While the Rou chat is open the page behind does not scroll; when the chat's lists reach the end they do not pass the scroll to the back. */
+/* Only the chat's own scrollers are locked. It used to be applied to all descendants (*): the horizontal
+      carousel in the post preview also swallowed the vertical wheel, and with the cursor over the preview the chat did not scroll (2026-11-04). Horizontal strips pass the vertical through. */
 .rouchat, .rouchat .rcbody, .rouchat .rlist ul, .rouchat textarea { overscroll-behavior: contain; }
 .rouchat .pvstrip, .rouchat .galstrip, .rouchat .strip { overscroll-behavior-y: auto; }
-/* Sayfanın kendi kaydırma çubuğu yer kaplamaz: gizli, yerine üstte süzülen ince çubuk (src/ui/PageThumb.tsx). */
+/* The page's own scrollbar takes no room: hidden, replaced by a thin bar floating on top (src/ui/PageThumb.tsx). */
 html { scrollbar-width: none; }
 html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .pthumb { position: fixed; right: 3px; width: 6px; border-radius: 99px; z-index: 50; background: color-mix(in srgb, var(--ink) 30%, transparent); opacity: 0; transition: opacity 0.25s, width 0.15s, background 0.15s; cursor: grab; touch-action: none; }
 .pthumb.is-on { opacity: 1; }
 .pthumb:hover, .pthumb.is-drag { width: 9px; background: color-mix(in srgb, var(--ink) 45%, transparent); }
 .pthumb.is-drag { cursor: grabbing; }
-/* Saatler panelinin sol kenarı üstteki sayaç kartının sol kenarıyla aynı çizgide (üst ızgara 1.25fr/1fr, 12px aralık; kartın iç payı 13px). */
+/* The left edge of the Hours panel lines up with the left edge of the timer card above (top grid 1.25fr/1fr, 12px gap; card inner padding 13px). */
 @media (min-width: 1181px) { .todaycard .todaygrid { grid-template-columns: calc((100% + 14px) * 5 / 9 - 21px) minmax(0, 1fr); gap: 20px; } }
-/* Tamamlananlar (2026-10-29): başlığı diğer gruplarla aynı, sağda açılır ok; satırlar sade, üstü çizili değil. */
+/* Completed (2026-10-29): the title is like the other groups, an expand arrow on the right; rows are plain, not struck through. */
 .todaycard .tfold { width: calc(100% - 8px); cursor: pointer; text-align: left; }
 .todaycard .tfold .tfoldi { margin-left: auto; color: var(--ink-3); transition: transform 0.15s; }
 .todaycard .tfold .tfoldi.is-open { transform: rotate(180deg); }
@@ -3085,7 +3085,7 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .pfquick .linkbtn:hover { color: var(--ink); }
 .pfsum { margin-top: -4px; }
 
-/* Kendi açılır listemiz (src/ui/Select.tsx): tetikleyicinin altına açılır, dünya grupları renk noktasıyla. */
+/* Our own dropdown (src/ui/Select.tsx): opens under the trigger, world groups with a color dot. */
 .spop { position: fixed; z-index: 210; overflow-y: auto; overscroll-behavior: contain; padding: 6px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 20px 50px -14px rgb(0 0 0 / 0.28), 0 2px 6px rgb(0 0 0 / 0.06); outline: none; animation: spopin .16s cubic-bezier(.2,.8,.2,1); transform-origin: top; }
 @keyframes spopin { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 .sgroup + .sgroup { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
@@ -3099,7 +3099,7 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .sopt.is-sel { font-weight: 600; }
 .soptdot { width: 8px; height: 8px; border-radius: 50%; background: var(--w); flex: none; }
 
-/* Alan gibi duran seçici (formlar, adım satırı, plan satırı). Yükseklik bağlama göre aşağıda. */
+/* A selector that looks like a field (forms, step row, plan row). Height depends on context below. */
 .selfield { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; width: 100%; height: 36px; padding: 0 10px 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font-size: var(--fs-3); text-align: left; cursor: pointer; }
 .selfield:hover, .selfield.on { border-color: color-mix(in srgb, var(--ink) 22%, var(--line)); }
 .selfield .sellab { flex: 1; text-overflow: ellipsis; }
@@ -3113,7 +3113,7 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .ncat .sellab { gap: 5px; overflow: visible; }
 .ncat .selchev { width: 12px; height: 12px; color: currentColor; opacity: .7; margin-left: -1px; }
 
-/* Saat alanı (src/ui/Fields.tsx TimeField): yazılır ya da 15 dakikalık listeden seçilir. */
+/* Time field (src/ui/Fields.tsx TimeField): typed or chosen from a 15-minute list. */
 .timefield { width: 72px; min-width: 0; padding-left: 6px !important; padding-right: 6px !important; font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: center; }
 .timein .timefield { min-width: 0; width: 64px; }
 .slot.is-edit .timefield { width: 56px; }
@@ -3122,7 +3122,7 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .tpop .sopt.is-hour { color: var(--ink); }
 .tpop .sopt.is-sel { color: var(--ink); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
-/* Sayı adımlayıcı: − değer + */
+/* Number stepper: − value + */
 .stepper { display: inline-flex; align-items: center; height: 32px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: hidden; }
 .stepper button { display: grid; place-items: center; width: 28px; height: 100%; border: 0; background: none; color: var(--ink-2); cursor: pointer; }
 .stepper button:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
@@ -3130,7 +3130,7 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .stepper input, .props .reptime .stepper input, .pescene .stepper input { width: 4ch; height: 100%; border: 0; border-radius: 0; padding: 0; background: none; text-align: center; font-variant-numeric: tabular-nums; font-size: var(--fs-3); }
 .pescene .stepper { height: 30px; }
 
-/* Renk seçici paneli */
+/* Color picker panel */
 .swatches button.pick { padding: 0; border: 0; cursor: pointer; }
 .cpop { position: fixed; z-index: 210; width: 232px; padding: 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 20px 50px -14px rgb(0 0 0 / 0.28), 0 2px 6px rgb(0 0 0 / 0.06); animation: spopin .16s cubic-bezier(.2,.8,.2,1); }
 .cgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
@@ -3140,11 +3140,11 @@ html::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .chex i { width: 24px; height: 24px; border-radius: 7px; flex: none; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08); }
 .chex input { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: none; font-family: var(--mono); font-size: var(--fs-3); }
 
-/* İpucu baloncuğu (src/ui/Tip.tsx) */
+/* Tooltip bubble (src/ui/Tip.tsx) */
 .tipbub { position: fixed; z-index: 400; max-width: 260px; padding: 6px 9px; border-radius: 8px; background: color-mix(in srgb, var(--ink) 92%, transparent); color: var(--bg); font-size: var(--fs-2); line-height: 1.35; pointer-events: none; box-shadow: 0 6px 18px -6px rgb(0 0 0 / .3); animation: tipin .12s ease-out; }
 @keyframes tipin { from { opacity: 0; transform: translateY(-2px); } }
 
-/* Onay kutusu: sistem kutusu yerine kendi kutumuz (anahtar görünümlü .setswitch hariç). */
+/* Checkbox: our own box instead of the system one (except the switch-looking .setswitch). */
 input[type="checkbox"]:not(.setswitch) { appearance: none; -webkit-appearance: none; flex: none; width: 18px; height: 18px; margin: 0; border-radius: 6px; border: 1.5px solid color-mix(in srgb, var(--ink) 28%, var(--line)); background: var(--panel); cursor: pointer; display: inline-grid; place-items: center; vertical-align: middle; transition: background .15s, border-color .15s; }
 input[type="checkbox"]:not(.setswitch)::after { content: ""; width: 10px; height: 10px; background: var(--bg); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat; transform: scale(0); transition: transform .15s cubic-bezier(.2,.8,.2,1); }
 input[type="checkbox"]:not(.setswitch):checked { background: var(--ink); border-color: var(--ink); }
@@ -3155,7 +3155,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .kbcard .kcol.over { background: color-mix(in srgb, var(--w) 10%, var(--panel)); }
 .kbhead .n { font-family: var(--mono); font-size: var(--fs-2); color: var(--ink-3); }
 
-/* Otomasyon kartı: başlık + ne üretir, iki bilgi kutusu (sıradaki, son çıktı), altta tekrar ve kim ne yapar. */
+/* Automation card: title + what it produces, two info boxes (next, last output), repeat and who does what below. */
 .acfacts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .acfacts > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--hover); }
 .acfacts em { font-style: normal; font-size: var(--fs-1); font-weight: 600; color: var(--ink-3); }
@@ -3168,7 +3168,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .acsched { color: var(--ink-2); font-weight: 550; }
 .acflow { grid-column: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
-/* Otomasyon ayrıntısı: başlıkta özet satırı, gövde iki sütun (sol içerik, sağ sıradaki + akış). */
+/* Automation detail: a summary line in the header, a two-column body (content on the left, next + flow on the right). */
 .adicon { width: 44px !important; height: 44px !important; border-radius: 13px !important; flex: none; display: grid; place-items: center; background: color-mix(in srgb, var(--w) 12%, var(--panel)); color: color-mix(in srgb, var(--w) 70%, var(--ink)); }
 .adsum { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-3); color: var(--ink-2); }
 .adsum button { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 600; }
@@ -3185,7 +3185,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .adbrief .acaction { margin: 0; }
 @media (max-width: 640px) { .adicon { display: none !important; } .adtop, .adtop:has(> :only-child) { grid-template-columns: minmax(0, 1fr); } }
 
-/* Çıktı kartı (PostTile): üstte ne zaman ve durumu, altında gönderinin kendisi. Otomasyon çıktıları ve Gönderiler. */
+/* Output card (PostTile): when and its status on top, the post itself below. Automation outputs and Posts. */
 .ptgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; align-items: start; }
 .ptgrid > li.is-open { grid-column: 1 / -1; }
 .ptgrid > li.is-open .run { margin: 0; }
@@ -3214,15 +3214,15 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .ptile.is-ready { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
 @media (hover: hover) { .ptile:not(.is-open):hover { border-color: color-mix(in srgb, var(--ink) 18%, var(--line)); } }
 @media (max-width: 640px) { .ptgrid { grid-template-columns: minmax(0, 1fr); } }
-/* Geri: başlığın solunda chevron (yazılı "‹ Tüm otomasyonlar" yerine). */
+/* Back: a chevron at the left of the title (instead of the written "‹ All automations"). */
 .backchev { flex: none; width: 36px; height: 36px; margin-left: -8px; color: var(--ink-2); }
 .backchev:hover { color: var(--ink); background: var(--hover); }
 .pptitle { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .pptitle .ppname, .pptitle h1 { flex: 1; min-width: 0; }
 .pptitle .ppmore { flex: none; }
 
-/* Bugün kartı: platform simgesi, başlık + ne zaman · ne üretir, sağda durum; altında kısa adım şeridi ve tek not satırı. */
-/* Proje panosu: her görev kendi kartı, aralarında boşluk; ekleme satırı listenin altında ayrı durur. */
+/* Today card: platform icon, title + when · what it produces, status on the right; a short step strip below and a single note line. */
+/* Project board: each task is its own card with a gap between; the add row stays separate below the list. */
 .kcol > .list { display: flex; flex-direction: column; gap: 8px; padding: 2px; }
 .kcol .row { padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 1px 2px rgb(0 0 0 / 0.03); }
 .kcol .row:hover { border-color: color-mix(in srgb, var(--w) 35%, var(--line)); }
@@ -3234,8 +3234,8 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .play.botgo { color: var(--ai); background: color-mix(in srgb, var(--ai) 10%, var(--panel)); }
 .play.botgo:hover { background: color-mix(in srgb, var(--ai) 18%, var(--panel)); }
 
-/* Odak › Bugün: her grup (Sen, Rou, Tamamlananlar, Gecikenler) kendi panelinde; görevler panelin içinde çizgiyle ayrılan satırlar.
-   Geniş panelde satırın başlığı solda, saat ve durum sağda hizalı; dar panelde alt alta. */
+/* Focus › Today: each group (You, Rou, Completed, Late) in its own panel; tasks are rows separated by lines inside the panel.
+      On a wide panel the row's title is on the left, time and status aligned on the right; on a narrow panel stacked. */
 .todaycard .tgroup, .todaycard .overdue { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); overflow: clip; container-type: inline-size; }
 .todaycard .tgroup + .tgroup, .todaycard .overdue + .tgroup { margin-top: 14px; }
 .todaycard .overdue { margin-bottom: 14px; }
@@ -3251,7 +3251,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .todaycard .tgroup .empty { padding: 14px 16px; margin: 0; list-style: none; font-size: var(--fs-3); color: var(--ink-3); }
 .todaycard .droplist { min-height: 0; border-radius: 0; }
 .todaycard .overdue .subhead { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-/* Hiza: başlık ve süzgeç panellerin dış kenarına oturur; satır içi ▶/✦ yer kaplamaz, üstüne gelince sağda belirir. */
+/* Alignment: the title and filter sit on the panels' outer edge; the in-row ▶/✦ take no room, they appear on the right on hover. */
 .todaycard .tlist .thead { padding: 0; }
 .todaycard .tgroup .row, .todaycard .overdue .row { position: relative; }
 .todaycard .tgroup .row > .play:not(.on), .todaycard .overdue .row > .play:not(.on) { position: absolute; right: 12px; top: 50%; translate: 0 -50%; box-shadow: 0 0 0 6px var(--panel), -16px 0 16px var(--panel); background: var(--panel); }
@@ -3262,20 +3262,20 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .todaycard .tgroup .row > .autotile, .todaycard .tgroup .row > .check { align-self: flex-start; margin-top: 1px; }
 .todaycard .tgroup .row .meta { margin-top: 4px; }
 .todaycard .tlist .thead .n { font-family: inherit; letter-spacing: 0; font-weight: 500; }
-/* Bugün ve Saatler aynı tip panel: aynı zemin, aynı iç boşluk, başlıklar aynı çizgide. Gruplar panelin içinde beyaz kart. */
+/* Today and Hours are the same type of panel: same ground, same inner padding, headings on the same line. Groups are white cards inside the panel. */
 .todaycard .tlist { padding: 14px 12px 12px; border-radius: 16px; background: color-mix(in srgb, var(--ink) 3%, var(--panel)); align-self: stretch; }
 .todaycard .tlist .thead, .todaycard .tplan .thead { min-height: 36px; padding: 0 4px; margin-bottom: 12px; }
 .todaycard .tplan .thead { margin-bottom: 0; }
 .todaycard .tlist .thead .whofilter { background: color-mix(in srgb, var(--ink) 6%, var(--panel)); }
 .todaycard .tgroup, .todaycard .overdue { box-shadow: 0 1px 2px rgb(0 0 0 / 0.03); }
 
-/* Sıradaki gönderiler: her satırda gün, konu (başlık + ne anlatacak), ilkinde şimdi ürettir. Konu satırına basınca yerinde düzenlenir. */
+/* Upcoming posts: each row has the day, topic (title + what it tells), and a produce-now action on the first. Pressing the topic row edits in place. */
 .sttopic { font-size: var(--fs-1); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sttopic.is-empty { font-style: italic; }
 .stopic { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .stopic .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
 
-/* Gönderiler: plan, üretilenler ve hesaplar ayrı kartlar. Üretilenlerde sekme; paylaşılanlar aylık arşiv. */
+/* Posts: plan, produced and accounts are separate cards. Produced has tabs; shared ones are a monthly archive. */
 .posts > .card + .card { margin-top: 16px; }
 .stprod { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
 .stprod .stboxhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -3302,7 +3302,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 @media (max-width: 640px) { .stprod { padding: 16px; } .stprod .stboxhead .whofilter { margin: 4px 0 0; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); } .stprod .whofilter button { justify-content: center; padding: 0 6px; } }
 .stcard .stctop { min-width: 0; } .stcard .stlab { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ptbody.is-revising { opacity: 0.45; pointer-events: none; }
-/* Gönderiler: kart başlığı çizgiyle ayrılır, içeride ikinci çerçeve yok; hafta başlıkları başlıktan küçük ve aralıklı. */
+/* Posts: the card title is separated by a line, no second frame inside; week headings are smaller than the title and spaced. */
 .posts .studio .stbox { padding: 0; border: 0; border-radius: 0; gap: 18px; }
 .posts .studio { padding: 20px 22px; }
 .posts .stboxhead { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
@@ -3311,27 +3311,27 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .posts .stweek + .stweek { margin-top: 14px; }
 @media (max-width: 640px) { .posts .studio { padding: 16px; } }
 .pvneeds { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, #f5a524 12%, var(--panel)); font-size: var(--fs-2); color: var(--ink-2); } .pvneeds b { display: block; margin-bottom: 4px; color: var(--ink); font-weight: 650; } .pvneeds ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
-/* Odak (2026-10-30): geniş ekranda Bugün ve Saatler, üstteki iki kartın sütunlarına oturan iki ayrı kart.
-   Dış kart kalktı; kenarlar ve aradaki 12px boşluk üst satırla bir (.home 1.25fr/1fr). */
+/* Focus (2026-10-30): on a wide screen Today and Hours are two separate cards that sit on the columns of the two cards above.
+      The outer card is gone; the edges and the 12px gap between are the same as the top row (.home 1.25fr/1fr). */
 @media (min-width: 1181px) {
   .todaycard { background: none; border: 0; box-shadow: none; padding: 0; }
   .todaycard .todaygrid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
   .todaycard .tlist, .todaycard .tplan { padding: 18px 16px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 1px 0 rgb(16 24 40 / 0.02), 0 1px 3px rgb(16 24 40 / 0.04); }
   .todaycard .tplan { align-self: start; }
 }
-/* Sıra sende (onay): çip düğme olur; açılınca Onayla çubuğu, gönderi incelenirken ekranın altında kalır. */
+/* Turn is yours (approval): the chip becomes a button; when opened the Approve bar stays at the bottom of the screen while reviewing the post. */
 .autochip.is-act { color: #fff; background: var(--accent); cursor: pointer; }
 .autochip.is-act:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
 .autoinline .runact { position: sticky; bottom: 12px; z-index: 2; margin-top: 12px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px -14px rgb(0 0 0 / 0.35); }
 .autoinline .runact > .btn.ghost:first-child { margin-left: 0; }
-/* Paylaşılmış gönderinin iş kartı (2026-10-30): plan satırları yerine durum ve sıradaki adımlar. */
+/* Task card of a shared post (2026-10-30): status and next steps instead of plan rows. */
 .dshared { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, #1a9a5c 7%, var(--panel)); border: 1px solid color-mix(in srgb, #1a9a5c 22%, var(--line)); }
 .dshst { display: flex; align-items: center; gap: 6px; font-size: var(--fs-3); color: var(--ink-2); }
 .dshst svg { color: #1a9a5c; }
 .dshst b { font-weight: 600; color: var(--ink); }
 .dshacts { display: flex; flex-wrap: wrap; gap: 6px; }
 .dshacts .btn { display: inline-flex; align-items: center; gap: 5px; }
-/* Satırda ne üreteceği (platform ikonu + biçim) durum çipinden ayrı, sakin bir etiket. */
+/* What the row produces (platform icon + format) is a calm label, separate from the status chip. */
 .autoplat { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px 0 6px; border-radius: 6px; font-size: var(--fs-1); font-weight: 550; color: var(--ink-2); background: var(--hover); white-space: nowrap; }
 .row > .rtailchip { flex: none; align-self: flex-start; margin-top: -1px; }
 @media (max-width: 640px) {
@@ -3340,8 +3340,8 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
   .tlist .row > .rtailchip { order: 3; margin: 0 0 0 36px; }
   .tlist .row > .autoinline, .tlist .row .autoinline { flex-basis: 100%; }
 }
-/* Şu anki adım başkasındaysa (Rou) sakin gri: mor yalnız sıra sendeyken. */
-/* Çıktı işlem çubuğu (2026-10-30): ana işlem önde, kim/ne zaman yanında, gerisi ⋯ menüsünde. */
+/* If the current step is with someone else (Rou) calm gray: purple only when it is your turn. */
+/* Output action bar (2026-10-30): the main action in front, who/when beside it, the rest in the ⋯ menu. */
 .runact .rwhen { order: -1; flex-basis: 100%; font-size: var(--fs-2); color: var(--ink-3); padding: 0 2px 2px; }
 .runact .rmenu { margin-left: auto; position: relative; }
 .runact .rmenu > summary { list-style: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: var(--ink-2); }
@@ -3353,7 +3353,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .rmenupop button svg { color: var(--ink-3); }
 .rmenupop button em { margin-left: auto; font-style: normal; font-size: var(--fs-2); color: var(--ink-3); }
 .rmenupop button.is-danger, .rmenupop button.is-danger svg { color: var(--danger); }
-/* Sürümler */
+/* Versions */
 .vers { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .vershead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .vershead span { font-size: var(--fs-2); color: var(--ink-3); }
@@ -3368,7 +3368,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .vers li .btn { flex: none; display: inline-flex; align-items: center; gap: 5px; }
 .versbtns { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
 
-/* Gönderi penceresi (Gönderiler › takvim kartı). Başlıkta hesap ve zaman, gövdede gönderinin kendisi, altta kaynak ve görev. */
+/* Post window (Posts › calendar card). Account and time in the header, the post itself in the body, source and task below. */
 .scrim.center:has(.postview) { padding-top: var(--top); }
 .modal.postview { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - var(--top) - 24px); padding: 0; gap: 0; overflow: hidden; }
 .pvmhead { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
@@ -3397,10 +3397,10 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .postview .run.r-posted:has(.pvwrap) { display: block; }
 .postview .run .rpostedbox { margin-top: 12px; }
 @media (max-width: 720px) { .pvmfoot .stsrc { order: 0; margin-left: -8px; } }
-/* Otomasyonlar › Bugün: Gönderiler'deki kartlar ızgarada. */
+/* Automations › Today: the cards from Posts in a grid. */
 .stctop .mono em { font-style: normal; color: var(--ink-2); }
 
-/* Proje sayfası: otomasyon kartları, çıktıları (gönderi kartları), elle görevler. */
+/* Project page: automation cards, their outputs (post cards), manual tasks. */
 .pautogrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
 .pauto { width: 100%; display: grid; grid-template-columns: 36px minmax(0, 1fr) 16px; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); text-align: left; }
 @media (hover: hover) { .pauto:hover { background: var(--hover); } }
@@ -3423,7 +3423,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .kbsub { margin: 4px 8px 8px; display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-3); font-weight: 650; color: var(--ink); }
 .kbsub span { font-weight: 400; font-size: var(--fs-2); color: var(--ink-3); }
 .kbcard .pautogrid + .kbsub { margin-top: 18px; }
-/* Tekrarlayan görev penceresi */
+/* Repeating task window */
 .scrim.center:has(.autoview) { padding-top: var(--top); }
 .modal.autoview { width: min(880px, calc(100vw - 32px)); max-height: calc(100dvh - var(--top) - 24px); padding: 0; gap: 0; overflow: hidden; position: relative; }
 .avhead { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
@@ -3461,9 +3461,9 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
   .avfacts, .avsrc { grid-template-columns: 1fr; }
 }
 .avsec > .link { margin-left: 0; }
-/* Marka sesi: değerler okunur genişlikte. */
+/* Brand voice: values at a readable width. */
 
-/* Otomasyon kartı: görev listesinde, "Otomasyon" etiketiyle; dar kartlar yan yana, durum metnin altında. */
+/* Automation card: in the task list, with an "Automation" label; narrow cards side by side, status under the text. */
 .arows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; }
 .arows > .arow { padding: 0; margin: 0; max-width: 460px; }
 .arow > button { width: 100%; height: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) 16px; align-items: start; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 12px; text-align: left; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); }
@@ -3497,19 +3497,19 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .npfile input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .npfile em { font-style: normal; font-size: var(--fs-2); color: var(--ink-3); overflow-wrap: anywhere; }
 @media (max-width: 720px) { .newpost .pvmfoot .btn.ghost { margin-left: auto; } }
-/* Medya: dosyanın gönderide kullanım durumu (sağ üst). */
+/* Media: whether the file is used in a post (top right). */
 .mediause { position: absolute; right: 7px; top: 7px; height: 20px; padding: 0 7px; border-radius: 6px; font-size: var(--fs-1); font-weight: 650; line-height: 20px; color: #fff; background: rgb(0 0 0 / 0.55); }
 .mediause.is-posted { background: #16a34a; }
 .mediause.is-ready { background: var(--accent); }
 .mediasum { font-size: var(--fs-2); color: var(--ink-3); }
-/* Ekleme satırı (Görev ekle ile aynı): kartın altında, sola hizalı, alt alta. */
+/* Add row (same as Add task): at the bottom of the card, left-aligned, stacked. */
 .addrow { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; font-size: inherit; color: var(--ink-3); text-align: left; }
 .addrow .plus { width: 19px; flex: none; display: inline-grid; place-items: center; color: var(--ink-3); }
 @media (hover: hover) { .addrow:hover { background: var(--hover); color: var(--ink); } }
 .quick + .addrow { margin-top: 0; }
 .wgroup > .addrow { margin-top: 4px; }
 .acct > .addrow { margin-top: 8px; }
-/* Marka sesi: dört kutu (Kitle, Ton, Konular, Kaçın) yan yana; başlık üstte, değer altında. */
+/* Brand voice: four boxes (Audience, Tone, Topics, Avoid) side by side; title on top, value below. */
 .brandrows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
 .brandrows .brow { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--ink) 3%, var(--panel)); }
 .brandrows .brow dt { padding-top: 0; }
@@ -3528,13 +3528,13 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .wduo .arows > .arow { max-width: none; }
 .wsec > .addrow { margin: 4px 0 12px; width: auto; }
 @media (max-width: 1000px) { .wduo { grid-template-columns: minmax(0, 1fr); } }
-/* Proje bento: görevler kartı sağ sütunla aynı boyda; otomasyon kartları kartın genişliğini doldurur, ekleme satırları dipte. */
+/* Project bento: the tasks card is the same height as the right column; automation cards fill the card's width, add rows at the bottom. */
 .ppmain { align-items: stretch; }
 .ppmain > .kbcard { display: flex; flex-direction: column; }
 .ppmain > .kbcard .arows { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .ppmain > .kbcard .arows > .arow { max-width: none; }
 
-/* Proje başlığı: özet solda; Durum, Zaman, Dünya aynı biçimde etiket üstte, değer altta, aralarında eşit boşluk. */
+/* Project header: summary on the left; Status, Time, World in the same form, label on top, value below, equal spacing between. */
 .ppctl { align-items: flex-end; gap: 12px 16px; }
 .ppctl .ppstat { align-self: center; }
 .ppctl .dlin { flex-direction: column; align-items: flex-start; gap: 4px; }
@@ -3544,7 +3544,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .pstdot.ps-paused { background: #d97706; }
 .pstdot.ps-done { background: var(--ink-3); }
 .ppick .pstdot.ps-active { background: #16a34a; } .ppick .pstdot.ps-paused { background: #d97706; } .ppick .pstdot.ps-done { background: var(--ink-3); }
-/* Proje başlığı: yol (Dünya › Projeler), başlık, açıklama; altında sola hizalı Durum/Zaman/Dünya, en altta özet. */
+/* Project header: path (World › Projects), title, description; below, left-aligned Status/Time/World, the summary at the very bottom. */
 .pphead { padding: 22px 24px 20px; }
 .ppcrumb { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px -4px; padding: 3px 8px 3px 4px; border-radius: 8px; font-size: var(--fs-3); font-weight: 550; color: var(--ink-3); }
 .ppcrumb em { font-style: normal; color: var(--ink-3); opacity: 0.6; }
@@ -3556,7 +3556,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .ppctl .dlin > :not(span) { min-width: 150px; }
 .ppctl .dlin > .ppick { width: 150px; }
 @media (max-width: 720px) { .ppctl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } .ppctl .dlin > :not(span) { min-width: 0; width: 100%; } .ppctl .ppstat { grid-column: 1 / -1; } }
-/* Şerit: bölüm tam genişlik; içerik sabit genişlikte kutular soldan sağa, sığmayan yana kayar. İlk kutu oluşturma. */
+/* Strip: the section is full width; content is fixed-width boxes from left to right, what does not fit scrolls sideways. The first box is create. */
 .strip { list-style: none; margin: 0; padding: 2px 2px 6px; display: grid; grid-auto-flow: column; grid-auto-columns: 300px; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
 .strip > li { scroll-snap-align: start; min-width: 0; max-width: none; margin: 0; }
 .strip > li > * { height: 100%; }
@@ -3572,7 +3572,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .ppstack > .card { margin: 0; }
 .kbcard .strip { margin-bottom: 8px; }
 .acclist.strip, .arows.strip { grid-template-columns: none; margin: 0; }
-/* Projeler: her dünya tam genişlik satır; projeler eşit boyda kutular. */
+/* Projects: each world is a full-width row; projects are boxes of equal size. */
 .wgroups { display: flex; flex-direction: column; gap: 12px; }
 .wgroup .wghead { display: flex; align-items: center; gap: 12px; }
 .wgroup .wgrest { margin-left: auto; font-size: var(--fs-2); }
@@ -3587,18 +3587,18 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .ptwhen.late { color: var(--danger); }
 .ptile2.loose { background: none; border: 1px dashed var(--line); }
 .ptile2.p-done, .ptile2.p-paused { opacity: 0.7; }
-/* Tüm şeritlerde kutu genişliği aynı. */
+/* The same box width in all strips. */
 .strip, .ptiles { grid-auto-columns: 280px; }
 .wsec > .wgroup { margin-bottom: 12px; }
 .wgroup .wgname { display: inline-flex; align-items: baseline; gap: 8px; }
 .wgroup .wgname > span { font-size: var(--fs-2); color: var(--ink-3); }
 @media (max-width: 720px) { .strip, .ptiles { grid-auto-columns: 82%; } }
-/* Şerit: flex, sabit kutu; oluşturma kutusu telefonda dar. */
+/* Strip: flex, fixed box; the create box is narrow on a phone. */
 .strip { display: flex; grid-auto-flow: unset; }
 .strip > li { flex: 0 0 280px; }
 @media (max-width: 720px) { .strip > li { flex-basis: 78%; } .strip > li.addtile.one { flex-basis: 104px; } .strip > li.addtile:not(.one) { flex-basis: 60%; } }
-/* Otomasyonlar › Bugün: her otomasyon bir kart, çıktıları altında saat saat. */
-/* Otomasyon penceresi v2: akış, bağlı/üretir kutuları, iki haftalık plan. */
+/* Automations › Today: each automation is a card, its outputs below hour by hour. */
+/* Automation window v2: flow, linked/produces boxes, two-week plan. */
 .modal.autoview { width: min(1080px, calc(100vw - 32px)); }
 .avflow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; counter-reset: f; }
 .avflow li { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); }
@@ -3677,7 +3677,7 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .srcs .srcbody { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .flabel.aftitle { font-size: var(--fs-5); font-weight: 650; letter-spacing: -0.01em; text-transform: none; color: var(--ink); }
 
-/* Tarayıcı (src/views/Browser.tsx): dünya başına profil kartı; hesap kutuları ve canlı sekme kutuları aynı şerit düzeninde. */
+/* Browser (src/views/Browser.tsx): a profile card per world; account boxes and live tab boxes in the same strip layout. */
 .pbworld { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
 .pbworld > .strip { padding-left: 6px; padding-right: 6px; }
 .pbnote { padding: 18px 20px; color: var(--ink-2); margin-bottom: 12px; }
@@ -3703,10 +3703,10 @@ input[type="checkbox"]:not(.setswitch):focus-visible { outline: 2px solid color-
 .pbmeta span { font-size: var(--fs-2); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pbnoshot { position: absolute; inset: 0; display: grid; place-content: center; gap: 4px; text-align: center; font-size: var(--fs-4); font-weight: 600; color: var(--ink-2); }
 .pbnoshot small { font-size: var(--fs-2); font-weight: 500; color: var(--ink-3); }
-/* Mobilde Tarayıcı sekmesi gizli (Profil › Hesap'tan açılır); altı sekme 390'a sığar. */
+/* The Browser tab is hidden on mobile (opens from Profile › Account); six tabs fit in 390. */
 @media (max-width: 720px) { .pageitem.is-desk { display: none; } }
 
-/* Uygulamadaki tarayıcı (src/ui/LiveBrowser.tsx): sayfa ekranı doldurur, kaydırma yok; gerçek sekmeler .lb-body alanına oturur. */
+/* In-app browser (src/ui/LiveBrowser.tsx): the page fills the screen, no scrolling; real tabs sit on the .lb-body area. */
 main:has(> .lb) { padding-bottom: 12px; }
 .lb { display: flex; flex-direction: column; gap: 10px; height: calc(100dvh - var(--top) - 12px); min-height: 420px; }
 .lb-worlds { display: flex; align-items: center; gap: 6px; flex: none; overflow-x: auto; scrollbar-width: none; padding: 1px; }
@@ -3757,7 +3757,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .lb-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; }
 .lb-empty > * { flex: none; }
 .lb-empty > * { width: min(440px, 100%); }
-/* Boş sekme: gri Rou silueti, ortada arama, altında dünyanın hesapları. */
+/* Empty tab: a gray Rou silhouette, search in the middle, the world's accounts below. */
 .lb-empty > .lb-rou { position: relative; inset: auto; animation: none; width: 64px; height: 72px; margin-bottom: 18px; background: color-mix(in srgb, var(--ink) 10%, transparent); }
 .lb-search { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; margin-bottom: 24px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-3); box-shadow: 0 1px 2px rgb(16 24 40 / .04), 0 8px 24px -12px rgb(16 24 40 / .12); }
 .lb-search:focus-within { border-color: color-mix(in srgb, var(--w, var(--accent)) 45%, var(--line)); }
@@ -3777,7 +3777,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .drawer .dprops .whostep { border: 0; background: var(--panel); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent); }
 .drawer .dprops .whostep.is-now { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
 .avprow b.is-none { color: var(--ink-3); font-weight: 500; }
-/* Otomasyon formu (2026-10-31): çipler çerçevesiz dolgu, alt satır her zaman görünür (pencere uzun olsa da). */
+/* Automation form (2026-10-31): chips are frameless fills, the bottom row is always visible (even if the window is long). */
 .autoform .chips button, .autoform .slotadd { border: 0; background: color-mix(in srgb, var(--ink) 5%, var(--panel)); }
 .autoform .chips button.on { background: var(--ink); color: var(--panel); }
 @media (hover: hover) { .autoform .chips button:not(.on):hover, .autoform .slotadd:hover { background: color-mix(in srgb, var(--ink) 9%, var(--panel)); } }
@@ -3787,7 +3787,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .autoform .platpick { gap: 6px; }
 .autoform .platpick button { border: 0; padding: 0 10px; background: color-mix(in srgb, var(--ink) 5%, var(--panel)); }
 .autoform .platpick button.on { background: var(--ink); color: var(--panel); }
-/* Görev kartı başlıklı bloklar: Konu · <Rou> hazırladı · Süreç · Ayarlar. Her blok başlığıyla ne işe yaradığını söyler; dolgular tek yumuşak ton. */
+/* Task card blocks with headings: Topic · prepared by <Rou> · Process · Settings. Each block's heading says what it is for; fills are a single soft tone. */
 .drawer, .postview { --soft: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); }
 .drawer { gap: 22px; }
 :is(.drawer, .postview) .dsec > .dsechead { margin-bottom: 8px; }
@@ -3804,7 +3804,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 :is(.drawer, .postview) .dlifehead { margin-top: 20px; }
 :is(.drawer, .postview) .life { margin-top: 0; }
 :is(.drawer, .postview) .dsec { padding-top: 0; }
-/* Gönderi penceresi (görevi henüz oluşmamış otomasyon saati) görev penceresiyle aynı dil: büyük başlık, başlıklı bloklar, çizgisiz üst. */
+/* Post window (an automation time whose task is not yet created) in the same language as the task window: big title, blocks with headings, a top without lines. */
 .postview .flabel { text-transform: none; letter-spacing: 0; font-size: var(--fs-3); font-weight: 600; color: var(--ink-2); }
 .postview .pvmhead { border-bottom: 0; align-items: flex-start; padding: 20px 20px 4px; }
 .postview .pvmwho b { font-size: var(--fs-6); font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; white-space: normal; }
@@ -3815,23 +3815,23 @@ main:has(> .lb) { padding-bottom: 12px; }
 .postview .topicbox.is-read p { margin: 0; color: var(--ink-2); line-height: 1.5; }
 .postview .dsec { border-top: 0; }
 .modal.postview { width: min(560px, calc(100vw - 32px)); border-radius: 20px; }
-/* Görev penceresinin üst satırı (proje ve kapat) kaydırınca yerinde kalır. */
+/* The task window's top row (project and close) stays in place when scrolling. */
 .drawer > .dhead { position: sticky; top: -16px; z-index: 3; margin: -16px -20px -10px; padding: 16px 20px 10px; background: var(--panel); }
-/* Kaydet düğmesi değişiklik olunca belirir; yer kaymadan yumuşakça. */
+/* The Save button appears when there is a change; softly, without shifting the layout. */
 .drawer .dfoot .dsave { animation: dsavein 0.18s ease-out; }
 @keyframes dsavein { from { opacity: 0; transform: translateY(4px); } }
 @media (prefers-reduced-motion: reduce) { .drawer .dfoot .dsave { animation: none; } }
-/* Sekme sırası: sürüklenen sekme diğerlerinin üstünde, dolu zeminle kayar. */
+/* Tab order: the dragged tab is above the others, slides with a solid ground. */
 .lb-tabrow { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .lb-tab { position: relative; background: var(--panel); cursor: default; touch-action: pan-y; }
 .lb-tab:not(:hover):not(.is-on) { background: transparent; }
-/* Gönderi ekleri: görsel ve video tek şeritte, yana kayar (Instagram gibi). Görsel kırpılmaz; şerit yumuşak zeminde. */
+/* Post attachments: image and video in a single strip, scrolls sideways (like Instagram). The image is not cropped; the strip sits on a soft ground. */
 .gal { position: relative; }
 .galstrip { display: flex; gap: 8px; width: 100%; aspect-ratio: 1; max-height: 620px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
 .galstrip::-webkit-scrollbar { display: none; }
 .galitem { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: start; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: var(--soft, color-mix(in srgb, var(--ink) 3.5%, var(--panel))); }
 .galitem img, .galitem video { width: 100%; height: 100%; object-fit: contain; display: block; }
-/* Oynatıcı videonun kendi şeklinde: denetimler videonun altında, kutunun tamamına yayılmaz. */
+/* The player takes the video's own shape: the controls are under the video, not spread across the whole box. */
 .galitem video { width: auto; height: auto; max-width: 100%; max-height: 100%; border-radius: 8px; background: #000; }
 .gal .pvnav { translate: 0 -50%; top: calc(50% - 14px); }
 .gal .pvdots { padding: 10px 0 0; }
@@ -3840,7 +3840,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .pvdtitle { margin: 0; padding: 0 14px 12px; font-size: var(--fs-5); font-weight: 650; line-height: 1.3; letter-spacing: -0.01em; color: var(--ink); }
 .rgal { margin-top: 10px; max-width: 420px; border-radius: 14px; overflow: hidden; }
 .rgal .pvdots { padding-bottom: 8px; }
-/* Taslak düzenleyicisi: ekler küçük kareler; sıra okları ve çıkar düğmesi üstte, ekle karesi sonda. */
+/* Draft editor: attachments are small squares; order arrows and the remove button on top, the add square at the end. */
 .dethumbs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .dethumbs::-webkit-scrollbar { display: none; }
 .dethumb, .detadd { position: relative; flex: 0 0 112px; width: 112px; aspect-ratio: 1; border-radius: 12px; overflow: hidden; }
@@ -3855,11 +3855,11 @@ main:has(> .lb) { padding-bottom: 12px; }
 .detadd { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--line); color: var(--ink-2); font-size: var(--fs-2); font-weight: 600; cursor: pointer; }
 .detadd:hover { background: var(--hover); color: var(--ink); }
 .detadd input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-/* Logo gibi vektör ekler kenara yapışıp kesik görünmesin. */
+/* Vector attachments like a logo should not stick to the edge and look cut off. */
 .galitem.is-vector { padding: 12%; }
 .dethumb:has(img[src$=".svg"]) img { padding: 12%; }
 
-/* Bildirimler (src/ui/Notices.tsx): üst çubukta zil, altında panel. Satır: ton ikonu, başlık + durum, kısa metin, düğmeler. */
+/* Notifications (src/ui/Notices.tsx): a bell in the top bar, a panel below it. Row: tone icon, title + status, short text, buttons. */
 .ntbell { position: relative; display: grid; place-items: center; width: 44px; height: 44px; margin-left: auto; border-radius: 14px; color: var(--ink-2); flex: none; }
 .ntbell:hover, .ntbell.on { background: var(--hover); color: var(--ink); }
 .ntbell + .roubtn { margin-left: 4px; }
@@ -3895,26 +3895,26 @@ main:has(> .lb) { padding-bottom: 12px; }
   .ntbell { width: 38px; height: 38px; margin-left: 4px; border-radius: 12px; }
 }
 
-/* Pencere ölçüleri (2026-11-01): içerik pencereleri (görev kartı, gönderi, otomasyon/hesap/proje formu, yeni gönderi,
-   hafta özeti, yedekler) tek genişlikte; planlama ve otomasyon görünümü geniş pencere. Yükseklik sınırı hepsinde aynı. */
+/* Window sizes (2026-11-01): content windows (task card, post, automation/account/project form, new post,
+      week summary, backups) have a single width; planning and the automation view are wide windows. The height limit is the same in all. */
 :root { --win: 680px; --win-wide: 900px; --win-h: min(88dvh, 880px); }
 .drawer, .modal.autoform, .modal.accform, .modal.postview, .modal.newpost, .modal.review, .modal.backups { width: min(var(--win), calc(100vw - 32px)); max-height: var(--win-h); }
 .modal.planweek, .modal.autoview { width: min(var(--win-wide), calc(100vw - 32px)); max-height: var(--win-h); }
-/* Görev kartının alt çubuğu: yazılar tek satır; kaydet düğmesi çıkınca bilgi satırı kısalır (…), düğmeler kırılmaz. */
+/* The task card's bottom bar: texts on a single line; when the save button appears the info line shortens (…), buttons do not wrap. */
 .drawer .dfoot > * { white-space: nowrap; flex: none; }
 .drawer .dfoot > .muted { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .drawer .dfoot > .muted + .dsdel { margin-left: 0; }
 @media (max-width: 720px) {
-  /* Telefonda kaydet düğmesi en altta, tam genişlikte ayrı satır; üstünde Rou'ya sor / Görevi sil. */
+  /* On a phone the save button is at the very bottom, on its own full-width row; above it Ask Rou / Delete task. */
   .drawer { width: 100%; max-height: 92dvh; }
   .drawer .dfoot { flex-wrap: wrap; row-gap: 10px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
   .drawer .dfoot .dsave { order: 9; flex: 1 0 100%; height: 44px; margin-left: 0; font-size: var(--fs-4); }
-  /* Yeni işte yalnız Vazgeç + Ekle: aynı satırda, Ekle kalan genişliği alır. */
+  /* On a new task only Cancel + Add: on the same row, Add takes the remaining width. */
   .drawer .dfoot:has(.dnewno) .dsave { order: 0; flex: 1 1 auto; }
   .drawer .dfoot .dnewno { margin-left: 0; height: 44px; }
 }
 
-/* Revize notları ve Rou'nun yapamadıkları (Auto.tsx Revisions). */
+/* Revision notes and what Rou could not do (Auto.tsx Revisions). */
 .rrevs { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .rrevgap { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--over) 10%, transparent); font-size: var(--fs-3); }
 .rrevgap b { display: block; font-weight: 620; color: var(--over); margin-bottom: 4px; }
@@ -3934,7 +3934,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .rrevlog .rrevask { color: var(--ink-2); margin-top: 4px; }
 .rrevlog p { margin: 2px 0 0; font-size: var(--fs-3); line-height: 1.45; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; display: block; -webkit-line-clamp: unset; overflow: visible; cursor: auto; }
 .pvxmedia { margin: 10px 0 4px; }
-/* Alıntılanan/yanıtlanan tweet: X'teki çerçeveli kutu. */
+/* Quoted/replied tweet: the framed box as on X. */
 .pvq { display: block; margin: 12px 0 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; color: inherit; text-decoration: none; }
 .pvq:hover { background: color-mix(in srgb, var(--ink) 2.5%, transparent); }
 .pvq-label { display: block; font-size: var(--fs-2); color: var(--ink-3); margin-bottom: 6px; }
@@ -3955,7 +3955,7 @@ main:has(> .lb) { padding-bottom: 12px; }
   .kbcard .cardhead .kbnew .btn { flex: 1; height: 36px; }
 }
 
-/* Proje Görevler kartı: tek oluşturma satırı (görev alanı geniş, yanında iki eylem), bölümler, biten görevler tam satır. */
+/* Project Tasks card: a single create row (wide task field, two actions beside it), sections, finished tasks on a full row. */
 .kbcreate { display: flex; align-items: stretch; gap: 8px; margin: 2px 0 6px; }
 .kbcreate .quick { flex: 1; min-width: 0; margin: 0; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); border-radius: 12px; }
 .kbcreate .quick .qrow { min-height: 44px; padding: 4px 10px; }
@@ -3970,14 +3970,14 @@ main:has(> .lb) { padding-bottom: 12px; }
   .kbcreate .quick { flex: 1 0 100%; }
   .kbcreate .kbmake { flex: 1; }
 }
-/* Üç oluşturma seçeneği eşit: görev alanı, gönderi, otomasyon; hiçbiri sağa itilmez. */
+/* The three create options are equal: task field, post, automation; none is pushed to the right. */
 .kbcreate { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .kbcreate .kbmake { justify-content: flex-start; padding: 0 14px; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); font-weight: 550; color: var(--ink-2); }
 .kbcreate .kbmake::before { content: "+"; font-size: 18px; font-weight: 400; color: var(--ink-3); width: 16px; margin-right: 6px; text-align: center; }
 .kbcreate .kbmake:hover { color: var(--ink); background: var(--hover); }
 @media (max-width: 640px) { .kbcreate { grid-template-columns: 1fr 1fr; } .kbcreate .quick { grid-column: 1 / -1; } }
 
-/* AutoView: sekme içeriği sabit yükseklikte kayar; "Nasıl çalışır" başlığın yanındaki ? düğmesinde. */
+/* AutoView: tab content scrolls at a fixed height; "How it works" is on the ? button next to the title. */
 .avpanel { height: min(440px, 46dvh); overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 0 4px; }
 .avpanel > .avsec:first-child, .avpanel > .avduo:first-child { margin-top: 0; }
 .avhow { position: relative; display: inline-flex; vertical-align: middle; margin-left: 8px; }
@@ -3991,14 +3991,14 @@ main:has(> .lb) { padding-bottom: 12px; }
 .avhowpop li b { font-weight: 600; color: var(--ink); }
 .avhowpop li em { font-style: normal; color: var(--ink-3); line-height: 1.4; overflow-wrap: anywhere; }
 .avhowpop .avn { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--panel); background: var(--ink); }
-/* Görev penceresi: kilitli yer etiketi (seçici değil); paylaşılmışta üstteki "Paylaşıldı" şeridi yeter, kart içindeki tekrar gizlenir. */
+/* Task window: a locked place label (not a selector); for a shared one the "Shared" strip on top is enough, the repeat inside the card is hidden. */
 .ppick.is-locked { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 4px; font-size: var(--fs-4); color: var(--ink-2); cursor: default; border: 0; background: none; }
 .ppick.is-locked i { width: 8px; height: 8px; border-radius: 50%; background: var(--w); }
 .ppick.is-locked b { color: var(--ink); font-weight: 600; }
 .ppick.is-locked .sep { color: var(--ink-3); }
 .drawer .rpostedbox { display: none; }
 
-/* Proje görev panosu (src/ui/ProjectBoard.tsx): üç sütun, gün başlıkları, sürüklenebilir kartlar. */
+/* Project task board (src/ui/ProjectBoard.tsx): three columns, day headings, draggable cards. */
 .pboard { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .pbcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 10px 10px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 3%, var(--panel)); transition: background 0.15s; }
 .pbcol.is-over { background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
@@ -4023,7 +4023,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .pbempty { margin: 2px 4px 4px; font-size: var(--fs-2); color: var(--ink-3); }
 @media (max-width: 760px) { .pboard { grid-template-columns: minmax(0, 1fr); } .pblist { max-height: none; } }
 
-/* Gönderiler: proje süzgeci ve hafta talimatı (Plan özeti). */
+/* Posts: project filter and the week instruction (Plan summary). */
 .stprojs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
 .stprojs button { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 999px; font-size: var(--fs-3); font-weight: 550; color: var(--ink-2); background: color-mix(in srgb, var(--ink) 4%, var(--panel)); }
 .stprojs button i { width: 7px; height: 7px; border-radius: 50%; background: var(--w, var(--ink-3)); }
@@ -4035,7 +4035,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .pspnote .btn { align-self: flex-start; }
 .stsum { display: flex; flex-direction: column; gap: 12px; } .stsum .pspnote { max-width: 720px; }
 
-/* Hesap analizi (src/ui/Insights.tsx). */
+/* Account analysis (src/ui/Insights.tsx). */
 .insbtn { margin-top: 8px; align-self: flex-start; }
 .insbtn b { font-weight: 700; }
 .modal.insview { width: min(var(--win), calc(100vw - 32px)); max-height: var(--win-h); padding: 0; gap: 0; overflow: hidden; display: flex; flex-direction: column; }
@@ -4059,7 +4059,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .insbusy { color: var(--accent); }
 .insfoot { display: flex; justify-content: flex-start; padding: 12px 20px 16px; border-top: 1px solid var(--line); }
 
-/* Proje otomasyonları kartı (ProjectAutomations, AutoRuns). */
+/* Project automations card (ProjectAutomations, AutoRuns). */
 .kbcreate.two { grid-template-columns: 2fr 1fr; }
 @media (max-width: 640px) { .kbcreate.two { grid-template-columns: 1fr; } }
 .pafilter { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
@@ -4086,7 +4086,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .pbcard span svg { flex: none; align-self: center; }
 .avpanel .pboard { margin-top: 4px; } .avpanel .pblist { max-height: none; }
 
-/* Gönderiler › Plan özeti (inline): durum sayıları süzgeç kutuları; satırda tek durum etiketi ve ok. */
+/* Posts › Plan summary (inline): status counts are filter boxes; on a row a single status label and an arrow. */
 .psstats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .psstats button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ink) 3.5%, var(--panel)); text-align: left; }
 .psstats button b { font-size: 24px; font-weight: 720; letter-spacing: -0.02em; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -4101,7 +4101,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 @media (max-width: 640px) { .psstats { grid-template-columns: 1fr 1fr; } }
 .psitem { grid-template-columns: 44px minmax(0, 1fr) auto 14px; } .psitem .pschev { align-self: center; }
 
-/* Gönderiler › Hafta | Ay. */
+/* Posts › Week | Month. */
 .stviewrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .stviewrow .wknav { margin: 0; }
 .stmonth { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
@@ -4126,7 +4126,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .artools.is-on > span { color: var(--ink-2); }
 .artools b { color: var(--ink); font-weight: 650; }
 
-/* Plan özeti (inline) belge gibi geniş değil: her gün ayrı kart, kartlar ızgarada; satır kısa (saat, platform, konu, durum). */
+/* The plan summary (inline) is not wide like a document: each day is a separate card, cards in a grid; the row is short (time, platform, topic, status). */
 .stsum .pslist { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; align-items: start; }
 .stsum .psday { margin: 0; padding: 12px 10px 8px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 3%, var(--panel)); }
 .stsum .psdayhead { margin: 0 4px 6px; }
@@ -4141,7 +4141,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .stsum .pspnote textarea { flex: 1; }
 @media (max-width: 640px) { .stsum .pspnote { flex-direction: column; } }
 
-/* Tarayıcı (Playgrounds seçiliyken): dünyalar solda dar dikey şerit; üst çubuktaki dünya satırıyla tekrar etmez. */
+/* Browser (while Playgrounds is selected): worlds in a narrow vertical strip on the left; it does not repeat the worlds row in the top bar. */
 .lb.has-rail { flex-direction: row; gap: 10px; }
 .lb.has-rail .lb-worlds { flex-direction: column; align-items: center; width: 52px; flex: none; gap: 4px; overflow-x: hidden; overflow-y: auto; padding: 8px 0; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 5%, transparent); }
 .lb.has-rail .lb-chip { position: relative; width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 12px; }
@@ -4152,21 +4152,21 @@ main:has(> .lb) { padding-bottom: 12px; }
 .lb.has-rail .lb-hint { margin: auto 0 0; padding: 8px 0 2px; color: var(--ink-3); }
 .lb.has-rail .lb-stage { flex: 1; min-width: 0; }
 @media (max-width: 640px) { .lb.has-rail { flex-direction: column; } .lb.has-rail .lb-worlds { flex-direction: row; width: auto; height: 52px; overflow-x: auto; padding: 0 8px; } .lb.has-rail .lb-hint { display: none; } }
-/* Paylaşım planı: durum sayıları ve hafta talimatı planın içinde (ayrı Plan özeti yok). */
+/* Sharing plan: status counts and the week instruction are inside the plan (no separate Plan summary). */
 .stplanbar { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
 .stplanbar .pspnote { flex-direction: row; align-items: center; padding: 6px 6px 6px 8px; }
 .stplanbar .pspnote textarea { flex: 1; min-height: 34px; padding: 7px 10px; }
 @media (max-width: 640px) { .stplanbar .pspnote { flex-direction: column; align-items: stretch; } }
 
-/* Proje sayfası iki sütun: solda dar (oluştur, bilgi, marka sesi), sağda iş. */
+/* Project page two columns: narrow on the left (create, notes, brand voice), the work on the right. */
 .pplayout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 12px; align-items: start; margin-top: 12px; }
 .ppside, .ppmain { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .ppside > .card, .ppmain > .card { margin: 0; }
 .ppside { position: sticky; top: calc(var(--top) + 4px); }
-/* Üst satır: Oluştur ve Görevler aynı yükseklikte; görev şeritleri kartın dibine kadar uzar. */
+/* Top row: Create and Tasks are the same height; task strips extend to the bottom of the card. */
 .pplayout > .ppmake, .pplayout > .pptasks { margin: 0; align-self: stretch; }
 .pptasks { display: flex; flex-direction: column; }
-/* Oluştur kartı Görevler boyuna uzar: üç satır kartı eşit böler, üst ve alt boşluk aynı kalır. */
+/* The Create card stretches to the Tasks height: the three row cards divide it equally, the space at the top and bottom stays the same. */
 .pplayout > .ppmake .ppmk { flex: 1; }
 .pptasks .pboard { flex: 1; margin-top: 10px; }
 .ppmake { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
@@ -4195,7 +4195,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .arsel b { flex: 1; font-size: var(--fs-3); font-weight: 620; }
 @media (max-width: 1020px) { .pplayout { grid-template-columns: minmax(0, 1fr); } .ppside { position: static; } }
 
-/* Sol sütundaki Bilgi ve Marka sesi: dar sütuna göre; tek sütun, kısa notlar, ekleme düğmeleri küçük ve yan yana. */
+/* Notes and Brand voice in the left column: for a narrow column; a single column, short notes, small add buttons side by side. */
 .ppside .brandrows { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .ppside .brandrows .brow { padding: 10px 12px; gap: 6px; }
 .ppside .brow dt em { display: none; }
@@ -4215,10 +4215,10 @@ main:has(> .lb) { padding-bottom: 12px; }
 .stnote2 { max-width: 620px; flex-direction: column !important; align-items: stretch !important; }
 .stnote2 .btn { align-self: flex-start; }
 .pachip.is-one { background: color-mix(in srgb, var(--ink) 4%, var(--panel)); }
-/* Pano listeleri kayarken kartın gölgesi ve çerçevesi kesilmesin: listeye gölge payı kadar iç boşluk. */
+/* So the card's shadow and frame are not cut when the board lists scroll: inner padding of the shadow's size on the list. */
 .pblist { padding: 3px 4px 4px; margin: -3px -4px -4px; }
 .pbcard:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent); }
-/* Proje başlığı: durum ve zaman etiketsiz, küçük, tek satır; özet yanında. Dünya değiştirme menüde. */
+/* Project header: status and time without labels, small, a single line; the summary beside it. Switching worlds is in the menu. */
 .ppctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ppctl .dlin { display: inline-flex; width: auto; }
 .ppctl .dlin > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -4230,7 +4230,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .ppctl { border-top: 0 !important; padding-top: 0 !important; margin-top: 14px !important; }
 .ppctl .ppstat { width: auto !important; flex: none; border: 0 !important; padding: 0 !important; margin: 0 0 0 6px !important; }
 
-/* Gönderiler › Öneriler (src/ui/Ideas.tsx). */
+/* Posts › Ideas (src/ui/Ideas.tsx). */
 .stideas { display: flex; flex-direction: column; gap: 10px; }
 .stideas .cardhead .stidrun { margin-left: auto; }
 .idgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
@@ -4242,7 +4242,7 @@ main:has(> .lb) { padding-bottom: 12px; }
 .idsrc { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-2); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
 a.idsrc:hover { color: var(--ink); }
 
-/* Odak › gün özeti: her grup kendi çerçevesinde, simgeli başlık; satırlar ayrı kart, üzerine gelince hafifçe kalkar. */
+/* Focus › day summary: each group in its own frame, a title with an icon; rows are separate cards, lifting slightly on hover. */
 .tnow { display: flex; flex-direction: column; gap: 10px; }
 .tngroup { padding: 10px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 3%, var(--panel)); border: 0 !important; display: flex; flex-direction: column; gap: 6px; }
 .tngroup .tnh { display: flex; align-items: center; gap: 8px; margin: 0 4px 2px; }
@@ -4254,7 +4254,7 @@ a.idsrc:hover { color: var(--ink); }
 .tngroup + .tngroup { padding-top: 10px; }
 .tngroup + .tngroup::before { display: none; }
 .tnh .tnhi + * { }
-/* Ay görünümü: günün gönderi sayısı, her gönderide durum noktası (onay bekliyor mor, paylaşıldı yeşil, planlı gri, açılmamış boş). */
+/* Month view: the day's post count, a status dot on each post (waiting for approval purple, shared green, planned gray, not opened empty). */
 .stmnum { display: flex; align-items: center; justify-content: space-between; }
 .stmnum em { font-style: normal; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center; font-size: 10.5px; font-weight: 650; color: var(--ink-2); background: var(--panel); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent); }
 .stmitem::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); }
@@ -4265,7 +4265,7 @@ a.idsrc:hover { color: var(--ink); }
 .stmcell:has(.stmitem) { background: color-mix(in srgb, var(--ink) 4.5%, var(--panel)); }
 .stideas .cardhead .n { font-family: var(--font); letter-spacing: 0; font-size: var(--fs-3); color: var(--ink-3); }
 
-/* Gönderiler süzgeçleri (2026-11-01): tek çerçeve, etiket sütunu + aynı biçimde çipler. */
+/* Posts filters (2026-11-01): a single frame, a label column + chips in the same form. */
 .stfbar { display: flex; flex-direction: column; margin: 12px 0 14px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--ink) 1.5%, var(--panel)); }
 .stfrow { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; padding: 8px 10px 8px 14px; min-width: 0; }
 .stfrow + .stfrow { border-top: 1px solid var(--line); }
@@ -4287,7 +4287,7 @@ a.idsrc:hover { color: var(--ink); }
   .stflab { height: auto; }
 }
 
-/* Ek görselleri hiç kırpılmaz (2026-11-01): görsel kutunun içine sığar; köşede tam boyut düğmesi. */
+/* Attachment images are never cropped (2026-11-01): the image fits inside the box; a full-size button in the corner. */
 .galitem { position: relative; }
 .galitem img, .galitem video { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; border-radius: 0; background: transparent; }
 .galbig { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: #fff; background: rgb(12 13 16 / 0.55); backdrop-filter: blur(6px); opacity: 0; transition: opacity 0.15s ease; }
@@ -4298,7 +4298,7 @@ a.idsrc:hover { color: var(--ink); }
 .gallbx { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: rgb(255 255 255 / 0.12); }
 .gallbx:hover { background: rgb(255 255 255 / 0.22); }
 
-/* Ay görünümü (2026-11-01): gün tıklanır, altında o günün gönderileri kart olarak açılır. */
+/* Month view (2026-11-01): a day is clickable, and below it that day's posts open as cards. */
 .stmcell { cursor: pointer; transition: background-color 0.15s ease, box-shadow 0.15s ease; outline: none; }
 @media (hover: hover) { .stmcell:hover { background: color-mix(in srgb, var(--ink) 7%, var(--panel)); } }
 .stmcell:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent); }
@@ -4335,14 +4335,14 @@ a.idsrc:hover { color: var(--ink); }
   .stmday { padding: 14px 12px; }
 }
 
-/* Proje sayfası hizası (2026-11-01): her kartta tek iç boşluk 16px; başlık simgesi, açıklama, düğmeler ve iç paneller aynı sol çizgide.
-   Oluştur kartında simge kutuları da aynı çizgide (kart 8 + satır 8). */
+/* Project page alignment (2026-11-01): a single inner padding of 16px in each card; the title icon, description, buttons and inner panels on the same left line.
+      In the Create card the icon boxes are on the same line too (card 8 + row 8). */
 .pplayout .card:not(.ppmake) { padding: 16px; }
 .pplayout .cardhead { padding: 0 0 12px; }
 .pplayout .srcadd { margin-left: 0; margin-right: 0; }
 .pplayout .srcnote, .pplayout .brandnote { padding-left: 0; padding-right: 0; margin-left: 0; margin-right: 0; }
 .pplayout .pbempty { padding: 0; margin: 2px 4px 4px; }
-/* Görev kartı: önceki denemeler (revize geçmişi). */
+/* Task card: earlier attempts (revision history). */
 .dhist { margin-top: 10px; font-size: var(--fs-2); color: var(--ink-2); }
 .dhist summary { cursor: pointer; width: fit-content; font-weight: 600; color: var(--ink-2); }
 .dhist ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -4351,9 +4351,9 @@ a.idsrc:hover { color: var(--ink); }
 .dhist .dhstat { font-weight: 600; color: var(--ink); }
 .dhist .dhstat.s-failed { color: var(--danger); }
 .dhist li p { grid-column: 1 / -1; margin: 0; line-height: 1.4; }
-/* Sohbetteki gönderi kartı: dar balonda önizleme tek sütun, okunur genişlikte; paylaşıldı kutusu altında. */
+/* Post card in chat: in a narrow bubble the preview is a single column, at a readable width; the shared box below. */
 .rbruns .run .pvwrap { max-width: 520px; }
-/* Bildirimler: temizle onayı ve bir haftalık saklama notu. */
+/* Notifications: clear confirmation and a one-week retention note. */
 .ntclear { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 6px 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--danger) 7%, var(--panel)); }
 .ntclear p { flex: 1 1 180px; margin: 0; display: flex; flex-direction: column; gap: 2px; }
 .ntclear b { font-size: var(--fs-3); font-weight: 620; color: var(--ink); }
@@ -4361,7 +4361,7 @@ a.idsrc:hover { color: var(--ink); }
 .ntclear div { display: flex; gap: 6px; }
 .ntkeep { margin: 6px 10px 0; font-size: var(--fs-1); color: var(--ink-3); }
 .ntclear .btn.danger { background: var(--danger); color: #fff; }
-/* Revize ekleri: küçük önizlemeler, her birinde kaldır düğmesi. */
+/* Revision attachments: small previews, a remove button on each. */
 .revfiles { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .revfiles li { position: relative; width: 72px; height: 72px; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--ink) 5%, var(--panel)); }
 .revfiles img, .revfiles video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -4371,18 +4371,18 @@ a.idsrc:hover { color: var(--ink); }
 .doask .doq b { display: block; font-weight: 600; margin-bottom: 6px; }
 .doask .doq ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; max-height: 360px; overflow-y: auto; line-height: 1.4; }
 
-/* Seri rengi noktası (automation.color): otomasyon satırı, çipleri ve formdaki kardeş seriler. */
+/* Series color dot (automation.color): automation row, its chips and the sibling series in the form. */
 .autodot { flex: none; display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
 .autosibs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .autosibs > span { display: inline-flex; align-items: center; gap: 5px; }
 
-/* Otomasyon: revizelerden kalıcı olmuş görsel kuralları */
+/* Automation: visual rules made permanent from revisions */
 .avrules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .avrules li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); }
 .avrules p { margin: 0; font-size: var(--fs-3); line-height: 1.45; }
 .avrules .link { flex: none; font-size: var(--fs-2); }
 
-/* Haftalık paylaşım raporu (Gönderiler, hafta görünümü): dünyalar tek satırda kayan şerit, proje → hesap kırılımı açılır menüde (2026-11-08). */
+/* Weekly sharing report (Posts, week view): worlds in a single-row sliding strip, project → account breakdown in a dropdown (2026-11-08). */
 .srrail { position: relative; }
 .srworlds { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 2px; scrollbar-width: none; overscroll-behavior-x: contain; padding: 2px; margin: -2px; }
 .srworlds::-webkit-scrollbar { display: none; }

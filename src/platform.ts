@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// Sunucunun sistemi (GET /api/platform, shared/platform.mjs features): yalnız macOS'ta çalışan işler başka sistemde gizlenir.
+// The server's system (GET /api/platform, shared/platform.mjs features): jobs that only work on macOS are hidden elsewhere.
 export type Platform = { os: string; features: { focusChrome: boolean; macNotify: boolean; trash: boolean; openFolder: boolean; shell: boolean } };
 let last: Platform | null = null;
 let inflight: Promise<Platform | null> | null = null;
@@ -11,5 +11,5 @@ export function usePlatform() {
   useEffect(() => { if (!last) void load().then(set); }, []);
   return p;
 }
-// Rou'nun sekmesini öne getirme: uygulamanın kendi tarayıcısında her sistemde, yedek Chrome yolunda yalnız macOS'ta.
+// Bringing Rou's tab forward: works on every system in the app's own browser, only on macOS in the fallback Chrome path.
 export const canFocusTab = (p: Platform | null) => !p || p.features.shell || p.features.focusChrome;

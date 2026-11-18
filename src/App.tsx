@@ -35,35 +35,35 @@ import { Tip } from "./ui/Tip";
 
 const VIEWS: Route["view"][] = ["focus", "calendar", "inbox", "projects", "posts", "browser", "profile"];
 
-// Adres: #görünüm/dünya[/proje]  (ör. #projects/dunya/abc123)
+// Address: #view/world[/project]  (e.g. #projects/world/abc123)
 function fromHash(): Route {
   const [v0, l, p] = location.hash.slice(1).split("/");
-  const v = v0 === "autos" ? "posts" : v0; // Otomasyonlar sayfası kalktı (2026-10-31); eski adresler Gönderiler'e düşer
+  const v = v0 === "autos" ? "posts" : v0; // The Automations page is gone (2026-10-31); old addresses fall back to Posts
   return { view: VIEWS.includes(v as Route["view"]) ? (v as Route["view"]) : "focus", lens: l || ALL, project: p || undefined };
 }
 const toHash = (r: Route) => `#${r.view}/${r.lens}${r.project ? `/${r.project}` : ""}`;
 
 export default function App() {
   const { state, mutate, system, undo, redo } = useStore();
-  // Tekrarlayan işlerin bugünkü kopyası: uygulama açıkken gün dönünce de açılır.
+  // Today's copy of repeating tasks: also opened when the day rolls over while the app is open.
   const minute = useNow(true, 60000);
   useEffect(() => {
     if (!state) return;
     if (needsMaterialize(state)) system((s) => void materialize(s));
   }, [state, minute, system]);
   const [route, setRoute] = useState<Route>(fromHash);
-  // Tarayıcı geri/ileride eski kaydırmayı kendisi geri getirmesin; sayfa geçişi kaydırmayı yönetir
+  // Keep the browser from restoring the old scroll on back/forward; page transitions manage scrolling
   useEffect(() => { history.scrollRestoration = "manual"; }, []);
   const [open, setOpen] = useState<string | null>(null);
 
-  // Adres yalnız yazımı farklıysa (ilk açılış, eski bir bağlantı, geri/ileri) yerinde düzeltilir: yeni bir geçmiş kaydı
-  // açılsaydı Geri tuşu her seferinde aynı sayfaya geri atardı.
+  // The address is fixed in place only when just its spelling differs (first open, an old link, back/forward): a new history entry
+  // would make the Back button bounce to the same page every time.
   const fixHash = useRef(true);
   useEffect(() => {
     if (location.hash !== toHash(route)) history[fixHash.current ? "replaceState" : "pushState"](null, "", toHash(route));
     fixHash.current = false;
   }, [route]);
-  // Rou bir gönderiyi paylaşınca uygulamada da haber ver (ilk yüklemede eskiler sayılmaz).
+  // When Rou shares a post, say so in the app too (old ones are not counted on first load).
   const posted = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (!state) return;
@@ -75,8 +75,8 @@ export default function App() {
     }
     posted.current = now;
   }, [state?.runs]);
-  // Açılır pencere (iş kartı, onay) ya da Rou sohbeti üstündeyken tekerlek arkadaki sayfayı kaydırmaz.
-  // Kaydırma çubuğu gizlenmez (gizlemek sayfayı genişletiyordu); yalnız arkaya geçecek kaydırma engellenir.
+  // While a modal (task card, approval) or the Rou chat is on top, the wheel does not scroll the page behind.
+  // The scrollbar is not hidden (hiding it widened the page); only scrolling that would pass to the back is blocked.
   useEffect(() => {
     const scrollsMore = (el: Element | null, root: Element, dy: number) => {
       for (let x = el; x && x !== root.parentElement; x = x.parentElement) {
@@ -95,7 +95,7 @@ export default function App() {
     addEventListener("wheel", k, { passive: false });
     return () => removeEventListener("wheel", k);
   }, []);
-  // Mac uygulamasında (WKWebView) yazı alanı dışında Backspace bir önceki sayfaya döner; bunu engelle.
+  // In the desktop app, Backspace outside a text field goes to the previous page; prevent that.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === "Backspace" && !(e.target as HTMLElement).closest("input,textarea,select,[contenteditable]")) e.preventDefault();
@@ -103,7 +103,7 @@ export default function App() {
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
   }, []);
-  // ⌘Z geri al, ⇧⌘Z (ya da ⌘Y) yinele. Yazı alanındayken tarayıcının kendi geri alması çalışır.
+  // ⌘Z undo, ⇧⌘Z (or ⌘Y) redo. In a text field the browser's own undo works.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || (e.target as HTMLElement).closest("input,textarea,select,[contenteditable]")) return;
@@ -122,9 +122,9 @@ export default function App() {
     return () => removeEventListener("popstate", h);
   }, []);
 
-  // Karşılama ekranı oturumda bir kez; veri arkada yüklenir, giriş yapılınca uygulama altından çıkar.
+  // The welcome screen shows once per session; data loads behind it, and the app comes out from under it on sign-in.
   const [inside, setInside] = useState(seenGate);
-  // Profil > Çıkış yap: karşılama ekranı yeniden açılır
+  // Profile > Sign out: the welcome screen opens again
   useEffect(() => { const h = () => setInside(false); addEventListener(LOGOUT, h); return () => removeEventListener(LOGOUT, h); }, []);
   return (
     <>
@@ -139,13 +139,13 @@ type ShellProps = { state: Ctx["state"]; mutate: Ctx["mutate"]; route: Route; se
 function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
   const lens = route.lens === ALL || state.worlds.some((w) => w.id === route.lens) ? route.lens : ALL;
   const r = { ...route, lens };
-  // Dünya değişince açık proje kapanır (aksi belirtilmedikçe).
+  // When the world changes, the open project closes (unless stated otherwise).
   const go = (p: Partial<Route>) => setRoute({ ...r, ...("lens" in p && !("project" in p) ? { project: undefined } : {}), ...p });
   const ctx: Ctx = { state, mutate, route: r, go, open: setOpen };
   useTimerEngine(ctx);
   useReminders(ctx);
   const world = lens === ALL ? null : worldOf(state, lens);
-  // Dünya geçişinde zeminin akışı kısa süre durur: hareketli dev katmanlar geçiş karesini WebKit'te takıltıyordu
+  // During a world switch the background flow pauses briefly: the big moving layers made the switch frame stutter in WebKit
   const [switching, setSwitching] = useState(false);
   const firstLens = useRef(true);
   useEffect(() => {
@@ -164,7 +164,7 @@ function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
       <div className="wash-grain" aria-hidden />
       <Rail {...ctx} />
       <div className="stage">
-        {/* Yeni sayfa en üstten başlar: eski sayfa söndükten sonra, yenisi gelmeden kaydırma sıfırlanır */}
+        {/* A new page starts at the top: scroll resets after the old page fades out, before the new one arrives */}
         <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo(0, 0)}>
           <motion.main key={`${r.view}-${lens}-${r.project ?? ""}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
             {state.worlds.length === 0 ? <Welcome ctx={ctx} /> : <>
@@ -179,7 +179,7 @@ function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
           </motion.main>
         </AnimatePresence>
       </div>
-      {/* Uygulamadaki tarayıcıda sayaç çubuğu sekmenin üstüne binerdi; orada gizli (sayaç sürer). */}
+      {/* In the in-app browser the timer bar would overlap the tab; hidden there (the timer keeps running). */}
       <TimerBar ctx={ctx} hidden={r.view === "focus" || (r.view === "browser" && inShell)} />
       <PageThumb />
       <Toaster />
@@ -198,7 +198,7 @@ function Shell({ state, mutate, route, setRoute, open, setOpen }: ShellProps) {
   );
 }
 
-// Hiç dünya yokken: nasıl çalıştığı üç adımda, sonra örnek dünyayla ya da boş başlama.
+// When there are no worlds: how it works in three steps, then start with a sample world or empty.
 function Welcome({ ctx }: { ctx: Ctx }) {
   const sample = () => {
     const x = makeSample();

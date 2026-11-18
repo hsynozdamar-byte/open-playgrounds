@@ -8,7 +8,7 @@ import { openBackups } from "../ui/Backups";
 import { readMe, saveMe } from "./Profile";
 import { AssistantSetting } from "../ui/AssistantSetting";
 
-// Profilin altındaki hesap ve ayarlar: yalnız uygulamada gerçekten olan tercihler. Her şey bu bilgisayarda saklanır.
+// Account and settings under Profile: only preferences that really exist in the app. Everything is stored on this computer.
 const STILL = "pg-still";
 export const stillPref = () => { try { return localStorage.getItem(STILL) === "1"; } catch { return false; } };
 export const LOGOUT = "pg-logout";
@@ -22,22 +22,22 @@ export function Settings({ ctx, onRename }: { ctx: Ctx; onRename: () => void }) 
 
   const field = (k: "name" | "email", v: string) => {
     const m = { ...me, [k]: v.trim() }; setMe(m); saveMe(m); onRename();
-    // Ad, Rou'nun istemlerinde de kullanılır (sunucu state.settings.userName okur).
+    // The name is used in Rou's prompts too (the server reads state.settings.userName).
     if (k === "name") ctx.mutate((st) => { st.settings = { ...st.settings, userName: m.name || undefined }; });
   };
   const set = ctx.state.settings ?? {};
-  // İşlerin nerede durduğu (Rou gerçek işi ararken okur) ve Rou'nun okuyabileceği klasörler (satır başına bir yol).
+  // Where tasks live (Rou reads it when looking for real work) and folders Rou may read (one path per line).
   const saveHints = (v: string) => ctx.mutate((st) => { st.settings = { ...st.settings, workHints: v.trim() || undefined }; });
   const saveDirs = (v: string) => ctx.mutate((st) => { const dirs = v.split("\n").map((x) => x.trim()).filter(Boolean); st.settings = { ...st.settings, workDirs: dirs.length ? dirs : undefined }; });
   const lens = (f: number, b: number) => { setPomo(f); setBrk(b); setLens(ctx.mutate, f, b); };
-  const motion = (v: boolean) => { setStillState(v); setStill(v); try { localStorage.setItem(STILL, v ? "1" : "0"); } catch { /* yok */ } };
+  const motion = (v: boolean) => { setStillState(v); setStill(v); try { localStorage.setItem(STILL, v ? "1" : "0"); } catch { /* no storage */ } };
   const ask = () => { if ("Notification" in window) Notification.requestPermission().then(setPerm); };
   const exportData = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify(ctx.state, null, 2)], { type: "application/json" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `playgrounds-${new Date().toISOString().slice(0, 10)}.json` });
     a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const logout = () => { try { sessionStorage.removeItem("pg-in"); } catch { /* yok */ } dispatchEvent(new Event(LOGOUT)); };
+  const logout = () => { try { sessionStorage.removeItem("pg-in"); } catch { /* no storage */ } dispatchEvent(new Event(LOGOUT)); };
 
   return (
     <section className="prosettings" aria-label="Settings">
@@ -90,7 +90,7 @@ export function Settings({ ctx, onRename }: { ctx: Ctx; onRename: () => void }) 
             <input className="setin" type="email" key={`e${me.email}`} defaultValue={me.email} placeholder="Add"
               onBlur={(e) => e.target.value.trim() !== me.email && field("email", e.target.value)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
           </label>
-          {/* Mobilde Tarayıcı sekmesi yok (yedi sayfa sığmıyor); buradan açılır. */}
+          {/* On mobile there is no Browser tab (seven pages do not fit); it opens from here. */}
           <button className="setrow" onClick={() => ctx.go({ view: "browser", project: undefined })}><Globe size={16} strokeWidth={1.9} /><span>Browser and sign-ins</span><ChevronRight className="go" size={16} /></button>
         </div>
         <div className="card setcard setout-card">

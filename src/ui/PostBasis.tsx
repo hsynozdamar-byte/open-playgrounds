@@ -7,7 +7,7 @@ import { toast } from "./Toast";
 
 export const SHORT_TOPIC = "The topic is too short. Write what the post should say in the title, and Rou writes from that.";
 
-// Elle eklenen gönderinin kartında: Rou bu gönderiyi neye göre yazacak. Çıktı yoksa buradan hazırlatılır.
+// On the card of a hand-added post: what Rou will write this post from. If there is no output it can be prepared from here.
 export function PostBasis({ task, ctx }: { task: Task; ctx: Ctx }) {
   const s = ctx.state;
   const b = postBasis(s, task);

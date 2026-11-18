@@ -40,7 +40,7 @@ const nextText = (a: Automation) => {
   return n ? `Next: ${relDay(n.day)}${n.slot ? ` ${n.slot}` : ""}` : "No plan";
 };
 
-// İş kartında: bu iş bir otomasyondan geldiyse hangisi olduğu.
+// On the task card: if this task came from an automation, which one.
 export function AutoInfoRow({ task, ctx, onGo }: { task: Task; ctx: Ctx; onGo: () => void }) {
   const a = autoOf(ctx.state, task);
   if (!a) return null;
@@ -56,8 +56,8 @@ export function AutoInfoRow({ task, ctx, onGo }: { task: Task; ctx: Ctx; onGo: (
   );
 }
 
-// Sunucu açılışta yarım kalan "working" çıktıları failed yapar (server/app.mjs); burada yalnız takılı kalanlara karşı geniş bir sınır.
-// Eskiden 6 dk idi: revizeler (video kaydı) daha uzun sürünce iş listeden düşüyor, "hazırlanıyor" görünmüyordu.
+// At startup the server turns half-finished "working" outputs into failed (server/app.mjs); this is only a wide limit for ones that got stuck.
+// It used to be 6 min: when revisions (video recording) took longer the task dropped off the list and "preparing" was not shown.
 const STALE = 60 * 60 * 1000;
 export const isStale = (r: Run) => r.status === "working" && Date.now() - new Date(r.at).getTime() > STALE;
 
@@ -67,7 +67,7 @@ async function cancelPrepare(taskId: string) {
 }
 export async function prepare(taskId: string, tries = 3, feedback?: string, files?: { file: string; name: string; kind: "image" | "video" }[]): Promise<boolean | void> {
   const r = await fetch("/api/prepare", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId, feedback, files }) }).then((r) => r.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
-  // Yeni açılan iş dosyaya henüz yazılmadıysa kısa bir süre sonra yeniden dener.
+  // If a newly opened task is not yet written to the file, retries shortly.
   if (!r.ok && r.error === "No such task" && tries > 1) return void setTimeout(() => prepare(taskId, tries - 1), 700);
   if (!r.ok) toast(r.error ?? "Couldn't prepare");
   else if (r.queued) toast(r.message ?? "Queued: starts when the current one is done");
@@ -76,15 +76,15 @@ export async function prepare(taskId: string, tries = 3, feedback?: string, file
 }
 
 export const BOT: Record<string, string> = { claude: "Rou", me: "You" };
-// İşi kim yapıyor: otomasyon işinde otomasyonun hazırlayanı, tek işte atanan; yoksa sen.
+// Who does the task: in an automation task the automation's preparer, in a single task the assigned one; otherwise you.
 export type Who = "me" | "claude";
-// Rou'nun açtığı tek seferlik gönderi (task.post, by claude) Rou'nundur: Odak'ta Rou panelinde, paylaşım durumuyla görünür.
+// A one-off post Rou opened (task.post, by claude) is Rou's: in Focus it shows in Rou's panel with its share status.
 export const whoOf = (s: State, t: Task): Who => (autoOf(s, t)?.who ?? t.who ?? (t.post && t.by === "claude" ? "claude" : "me")) as Who;
 
-// Proje (ya da dünya) sayfasında: buradaki otomasyonlar, kısa liste.
-// Otomasyon satırı: görev listesinde bir görev gibi durur, "Otomasyon" etiketiyle ayrılır. Ne zaman, kim, (gerekirse) hangi proje
-// ve şu an ne beklediği tek bakışta. Basınca otomasyon penceresi (ayar, plan, çıktılar) açılır.
-// Seri rengi noktası (automation.color): listelerde ve çiplerde otomasyonun adının yanında.
+// On a project (or world) page: the automations here, a short list.
+// Automation row: sits in the task list like a task, set apart by an "Automation" label. When, who, (if needed) which project
+// and what it waits for now at a glance. Pressing opens the automation window (settings, plan, outputs).
+// Series colour dot (automation.color): next to the automation's name in lists and chips.
 export const SeriesDot = ({ color }: { color?: string }) => (color ? <i className="autodot" style={{ background: color }} aria-hidden /> : null);
 
 export function AutoRow({ ctx, a, showProject, tag = true }: { ctx: Ctx; a: Automation; showProject?: boolean; tag?: boolean }) {
@@ -109,11 +109,11 @@ export function AutoRow({ ctx, a, showProject, tag = true }: { ctx: Ctx; a: Auto
   );
 }
 
-// Dünyanın (ya da projenin) otomasyonları: satır listesi. bare: yalnız liste (proje görev listesinin içinde).
+// A world's (or project's) automations: a row list. bare: only the list (inside the project task list).
 export function ProjectAutos({ ctx, worldId, projectId, bare, adds }: { ctx: Ctx; worldId: string; projectId?: string | null; bare?: boolean; adds?: { label: string; onClick: () => void }[] }) {
   const s = ctx.state;
   const list = s.automations.filter((a) => a.worldId === worldId && (projectId === undefined || a.projectId === projectId));
-  // adds: [] → ekleme kutusu yok (oluşturma düğmeleri kartın başlığında).
+  // adds: [] → no add box (the create buttons are in the card header).
   if (bare && adds?.length === 0 && !list.length) return null;
   const rows = (
     <ul className="arows strip">
@@ -134,20 +134,20 @@ export function ProjectAutos({ ctx, worldId, projectId, bare, adds }: { ctx: Ctx
   );
 }
 
-// Otomasyonu şimdi çalıştır: bugünün sıradaki (çıktısı olmayan) işini açar, Claude'unsa hazırlatır.
-// Bugün otomasyonun günü olmasa da elle çalıştırılabilir.
-// Şimdi yap: iş bugüne alınır, takvimdeki saati şu ana gelir (yoksa eklenir, uzunluğu korunur), sonra kim yapıyorsa başlar:
-// Sen → odak sayacı, Rou → hazırlar. Sürüklemeden "şimdi" demek için (iş kartı Kim satırı).
+// Run the automation now: opens today's next task (without an output), prepares it if it is Claude's.
+// It can be run by hand even if today is not the automation's day.
+// Do it now: the task moves to today, its calendar time becomes now (added if missing, length kept), then it starts for whoever does it:
+// You → focus timer, Rou → prepares. To say "now" without dragging (task card Who row).
 
-// Rou'nun doğrudan Chrome işi (POST /api/do-task): run açılır; Chrome'u Rou kendisi seçer ve başlar. Bağlı Chrome yoksa sunucu söyler.
+// Rou's direct Chrome task (POST /api/do-task): a run is opened; Rou picks the Chrome itself and starts. If no Chrome is connected the server says so.
 async function goDirect(taskId: string) {
   const res = await fetch("/api/do-task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
   if (!res.ok) return toast(res.error ?? "Couldn't start");
   toast("Rou started in the browser");
 }
 
-// Çekmecedeki Kaydet ne başlatır: iş Rou'nunsa ve günü geldiyse (ya da tarihsizse) saatini beklemeden.
-// Günü ilerideyse zamanlayıcı o gün başlatır. Düğmenin yazısı da buradan gelir.
+// What Save in the drawer starts: if the task is Rou's and its day has come (or it has no date), without waiting for its time.
+// If its day is later the scheduler starts it that day. The button text comes from here too.
 export function kickOffWhat(s: State, task: Task): "chrome" | "prepare" | null {
   if (task.status === "done" || autoOf(s, task) || (task.day && task.day > today())) return null;
   if (task.who !== "claude") return null;
@@ -157,7 +157,7 @@ export function kickOffWhat(s: State, task: Task): "chrome" | "prepare" | null {
   return fresh ? "prepare" : null;
 }
 
-// "keep" = çekmece açık kalsın (Chrome seçimi, canlı izleme).
+// "keep" = the drawer stays open (Chrome choice, live view).
 export function kickOff(ctx: Ctx, task: Task): "keep" | "started" | false {
   const what = kickOffWhat(ctx.state, task);
   if (what === "chrome") { void goDirect(task.id); return "keep"; }
@@ -199,7 +199,7 @@ export function runNow(ctx: Ctx, a: Automation) {
   if (slot === undefined) return toast("Today's tasks are already prepared");
   let task = occurrenceOf(s, a, t, slot);
   if (!task) {
-    // Yeni işi önce geçici bir durumda kur: aynı id ile hem kaydedilir hem hazırlatılır.
+    // Set the new task up in a temporary state first: it is both saved and prepared with the same id.
     const tmp = { tasks: [], blocks: [] } as unknown as State;
     task = makeOccurrence(tmp, { ...a, topics: { ...a.topics } }, t, slot);
     const made = tmp;
@@ -214,9 +214,9 @@ export function runNow(ctx: Ctx, a: Automation) {
   else toast("Today's task opened", () => ctx.open(id), "Open");
 }
 
-// Gelecek bir günün gönderisini beklemeden üretir: o günün görevi şimdi açılır (günü ve saati aynı kalır)
-// ve hazırlanır. Sabah otomasyon o görevi bulur, ikinci kez açmaz.
-// Otomasyonun bir gününün görevini açar (hazırlatmaz): yoksa şimdi oluşturur, kimliğini döner. Ayrıntıyı görmek ve toplu hazırlatmak için.
+// Produces a future day's post without waiting: that day's task is opened now (day and time stay the same)
+// and prepared. In the morning the automation finds that task and does not open it a second time.
+// Opens the task of one day of an automation (does not prepare): creates it now if missing, returns its id. For seeing details and bulk prepare.
 export function openAt(ctx: Ctx, a: Automation, day: string, slot: string): string {
   const have = occurrenceOf(ctx.state, a, day, slot);
   if (have) return have.id;
@@ -233,7 +233,7 @@ export function runAt(ctx: Ctx, a: Automation, day: string, slot: string) {
   let task = occurrenceOf(ctx.state, a, day, slot);
   if (!task) {
     const tmp = { tasks: [], blocks: [] } as unknown as State;
-    // Kopya üzerinde açılır (konu otomasyondan göreve geçer); asıl veri mutate içinde değişir.
+    // Opens on a copy (the topic moves from the automation to the task); the real data changes inside mutate.
     task = makeOccurrence(tmp, { ...a, topics: { ...a.topics } }, day, slot);
     ctx.mutate((st) => {
       st.tasks.push(...tmp.tasks); st.blocks.push(...tmp.blocks);
@@ -246,23 +246,23 @@ export function runAt(ctx: Ctx, a: Automation, day: string, slot: string) {
   else toast("Task opened", () => ctx.open(id), "Open");
 }
 
-// Rou'nun sırası: işler aynı anda değil, birbiri ardına hazırlanır (sunucu prepareMany).
+// Rou's queue: tasks are prepared one after another, not at once (server prepareMany).
 export function queuePrepare(ids: string[]) {
   return fetch("/api/prepare-many", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => toast("Couldn't reach the server"));
 }
-// Sırada mı: işaret 2 saatten eskiyse (sunucu yeniden başladıysa) sayılmaz.
+// Is it queued: if the mark is older than 2 hours (the server restarted) it does not count.
 export const isQueued = (t?: Task) => !!t?.queuedAt && Date.now() - new Date(t.queuedAt).getTime() < 2 * 3600 * 1000;
 
-// İş kartında: Claude'un hazırladığı çıktı ya da hazırlatma düğmesi.
+// On the task card: the output the assistant prepared, or the prepare button.
 export function OutputSection({ task, ctx }: { task: Task; ctx: Ctx }) {
   const s = ctx.state;
-  // Basınca hemen geri bildirim: yeni çıktı gelene kadar düğme dönen simgeyle bekler.
+  // Immediate feedback on press: the button waits with a spinner until the new output arrives.
   const [starting, setStarting] = useState<string | null>(null);
   const a = autoOf(s, task);
   const runs = s.runs.filter((r) => r.taskId === task.id);
-  // Otomasyonsuz işte de kim yapacağı seçilebilir (task.who): Rou hazırlar.
+  // A task without an automation can also have a doer chosen (task.who): Rou prepares.
   const who = a ? a.who : task.who ?? "me";
-  // Çıktı varsa başlık onu yapanı söyler (kartta Kim değiştirilse de).
+  // If there is an output the heading says who made it (even if Who was changed on the card).
   const bot = runs[0]?.by ?? (who !== "me" ? who : undefined);
   if (!runs.length && who === "me") return null;
   const last = runs[0];
@@ -278,7 +278,7 @@ export function OutputSection({ task, ctx }: { task: Task; ctx: Ctx }) {
     <section className="dsec">
       <div className="dsechead"><span className="flabel">{a && a.who !== "me" ? (last ? `${BOT[last.by ?? a.who] ?? BOT[a.who]} prepared` : `${BOT[a.who]} will prepare`) : (BOT[bot ?? "claude"] ?? bot) === "You" ? "You do it" : `${BOT[bot ?? "claude"] ?? bot} does it`}</span></div>
       {last && <RunCard r={last} ctx={ctx} />}
-      {/* Deneme geçmişi: önceki çıktılar, revize notun, Rou'nun puanı ya da hata nedeni. */}
+      {/* Attempt history: earlier outputs, your revision note, Rou's score or the reason for the error. */}
       {runs.length > 1 && (
         <details className="dhist">
           <summary>Earlier attempts · {runs.length - 1}</summary>
@@ -293,9 +293,9 @@ export function OutputSection({ task, ctx }: { task: Task; ctx: Ctx }) {
           </ol>
         </details>
       )}
-      {/* Tek iş, henüz sonuç yok: ne olacağını anlatır; başlatmak çekmecenin alt düğmesinden. */}
+      {/* A single task with no result yet: says what will happen; starting is from the drawer's bottom button. */}
       {!last && !a && <p className="rplanned">{needsChrome(task) ? "Rou does the task in the Playgrounds browser: plans it, makes the text and images it needs, and applies them on the page. It asks you before any final step that can't be undone." : "Rou prepares it; the result comes to this card and waits for your approval."}</p>}
-      {/* Süreç: işin hangi adımda olduğu; çıktı kartından ayrı başlıkla, ne işe yaradığı belli olsun. */}
+      {/* Process: which step the task is on; under its own heading apart from the output card, so its purpose is clear. */}
       {a && a.who !== "me" && <>
         <div className="dsechead dlifehead"><span className="flabel">Progress</span></div>
         <Lifecycle ctx={ctx} task={task} a={a} r={last} />
@@ -307,7 +307,7 @@ export function OutputSection({ task, ctx }: { task: Task; ctx: Ctx }) {
   );
 }
 
-// İşin hikâyesi: kim hazırladı, onay, paylaşım ve bundan sonra ne olacak. Her adım saatiyle; sıradaki adım açıkça kimin elinde yazar.
+// The task's story: who prepared it, approval, sharing and what happens next. Each step with its time; the next step says plainly whose hands it is in.
 function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r?: Run }) {
   const s = ctx.state;
   const bot = BOT[a.who];
@@ -344,7 +344,7 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
       : x.state === "now" ? { state: "now", title: "Awaiting your approval", text: `${isVideo ? "Watch the video; approve it or request changes." : "Read the text; approve, edit or request changes."}` }
       : { state: "todo", title: "Approval is yours", text: isVideo ? "Once the video is ready, you watch and approve it." : undefined });
     if (x.key === "publish") {
-      // Rou Playgrounds'un tarayıcısında, hesabın dünyasının oturumunda paylaşır. Saatinde kendiliğinden (server/share.mjs).
+      // Rou shares in Playgrounds' browser, in the session of the account's world. At its time by itself (server/share.mjs).
       const byRou = sharer === "Rou";
       const byMe = sharer === "You";
       const plats = platformsOf(s, a);
@@ -385,7 +385,7 @@ function Lifecycle({ ctx, task, a, r }: { ctx: Ctx; task: Task; a: Automation; r
   );
 }
 
-// Onaylanan gönderiyi beklemeden paylaştırır (paylaşan Rou; server/share.mjs).
+// Shares the approved post without waiting (the sharer is Rou; server/share.mjs).
 async function shareNow(runId: string, approve = false) {
   const r = await fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId, approve }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
   toast(r.ok ? "Sharing started" : `Couldn't share: ${r.error}`);
@@ -397,19 +397,19 @@ async function publish(runId: string) {
   return !!r.ok;
 }
 
-// Paylaşım kullanıcıya kaldıysa Rou'ya bir daha denetir.
-// Basınca hemen dönen çark; başlayınca satır "Rou yeniden deniyor" olur ve canlı adımlar gelir.
+// If sharing was left to the user, have Rou try again.
+// A spinner right after the press; once it starts the row says "Rou is retrying" and live steps arrive.
 function RetryShare({ runId }: { runId: string }) {
   const [busy, setBusy] = useState(false);
   return <button className="btn sm primary" disabled={busy} onClick={async () => { setBusy(true); if (!(await publish(runId))) setBusy(false); }}>{busy ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}{busy ? "Starting…" : "Let Rou try again"}</button>;
 }
 
 const STATE_ICON: Partial<Record<Run["status"], typeof Check>> = { ready: Eye, approved: Check, posted: Check, acted: Check, failed: AlertTriangle };
-// Kartın etiketi: işin şu anki aşaması ve sıradaki adımı kimin attığı ("Onaylandı · Rou paylaşacak 10:00").
+// The card's label: the task's current stage and who takes the next step ("Approved · Rou will share 10:00").
 export function runTag(s: State, task: Task, r?: Run | null): string {
   if (!r) return task.status === "done" ? "Done" : "Not prepared";
   const a = autoOf(s, task);
-  // Tek iş (otomasyonsuz, ör. Gmail temizliği): Rou tarayıcıda yapar, soru sorabilir.
+  // Single task (no automation, e.g. Gmail cleanup): Rou does it in the browser, it may ask questions.
   if (!a) {
     if (r.status === "working") return "Rou is preparing";
     if (r.status !== "approved") return RUN_LABEL[r.status] ?? r.status;
@@ -440,7 +440,7 @@ export function runTag(s: State, task: Task, r?: Run | null): string {
 
 export const RUN_LABEL: Record<Run["status"], string> = { working: "Preparing", failed: "Couldn't prepare", ready: "Awaiting approval", approved: "Approved", posted: "Shared", acted: "Done" };
 
-// Revize notların: bu işe yazdığın her not (eskiden yeniye) ve Rou'nun bu çıktıda yapamadıkları.
+// Your revision notes: every note you wrote for this task (oldest to newest) and what Rou could not do in this output.
 function Revisions({ task, r }: { task: Task; r: Run }) {
   const list = revisionsOf(task);
   if (!list.length && !r.reviseGaps?.length && !r.topicMiss) return null;
@@ -476,7 +476,7 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
   const [ask, setAsk] = useState<"del" | "post" | "revise" | "posted" | "share" | "versions" | null>(null);
   const [link, setLink] = useState("");
   const [note, setNote] = useState("");
-  // Revize ekleri: Rou bunlara bakar ve çıktıya ekler (görseller önde, video yerine geçer).
+  // Revision attachments: Rou looks at these and adds them to the output (images first, they stand in for the video).
   const [revFiles, setRevFiles] = useState<{ file: string; name: string; kind: "image" | "video" }[]>([]);
   const [uploading, setUploading] = useState(false);
   const addRevFiles = async (list: FileList | null) => {
@@ -504,10 +504,10 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
       const t = st.tasks.find((y) => y.id === r.taskId);
       if (t && done) setStatus(t, "done");
     });
-  // Gönderi ya da videoysa onay işi bitirmez: iş paylaşılınca biter. Metin, rapor gibi çıktılarda onay işi bitirir.
+  // For a post or video, approval does not finish the task: it finishes when shared. For outputs like text or a report, approval finishes the task.
   const shareable = (() => { const t = r.taskId ? s.tasks.find((x) => x.id === r.taskId) : undefined; const a = t && autoOf(s, t); return !!r.post || (!!a && ["post", "video"].includes(outputOf(s, a))); })();
   const postOut = (() => { const a = task && autoOf(s, task); return !!a && outputOf(s, a) === "post"; })();
-  // Onay geri alınabilir: paylaşım başlamadıysa çıktı yeniden onay bekler.
+  // Approval can be undone: if sharing has not started the output goes back to waiting for approval.
   const unapprove = () => ctx.mutate((st) => {
     const x = st.runs.find((y) => y.id === r.id);
     if (!x || x.status !== "approved") return;
@@ -519,22 +519,22 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
     const t = st.tasks.find((y) => y.id === r.taskId);
     if (t && t.status === "done") setStatus(t, "todo");
   });
-  // Rou'ya verilmiş tek iş (otomasyon değil): onay "devam et" demek, iş açık kalır; bitince işi sen kapatırsın.
+  // A single task given to Rou (not an automation): approval means "go on", the task stays open; you close it when done.
   const keepOpen = (() => { const t = r.taskId ? s.tasks.find((x) => x.id === r.taskId) : undefined; return !!t && !autoOf(s, t) && t.who === "claude"; })();
   const approve = () => {
     setRun({ status: "approved", approvedAt: new Date().toISOString() }, !shareable && !keepOpen);
-    // Chrome'da yapılacak tek iş onaylanınca Rou beklemeden başlar.
+    // When a single task to do in Chrome is approved Rou starts without waiting.
     const t = r.taskId ? s.tasks.find((x) => x.id === r.taskId) : undefined;
     if (keepOpen && t && needsChrome(t, r)) { requestDo(r.id); return toast("Approved. Rou is starting in the browser.", unapprove); }
     toast(keepOpen ? "Approved. The task stays open." : "Approved. You can undo it within 5 minutes.", unapprove);
   };
-  // Başlamış ve sürmekte olan paylaşım geri alınamaz; paylaşılamadıysa onay geri alınabilir.
+  // A share that has started and is running cannot be undone; if it could not be shared the approval can be undone.
   const canUnapprove = status === "approved" && !r.publish?.phase && (!r.shareSentAt || !!r.publish?.error);
   const markPosted = (url?: string) => {
     const before = r.status, pub = r.publish;
     const was = r.taskId ? s.tasks.find((x) => x.id === r.taskId)?.status : undefined;
     setRun({ status: "posted", postedAt: new Date().toISOString(), publish: undefined, ...(url ? { postUrl: url } : {}) }, true);
-    // Geri al her şeyi eski hâline getirir: iş yeniden açılır, paylaşım kaydı ve adres de döner.
+    // Undo restores everything: the task is reopened, the share record and address go back too.
     toast("Marked as shared", () => ctx.mutate((st) => {
       const x = st.runs.find((y) => y.id === r.id);
       if (x) { x.status = before; delete x.postedAt; if (url) delete x.postUrl; if (pub) x.publish = pub; }
@@ -550,17 +550,17 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
   const canPost = !!acc && PUBLISHABLE.has(acc.platform);
   const ready = canPost;
   const accName = acc ? `${platformName(acc)} ${acc.handle || acc.name}`.trim() : "";
-  // Sesi, videosu ya da (LinkedIn) görseli henüz yoksa onaylanamaz (shared/stages.mjs).
+  // Cannot be approved while the voice, video or (LinkedIn) image is still missing (shared/stages.mjs).
   const auto = task ? autoOf(s, task) : undefined;
   const stage = auto ? stagesOf(s, auto, task, r).current : null;
   const lowScore = r.review?.score != null && r.review.score < 8;
   const incomplete = stage === "voice" || stage === "video" || stage === "image" || missingImage(r);
   const byMe = (!!auto && sharerOf(auto, task) === "me") || !!r.publish?.handoff;
-  // Kim, ne zaman paylaşır: onay çubuğunda yazar. "Şimdi paylaş" takvimdeki yeri değiştirmez.
+  // Who shares, and when: shown in the approval bar. "Share now" does not change its place on the calendar.
   const sharerKey = task ? sharerOf(auto, task) : "claude";
   const sharerName = sharerKey === "claude" ? "Rou" : sharerKey === "me" ? "You" : "Rou";
   const slot0 = task ? task.autoSlot || blocksOf(s, task.id).find((b) => b.start.slice(0, 10) === task.day)?.start.slice(11, 16) : undefined;
-  // Saati geçtiyse paylaşım saat beklemez: "hemen".
+  // If the time has passed sharing does not wait for the time: "right away".
   const slot = slot0 && task?.day && `${task.day}T${slot0}` > new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16) ? slot0 : undefined;
   const canShareNow = shareable && !!r.post && !byMe && !publishing && !missingImage(r) && (sharerKey === "claude" ? !!acc : !!acc || (!!auto && platformsOf(s, auto).length > 0));
   const whenNote = !shareable || byMe || !canShareNow ? "" : status === "ready" ? `If you approve, ${sharerName} shares it ${slot ? `at ${slot}` : "right away"}` : status === "approved" ? `${sharerName} will share it ${slot ? `at ${slot}` : "shortly"}` : "";
@@ -580,7 +580,7 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
         : r.post && status !== "failed" ? <PostPreview r={r} s={s} />
         : postOut && status !== "working" && status !== "failed" && r.body ? <DraftPost r={r} s={s} />
         : status !== "working" && r.body && <>
-          {/* Çıktı markdown yazılır (başlık, liste, kalın); kapalıyken ilk satırlar, altı yumuşakça kaybolur. */}
+          {/* The output is written in markdown (heading, list, bold); when closed the first lines show and the rest fades softly. */}
           {(() => { const long = r.body.length > 220 || r.body.split("\n").length > 4; return <>
             <div className={`rmd ${long && !open ? "is-clamped" : ""}`} onClick={() => long && setOpen(!open)}><NoteBody text={r.body} /></div>
             {long && <button className="pvmore rmore" onClick={() => setOpen(!open)}>{open ? "Show less" : "Show all"}</button>}
@@ -592,7 +592,7 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
       {r.items?.length && status !== "working" ? <RunItems r={r} auto={task ? autoOf(s, task) : undefined} /> : null}
       {r.publish?.error && !publishing && status !== "posted" && <p className="pvissues rperr">Couldn't share: {r.publish.error}</p>}
       {task && status !== "posted" && <Revisions task={task} r={r} />}
-      {/* Paylaşılan gönderi: durum, nerede ve ne zaman, tek düğmeyle gönderiye git. Genişte önizlemenin sağında durur. */}
+      {/* Shared post: status, where and when, one button to go to the post. On wide screens it sits to the right of the preview. */}
       {status === "posted" && (
         <div className="rpostedbox">
           <span className="rpok"><Check size={16} strokeWidth={2.6} /></span>
@@ -662,8 +662,8 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
         </div>
       ) : (status === "ready" || status === "approved" || status === "failed" || status === "posted" || status === "acted") && !publishing && !r.phase && !(r.act?.phase && Date.now() - new Date(r.act.at).getTime() < 60 * 60 * 1000) && (
         <div className={`runact is-${status}`}>
-          {/* Ana işlem önde; ne zaman ve kimin paylaşacağı yanında; geri kalan her şey ⋯ menüsünde. */}
-          {/* Rou'nun kendi kontrolünden geçmeyen çıktı (puan 8'in altı) öne revizeyle gelir; onay ikincil ve açıkça "yine de". */}
+          {/* The main action first; when and who shares next to it; everything else in the ⋯ menu. */}
+          {/* An output that fails Rou's own check (score under 8) comes with a revision first; approval is secondary and clearly "anyway". */}
           {status === "ready" && !r.items?.length && !incomplete && <button className={`btn sm ${lowScore ? "" : "primary"}`} onClick={approve}><Check size={14} />{lowScore ? "Approve anyway" : shareable || keepOpen ? "Approve" : "Approve, task done"}</button>}
           {status === "ready" && !r.items?.length && !incomplete && canShareNow && <button className="btn sm" onClick={() => setAsk("share")}><Send size={13} />Approve and share now</button>}
           {status === "approved" && canShareNow && <button className="btn sm primary" onClick={() => setAsk("share")}><Send size={14} />{r.publish?.error ? "Try again" : "Share now"}</button>}
@@ -689,14 +689,14 @@ export function RunCard({ r, ctx, withSource, onCollapse }: { r: Run; ctx: Ctx; 
   );
 }
 
-// Görevin en yeni çıktısı (runs başa eklenir). Aynı görevin eski taslakları yenisi gelince sayılmaz.
+// The task's newest output (runs are added at the front). Older drafts of the same task do not count once a newer one exists.
 export const isLatest = (s: State, r: Run) => !r.taskId || runOfTask(s.runs, r.taskId) === r;
 export const readyRuns = (s: State, lens: string) =>
   s.runs.filter((r) => (r.status === "ready" || (r.status === "working" && !isStale(r))) && isLatest(s, r)).filter((r) => {
     return lens === ALL || s.tasks.find((x) => x.id === r.taskId)?.worldId === lens;
   });
 
-// Takvimde ilerideki otomasyon işleri: henüz açılmamış günlerde soluk yer tutucu.
+// Future automation tasks on the calendar: faded placeholders on days not yet opened.
 export function ghosts(s: State, lens: string, days: string[]) {
   const t = today();
   const out: { a: Automation; day: string; slot: string }[] = [];

@@ -7,8 +7,8 @@ import { DatePick } from "./DatePick";
 import { toast } from "./Toast";
 import { Select } from "./Select";
 
-// Yeni proje: ad, dünya, açıklama, zaman tek pencerede; hesaplar Gönderiler'deki hesap penceresinden bağlanır. Kaydedince proje sayfası açılır.
-// Zaman: deadline'lı ya da sürekli. Sürekli projede gün seçilirse ritim projenin otomasyonu olur (Rou o günlerde hazırlar).
+// New project: name, world, description, time in one window; accounts are linked from the account window in Posts. Saving opens the project page.
+// Time: with a deadline or ongoing. If days are chosen on an ongoing project the rhythm becomes the project's automation (Rou prepares on those days).
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 type Req = { worldId: string };
 export const openProjectForm = (r: Req) => dispatchEvent(new CustomEvent("pg-project-form", { detail: r }));
@@ -79,7 +79,7 @@ function ProjectForm({ ctx, req, onClose }: { ctx: Ctx; req: Req; onClose: () =>
               {!ongoing && <DatePick value={deadline} onChange={setDeadline} label="Deadline" placeholder="Pick a date" />}
             </dd>
           </div>
-          {/* Proje sürekli durur; tekrar eden iş projenin içinde bir işe bağlanır (iş kartı › Düzenli tekrarlansın). */}
+          {/* The project is ongoing; a repeating task is attached to a task inside the project (task card › Repeat regularly). */}
           {ongoing && (
             <div>
               <dt />

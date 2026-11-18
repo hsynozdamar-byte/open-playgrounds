@@ -12,7 +12,7 @@ import { pause, resume, start, startTask, stop } from "../timer";
 import { toast } from "./Toast";
 import { openAutoForm } from "./AutoForm";
 
-// Rou'nun önerdiği iş. Sunucu modelden gelen ham nesneyi geçirir; burada kimlikler veriye karşı doğrulanır.
+// An action Rou proposes. The server passes the raw object from the model; here the ids are checked against the data.
 export type RouAction =
   | { type: "start"; taskId: string; minutes?: number | null }
   | { type: "pause" } | { type: "resume" } | { type: "stop" }
@@ -51,8 +51,8 @@ const AT = /^([01]\d|2[0-3]):[0-5]\d$/;
 const mins = (n: unknown) => (typeof n === "number" && n >= 5 && n <= 240 ? Math.round(n) : null);
 const dayText = (d: string | null | undefined) => (d ? relDay(d) : "someday");
 
-// Kartta görünecek metin. Geçersizse null: kart çıkmaz.
-// Onaydan sonra iş açık mı kalır: paylaşılacak gönderi (paylaşılınca biter) ya da Rou'ya verilmiş tek iş (Rou devam eder).
+// Text shown on the card. Null if invalid: no card.
+// Does the task stay open after approval: a post to be shared (finishes when shared) or a single task given to Rou (Rou continues).
 function approveKeepsOpen(s: State, r: State["runs"][number]) {
   const t = s.tasks.find((x) => x.id === r.taskId);
   const auto = t?.autoId ? s.automations.find((x) => x.id === t.autoId) : undefined;
@@ -95,14 +95,14 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       return { verb: "New world", what: a.name.trim(), detail: a.description?.trim() || undefined };
     case "approve": {
       const r = s.runs.find((x) => x.id === a.runId && x.status === "ready");
-      // Karttaki Onayla'nın gizlendiği durumlarda sohbetten de onaylanmaz: revize istenmiş, seçim bekliyor, ses/video/görsel eksik.
+      // Where the card's Approve is hidden it cannot be approved from the chat either: revision requested, waiting for a choice, voice/video/image missing.
       if (!r || r.items?.length || missingImage(r)) return null;
       const t = s.tasks.find((x) => x.id === r.taskId);
       const auto = t?.autoId ? s.automations.find((x) => x.id === t.autoId) : undefined;
       if (auto && t && ["voice", "video"].includes(stagesOf(s, auto, t, r).current ?? "")) return null;
       return { verb: "Approve", what: t?.title ?? r.title, detail: approveKeepsOpen(s, r) ? "Output is approved; the share step continues" : "Output is approved, the task is done" };
     }
-    // Paylaş: Rou gönderiyi kendi hesabında paylaştırır; X'te metindeki tweete yanıt ya da alıntı olabilir (server/publish.mjs).
+    // Share: Rou shares the post on its own account; on X it can be a reply or quote to a tweet in the text (server/publish.mjs).
     case "share": {
       const r = s.runs.find((x) => x.id === a.runId && (x.status === "ready" || x.status === "approved"));
       return r ? { verb: "Share", what: s.tasks.find((x) => x.id === r.taskId)?.title ?? r.title, detail: r.status === "ready" ? "Approved and shared on its account" : "Shared on its account" } : null;
@@ -110,12 +110,12 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
     case "auto":
       if (typeof a.text !== "string" || !a.text.trim()) return null;
       return { verb: "Set up automation", what: a.text.trim(), detail: `${a.worldId && s.worlds.some((w) => w.id === a.worldId) ? `${worldOf(s, a.worldId).name} · ` : ""}The form opens filled in, you save it` };
-    // Revize: kullanıcı sohbette bir çıktıya itiraz ettiyse not işin revize geçmişine yazılır ve Rou yeniden hazırlar.
+    // Revision: if the user objected to an output in the chat the note is written to the task's revision history and Rou prepares again.
     case "revise": {
       const run = s.runs.find((x) => x.id === a.runId);
       const t = run && s.tasks.find((x) => x.id === run.taskId);
       if (!run || !t || !a.note?.trim() || run.status === "posted" || s.runs.some((x) => x.taskId === t.id && x.status === "working")) return null;
-      // Taşıma: hedef veriye karşı denetlenir (kopyada); geçersiz kimlik kartı düşürür.
+      // Move: the target is checked against the data (on a copy); an invalid id drops the card.
       if (a.worldId || a.projectId || a.accountId) {
         const mv = movePost(structuredClone(s), structuredClone(t), { worldId: a.worldId ?? undefined, projectId: a.projectId ?? undefined, accountId: a.accountId ?? undefined });
         if (!mv || "error" in mv) return null;
@@ -125,7 +125,7 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       }
       return { verb: "Revise", what: t.title, detail: a.note.trim().slice(0, 160) };
     }
-    // Kopya gönderi: çıktı başka bir hesapta da paylaşılacak. Kopya gönderi işi olarak açılır (task.post), Onay bekliyor'da durur.
+    // Copy post: the output will also be shared on another account. It opens as a copy post task (task.post) and waits in Waiting for approval.
     case "copy_post": {
       if ((a.day && !DAY.test(a.day)) || (a.at && !AT.test(a.at))) return null;
       const r = copyPost(structuredClone(s), a.runId, a.accountId, { day: a.day ?? undefined, at: a.at ?? undefined, ids: { taskId: "x", runId: "y" } });
@@ -133,11 +133,11 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
       const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === a.accountId)!;
       return { verb: "Copy post", what: r.task.title, detail: [`${platformName(acc)} ${acc.name || acc.handle || ""}`.trim(), worldOf(s, r.task.worldId).name, `${dayText(r.task.day)}${r.task.post?.at ? ` ${r.task.post.at}` : ""}`, "same text and media, waits for your approval"].join(" · ") };
     }
-    // Kullanıcının verdiği son metin: kelimesi kelimesine çıktıya yazılır (görseller aynen kalır).
+    // The final text the user gave: written into the output word for word (images stay as they are).
     case "set_text": {
       const run = s.runs.find((x) => x.id === a.runId);
       const t = run && s.tasks.find((x) => x.id === run.taskId);
-      // Paylaşılmış ya da hazırlanmakta olan çıktının metni değiştirilmez.
+      // The text of a shared or being-prepared output is not changed.
       if (!run || !["ready", "approved", "failed"].includes(run.status) || typeof a.text !== "string" || !a.text.trim()) return null;
       return { verb: "Set text", what: t?.title ?? run.title, detail: `${a.text.trim().slice(0, 140)}… Word for word; images stay the same` };
     }
@@ -251,26 +251,26 @@ export function describe(a: RouAction, s: State): { verb: string; what: string; 
 const CATS: NoteCategory[] = ["note", "idea", "todo", "link"];
 const CAT_LABEL: Record<NoteCategory, string> = { note: "Note", idea: "Idea", todo: "To do", link: "Link" };
 const cleanSteps = (l: unknown) => (Array.isArray(l) ? l : []).filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()).slice(0, 20);
-// Notun alt adımları: gövdenin her satırı (liste işaretleri atılır); gövde yoksa başlık tek adım.
+// Sub-steps of a note: each line of the body (list markers dropped); without a body the title is one step.
 const noteSteps = (n: State["inbox"][number]) => {
   const l = n.body.split("\n").map((x) => x.replace(/^\s*(?:[-*•]|\d+[.)])?\s*(?:\[[ xX]\]\s*)?/, "").trim()).filter(Boolean);
   return l.length ? l : [n.title];
 };
-// Notun metni işin notuna giderken: başlık ve gövde.
+// The note's text when it goes to the task's notes: title and body.
 const noteText = (n: State["inbox"][number]) => [n.title, n.body].filter(Boolean).join("\n\n");
 
-// Toplu öneride sonraki adım, önceki adımda açılacak kayda "@ref" ile bağlanabilir (ör. yeni proje, içine iş).
+// In a batch proposal a later step can link to a record opened in an earlier step with "@ref" (e.g. a new project, a task in it).
 const REF_KEYS = ["worldId", "projectId", "taskId"] as const;
 const resolveRefs = (a: RouAction, refs: Record<string, string>): RouAction => {
   const x = { ...a } as Record<string, unknown>;
   for (const k of REF_KEYS) if (typeof x[k] === "string" && (x[k] as string).startsWith("@")) x[k] = refs[(x[k] as string).slice(1)] ?? "?";
   return x as RouAction;
 };
-// Topluya girebilecek adımlar: veriyi değiştiren, geri alınabilen işler. Zamanlayıcı, form ve kod değişikliği tek başına önerilir.
+// Steps that can be in a batch: jobs that change data and can be undone. The timer, forms and code changes are proposed alone.
 const IN_PLAN = new Set(["copy_post", "set_example", "set_guide", "add_task", "add_project", "edit_task", "edit_project", "edit_auto", "schedule", "move", "done", "note", "note_place", "note_task", "note_attach", "note_edit", "note_archive", "add_world", "approve", "remember", "forget"]);
 
-// Toplu önerinin adımları, sırayla bir kopya veride denenir: her adım öncekilerin sonucuna göre doğrulanır.
-// picked verilirse yalnız seçili adımlar uygulanmış sayılır (seçilmeyen bir projeye bağlı iş de geçersiz olur).
+// The steps of a batch proposal are tried in order on a copy of the data: each step is checked against the result of the previous ones.
+// If picked is given only the selected steps count as applied (a task tied to an unselected project also becomes invalid).
 export function planSteps(a: Extract<RouAction, { type: "plan" }>, s: State, picked?: Set<number>) {
   const sim = structuredClone(s);
   const refs: Record<string, string> = {};
@@ -286,19 +286,19 @@ export function planSteps(a: Extract<RouAction, { type: "plan" }>, s: State, pic
   });
 }
 
-// Sohbette istenen iş beklemeden yapılır:
-// her işi Onayla kartında bekletmek, isteği yapılmamış bırakıyordu. Kart yalnız dışarıya giden ya da
-// geri dönüşü zor işlerde kalır: paylaşma, onaylama (onaylı gönderi saatinde paylaşılır), hafızadan silme, geri alma, rehberi silip yazma.
+// A task asked for in the chat is done without waiting:
+// keeping every task waiting on an Approve card left the request undone. A card stays only for tasks that go outside or
+// are hard to reverse: sharing, approving (an approved post is shared at its time), deleting from memory, undo, deleting and rewriting the guide.
 const ASK_FIRST = new Set(["share", "approve", "forget", "undo_change"]);
 const askFirst = (a: { type: string; mode?: string }) => ASK_FIRST.has(a.type) || (a.type === "set_guide" && a.mode === "replace");
 export const runsAtOnce = (a: RouAction): boolean =>
   a.type === "plan" ? !(a.steps as { type: string; mode?: string }[]).some(askFirst) : !askFirst(a as { type: string; mode?: string });
 
-// Onaylanınca uygular. Bildirimden geri alınabilir (öncesindeki veri geri yüklenir).
-// rouId: öneriyi yapan Rou (kendi hafızası, değişikliğin sonucunun yazılacağı sohbet).
-// picked: toplu öneride kullanıcının seçtiği adımlar.
+// Applies on approval. Can be undone from the notice (the earlier data is restored).
+// rouId: the Rou that made the proposal (its own memory, the chat where the result of the change is written).
+// picked: the steps the user selected in a batch proposal.
 export function apply(a: RouAction, ctx: Ctx, rouId?: string, picked?: Set<number>) {
-  // Bunlar veriyi Rou adına değiştirmez: form açılır ya da hazırlık başlar.
+  // These do not change data on Rou's behalf: a form opens or preparation starts.
   if (a.type === "auto") return openAutoForm({ text: a.text.trim(), ...(a.worldId && ctx.state.worlds.some((w) => w.id === a.worldId) ? { worldId: a.worldId } : {}) });
   if (a.type === "change" || a.type === "undo_change") {
     const [url, body] = a.type === "change" ? ["/api/change", { text: a.text.trim(), rouId, files: Array.isArray(a.files) ? a.files : [] }] : ["/api/change/undo", { changeId: a.changeId, rouId }];
@@ -334,9 +334,9 @@ export function apply(a: RouAction, ctx: Ctx, rouId?: string, picked?: Set<numbe
     return;
   }
   const before = structuredClone(ctx.state);
-  // Değişiklik hem veriye hem bir kopyaya uygulanır; geri al yalnız Rou'nun dokunduğu kayıtları döndürür.
+  // The change is applied to both the data and a copy; undo returns only the records Rou touched.
   const after = structuredClone(ctx.state);
-  // Kopya ile veri aynı kimlikleri alır (stable): yoksa "Geri al" eklenen saati, notu ya da hafıza kaydını bulamaz, geride kalırdı.
+  // The copy and the data get the same ids (stable): otherwise "Undo" could not find the added time, note or memory entry and it would stay behind.
   const m: Ctx["mutate"] = (fn) => { const f = stable(fn); f(after); ctx.mutate(f); };
   if (a.type === "plan") {
     const done = planSteps(a, ctx.state, picked).filter((x) => x.d && (!picked || picked.has(x.i)));
@@ -371,7 +371,7 @@ function applyTimer(a: RouAction, m: Ctx["mutate"], ctx: Ctx) {
   }
 }
 
-// Veriyi değiştiren işler. Açılan kaydın kimliğini döndürür (toplu önerideki @ref için). st: değişiklikten önceki veri.
+// Tasks that change data. Returns the id of the opened record (for @ref in a batch proposal). st: the data before the change.
 function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): string | undefined {
   let made: string | undefined;
   const block = (s: State, taskId: string, worldId: string, day: string, at: string, len: number) => {
@@ -413,7 +413,7 @@ function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): s
         if (mins(a.minutes)) t.estimate = mins(a.minutes);
         if (a.projectId !== undefined) {
           t.projectId = p?.id ?? null;
-          // Başka dünyanın projesine giden iş dünyasını ve takvim bloklarını da taşır.
+          // A task moved to a project in another world also moves its world and calendar blocks.
           if (p && p.worldId !== t.worldId) {
             t.worldId = p.worldId;
             for (const b of s.blocks) if (b.taskId === t.id) b.worldId = p.worldId;
@@ -443,7 +443,7 @@ function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): s
       });
       break;
     case "done":
-      // Sayılan işse önce odak süresi kaydedilir.
+      // If it is a counted task the focus time is saved first.
       if (st.timer?.taskId === a.taskId) { stop(m, true); break; }
       m((s) => {
         const t = s.tasks.find((x) => x.id === a.taskId);
@@ -516,7 +516,7 @@ function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): s
       break;
     case "set_guide":
       m((s) => {
-        const text = a.mode === "replace" ? a.text.trim() : `${a.text.trim()}\n\nAyrıntılı rehber (yukarıdakiyle çelişirse yukarıdaki geçerli):\n\n${guideOf(s)}`;
+        const text = a.mode === "replace" ? a.text.trim() : `${a.text.trim()}\n\nDetailed guide (if it conflicts with the above, the above applies):\n\n${guideOf(s)}`;
         s.writingGuide = { text, at: new Date().toISOString() };
       });
       break;
@@ -573,8 +573,8 @@ function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): s
       m((s) => void (s.memory = (s.memory ?? []).filter((x) => x.id !== a.memId)));
       break;
     case "approve":
-      // Karttaki Onayla ile aynı: onay anı yazılır (paylaşım 5 dk geri alma süresini ve saatini buradan sayar),
-      // paylaşılacak gönderinin işi açık kalır. Önceden iş hemen "bitti" oluyor ve gönderi hiç paylaşılmıyordu.
+      // Same as Approve on the card: the approval moment is written (sharing counts its 5-minute undo window and its time from here),
+      // the task of a post to be shared stays open. Before, the task became "done" at once and the post was never shared.
       m((s) => {
         const r = s.runs.find((x) => x.id === a.runId);
         if (!r || r.status !== "ready") return;
@@ -588,8 +588,8 @@ function applyData(a: RouAction, m: Ctx["mutate"], st: State, rouId?: string): s
   return made;
 }
 
-// Proje ve otomasyon düzenlemesi: Rou konuşmada verilen kalıcı kararları (ton, kural, ritim) kayda yazar.
-// Metin alanları (açıklama, talimat, marka) tam yeni hâliyle gelir; değişmeyen alan yazılmaz.
+// Project and automation editing: Rou writes lasting decisions given in conversation (tone, rule, rhythm) to the record.
+// Text fields (description, instruction, brand) come in their full new form; a field that did not change is not written.
 const STATUS: ProjectStatus[] = ["active", "paused", "done"];
 const STATUS_TR = { active: "active", paused: "paused", done: "done" };
 const WHO_AUTO: Record<string, string> = { me: "You", claude: "Rou" };

@@ -1,8 +1,8 @@
 import type { State } from "./types";
 import { addDays } from "./date";
 
-// Haftalık paylaşım raporu (dünyada hangi projede ne kadar içerik paylaşıldı): seçili haftada paylaşılan
-// gönderiler dünya → proje → hesap kırılımıyla, bir önceki haftayla birlikte. Paylaşıldı = run.status "posted", gün postedAt'in yerel günü.
+// Weekly sharing report (how much content was shared in which project of a world): posts shared in the chosen week
+// by world → project → account, with the previous week alongside. Shared = run.status "posted", day is the local day of postedAt.
 const localDay = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 export type ReportAcc = { id: string; name: string; platform: string; n: number };
@@ -13,7 +13,7 @@ function postedIn(s: State, from: string, to: string) {
   return s.runs.filter((r) => r.status === "posted" && r.postedAt && localDay(r.postedAt) >= from && localDay(r.postedAt) <= to);
 }
 
-// Süren hafta (today bu haftadaysa) geçen haftanın tamamıyla değil, aynı güne kadarki kısmıyla karşılaştırılır.
+// A week in progress (today falls in it) is compared with the same days of last week, not the whole of it.
 export function weekReport(s: State, wk: string, today?: string): { total: number; prev: number; worlds: ReportWorld[] } {
   const where = (taskId?: string) => {
     const t = s.tasks.find((x) => x.id === taskId);

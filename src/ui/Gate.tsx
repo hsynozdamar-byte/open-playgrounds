@@ -3,11 +3,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { GateRou } from "./GateRou";
 import { readMe, saveMe } from "../views/Profile";
 
-// Karşılama: hafif renkli, yavaş akan bir zeminde Playgrounds yazısı ve etrafında yaşayan Rou (GateRou). Giriş göstermelik:
-// hesap yok, her şey bu bilgisayarda; "Giriş yap" ile Rou ekrana doğru süzülür, uygulamaya geçilir. Oturum boyunca bir kez görünür.
-// Masaüstünde alanlar ve düğme tek bir kapsülde; mobilde yazı üstte ortalanır, form alt bantta durur.
+// Welcome: the Playgrounds wordmark on a softly coloured, slowly drifting background with Rou (GateRou) living around it. The sign-in is for show:
+// there is no account, everything stays on this computer; "Sign in" makes Rou glide toward the screen and the app opens. Shown once per session.
+// On desktop the fields and button sit in one capsule; on mobile the text is centred on top and the form sits in the bottom band.
 const KEY = "pg-in";
-// ?gate=en: tanıtım kaydı için (tanıtım videoları): ekran her açılışta görünür, yazılar İngilizce, e-posta boş.
+// ?gate=en: for promo recordings: the screen shows on every load, text in English, email empty.
 const demo = () => { try { return new URLSearchParams(location.search).get("gate") === "en"; } catch { return false; } };
 export const seenGate = () => { if (demo()) return false; try { return sessionStorage.getItem(KEY) === "1"; } catch { return true; } };
 
@@ -19,15 +19,15 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
   const [pass, setPass] = useState("");
   const enter = (e: React.FormEvent) => {
     e.preventDefault();
-    try { sessionStorage.setItem(KEY, "1"); } catch { /* yok */ }
+    try { sessionStorage.setItem(KEY, "1"); } catch { /* no storage */ }
     if (mail.trim()) saveMe({ email: mail.trim() });
-    dispatchEvent(new Event("pg-gate-leave"));   // Rou ekrana doğru süzülür (çıkan ağaç yeni prop almaz)
+    dispatchEvent(new Event("pg-gate-leave"));   // Rou glides toward the screen (the departing tree gets no new prop)
     setLeaving(true);
   };
   const ease = [0.22, 1, 0.36, 1] as const;
   const first = me.name.trim().split(/\s+/)[0];
   const mark = useRef<HTMLHeadingElement>(null);
-  // Harfler ayrı kutuda olunca çiftler arası kerning kaybolur: her çiftin kerning'i ölçülüp harf boşluğuna eklenir
+  // With each letter in its own box the kerning between pairs is lost: each pair's kerning is measured and added to the letter spacing
   useLayoutEffect(() => {
     const h = mark.current;
     if (!h) return;
@@ -51,7 +51,7 @@ export function Gate({ onEnter }: { onEnter: () => void }) {
           <div className="gate-bg" aria-hidden><i /><i /><i /><i /></div>
           <GateRou name={first} mark={mark} />
           <div className="gate-hero">
-            {/* Harfler sırayla yükselir (CSS, gateCh); Rou harfler yerine oturunca "o"nun arkasından çıkar */}
+            {/* Letters rise one by one (CSS, gateCh); once Rou has settled on the letters it comes out from behind the "o" */}
             <motion.h1 ref={mark} className="gate-mark" aria-label="Playgrounds" exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.45, ease }}>
               {[..."Playgrounds"].map((c, i) => <span key={i} className="gch" aria-hidden style={{ ["--i" as string]: i }}>{c}</span>)}
             </motion.h1>

@@ -8,8 +8,8 @@ import type { Notice } from "../types";
 import { KIND_LINE, freshNotices, noticeCtas, noticeNow, unreadNotices, type NoticeCta } from "../../shared/notices.mjs";
 import { toast } from "./Toast";
 
-// Bildirimler: sistemin geri dönüşleri (shared/notices.mjs). Üst çubukta zil + panel; Rou sohbeti aynı kayıtları gösterir.
-// Her bildirimin düğmeleri işin şimdiki durumundan gelir; düğmeye ya da satıra basınca bildirim okundu sayılır.
+// Notices: feedback from the system (shared/notices.mjs). Bell + panel in the top bar; the Rou chat shows the same records.
+// Each notice's buttons come from the task's current state; pressing a button or the row marks the notice as read.
 
 const ICON: Record<Notice["kind"], [LucideIcon, string]> = {
   posted: [CheckCircle2, "ok"],
@@ -45,10 +45,10 @@ async function runCta(ctx: Ctx, n: Notice, c: NoticeCta, close?: () => void) {
 }
 
 export function NoticeCtas({ ctx, n, close }: { ctx: Ctx; n: Notice; close?: () => void }) {
-  // Basınca, sunucudan yeni çıktı gelene kadar da tek basış: düğme hemen "Yeniden hazırlanıyor" olur.
+  // One press counts until the new output arrives from the server: the button immediately becomes "Preparing again".
   const [sent, setSent] = useState(false);
   const raw = noticeCtas(ctx.state, n);
-  // Sunucu yeni hazırlığı gösterince yerel işaret bırakılır; o hazırlık da düşerse düğme yeniden basılabilir.
+  // Once the server shows the new preparation the local mark is dropped; if that preparation also fails the button can be pressed again.
   const confirmed = raw.some((c) => c.id === "busy");
   useEffect(() => { if (confirmed) setSent(false); }, [confirmed]);
   const ctas = raw.map((c) => (sent && c.id === "redo" ? ({ id: "busy", label: "Preparing again…", busy: true } as NoticeCta) : c));
@@ -85,14 +85,14 @@ function Panel({ ctx, anchor, onClose }: { ctx: Ctx; anchor: React.RefObject<HTM
   const [pos, setPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const list = freshNotices(ctx.state.notices);
   const unread = list.filter((n) => !n.read);
-  // Temizle: önce sorar (kaç bildirim, geri alınamaz), ikinci basışta siler.
+  // Clear: asks first (how many notices, cannot be undone), deletes on the second press.
   const [ask, setAsk] = useState(false);
   useLayoutEffect(() => {
     const place = () => {
       const r = anchor.current?.getBoundingClientRect();
       if (!r) return;
       const vw = innerWidth, mobile = vw <= 640, width = Math.min(420, vw - 32);
-      // Mobilde zil alt çubukta: panel onun üstünde açılır.
+      // On mobile the bell is in the bottom bar: the panel opens above it.
       if (mobile) return setPos({ top: 16 + (visualViewport?.offsetTop ?? 0), left: 16, width, maxHeight: r.top - 32 });
       const left = Math.max(16, Math.min(r.right - width, vw - 16 - width));
       setPos({ top: r.bottom + 8, left, width, maxHeight: innerHeight - r.bottom - 24 });

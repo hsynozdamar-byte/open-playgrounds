@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { RefreshCw } from "lucide-react";
 
-// Güncelleme uyarısı (Mac uygulaması / npm start): kod değişince sağ altta "Güncelleme var · Güncelle" çıkar.
-// Güncelle: sunucu derler (gerekirse kendini yeniden başlatır), sayfa yeni sürümle açılır. Dakikada bir ve pencere öne gelince sorulur.
+// Update notice (desktop app / npm start): when the code changes, "Update available · Update" appears bottom right.
+// Update: the server builds (restarts itself if needed) and the page reopens on the new version. Checked once a minute and when the window comes to the front.
 type V = { dev?: boolean; built?: number; client?: boolean; server?: boolean; pending?: boolean; jobs?: string[] };
 
-// Yeni sürüm hazır ama sayfa kendiliğinden yenilenmedi (yazılmamış metin vardı): çubuk hemen görünür.
+// A new version is ready but the page did not reload by itself (there was unsaved text): the bar shows right away.
 export const UPDATE_READY = "pg:update-ready";
-// Ekranda yazılmış metin var mı: odak bir yazı alanında ya da görünür bir alanda boş olmayan metin. Yenileme bunları silerdi.
+// Is there typed text on screen: focus is in a text field or a visible field holds non-empty text. A reload would erase it.
 export function hasDraft() {
   const a = document.activeElement as HTMLElement | null;
   if (a?.isContentEditable || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return true;
@@ -16,8 +16,8 @@ export function hasDraft() {
     .some((el) => !el.readOnly && !el.disabled && el.value.trim() !== "" && el.offsetParent !== null);
 }
 
-// Sunucu süren işler bitince yeniden başlar (en çok 90 dk): yeni sunucu ayağa kalkana (server bayrağı düşene) kadar beklenir, sonra sayfa yenilenir.
-// Beklerken hangi işlerin sürdüğü çubukta adıyla yazar; önceden yalnız "İşler bitince" diyordu ve neyin beklendiği görünmüyordu.
+// The server restarts when its running jobs finish (90 min at most): wait until the new server is up (the server flag drops), then reload the page.
+// While waiting, the bar names the jobs still running.
 async function reloadWhenUp(onJobs: (jobs: string[]) => void) {
   for (const end = Date.now() + 95 * 60000; Date.now() < end; ) {
     await new Promise((r) => setTimeout(r, 2000));
@@ -25,7 +25,7 @@ async function reloadWhenUp(onJobs: (jobs: string[]) => void) {
       const v: V = await (await fetch("/api/version", { cache: "no-store" })).json();
       if (!v.server) return location.reload();
       onJobs(v.jobs ?? []);
-    } catch { /* yeniden başlıyor */ }
+    } catch { /* restarting */ }
   }
   location.reload();
 }
@@ -41,11 +41,11 @@ export function UpdateBar() {
       try {
         const v: V = await (await fetch("/api/version", { cache: "no-store" })).json();
         if (v.dev) return;
-        // Güncelleme başka bir pencereden (ya da sayfa yenilenmeden önce) başlatılmış ve işleri bekliyor: düğme değil, bekleyiş görünür.
+        // The update was started from another window (or before the page reloaded) and is waiting for jobs: show the wait, not the button.
         if (v.pending) { setJobs(v.jobs ?? []); return void wait(); }
         first.current ??= v.built ?? 0;
         if (v.client || v.server || (v.built ?? 0) > first.current) setState((s) => (s === "idle" ? "ready" : s));
-      } catch { /* sunucu yok */ }
+      } catch { /* no server */ }
     };
     void check();
     const t = setInterval(check, 60000);

@@ -32,14 +32,14 @@ import { queueSlots, setTopic, stateOf, suggestTopics, topicOf } from "../ui/Top
 import { topicOk } from "../postBasis";
 import { SHORT_TOPIC } from "../ui/PostBasis";
 
-// Gönderiler (eski adı Stüdyo): sosyal hesapların bu ve gelecek haftası, duruma göre gruplu liste.
-// Gönderi iki yoldan gelir: otomasyonun işi (task.autoId) ya da "Haftayı planla" ile açılan iş (task.post).
-// Durum: Planlandı (çıktı yok) → Hazırlanıyor → Onay bekliyor → Onaylandı → Paylaşıldı.
+// Posts (formerly Studio): this and next week of the social accounts, a list grouped by status.
+// A post comes two ways: an automation's task (task.autoId) or a task opened with "Plan week" (task.post).
+// Status: Planned (no output) → Preparing → Waiting for approval → Approved → Shared.
 
 type Acc = Account & { world: World };
 export type Item = { key: string; day: string; time: string; acc?: Acc; plats?: string[]; title: string; format: PostFormat | null; task?: Task; run?: Run; auto?: Automation };
 type St = "plan" | "working" | "ready" | "approved" | "posted" | "failed" | "ghost";
-// Satırdaki durum: gönderinin şu an nerede olduğu, düz dille.
+// Status on the row: where the post is right now, in plain words.
 const ST_LABEL: Record<St, string> = { plan: "Not ready", working: "Preparing", ready: "Awaiting your approval", approved: "Approved", posted: "Shared", failed: "Couldn't prepare", ghost: "Not ready" };
 const nPosts = (n: number) => `${n} ${n === 1 ? "post" : "posts"}`;
 
@@ -51,7 +51,7 @@ const stOf = (it: Item): St => {
   return r.status === "acted" ? "posted" : r.status;
 };
 
-// Mercekteki dünyaların paylaşım hesapları.
+// Posting accounts of the worlds in the lens.
 export const studioAccounts = (ctx: Ctx): Acc[] =>
   ctx.state.worlds.filter((w) => ctx.route.lens === ALL || w.id === ctx.route.lens).flatMap((w) => (w.accounts ?? []).filter((a) => !isFeed(a.platform)).map((a) => ({ ...a, world: w })));
 
@@ -69,9 +69,9 @@ export function itemsOf(ctx: Ctx, accs: Acc[], days: string[]): Item[] {
     const acc = accountOf(s, ref);
     const run = runOfTask(s.runs, t.id);
     if (acc && ids.has(acc.id)) { out.push({ key: t.id, day: t.day, time: timeOf(s, t), acc: byId.get(acc.id)!, title: t.title, format: formatOf(s, ref), task: t, run }); continue; }
-    // Hesabı bağlanmamış elle gönderi: platform seçildiyse o, yoksa Rou seçer.
+    // Hand-added post with no account: the platform if chosen, otherwise Rou picks.
     if (!acc && t.post && (ctx.route.lens === ALL || t.worldId === ctx.route.lens)) { out.push({ key: t.id, day: t.day, time: timeOf(s, t), plats: postPlats(t), title: t.title, format: null, task: t, run }); continue; }
-    // Hesabı olmayan ama gönderi/video üreten otomasyonun işi de bir gönderidir (platform otomasyondan).
+    // The task of an automation that has no account but produces posts/videos is also a post (the platform comes from the automation).
     const a = !acc ? autoOf(s, t) : undefined;
     if (a && (ctx.route.lens === ALL || a.worldId === ctx.route.lens) && ["post", "video"].includes(outputOf(s, a))) out.push({ key: t.id, day: t.day, time: timeOf(s, t), plats: platformsOf(s, a), title: t.title, format: null, task: t, run });
   }
@@ -84,7 +84,7 @@ export function itemsOf(ctx: Ctx, accs: Acc[], days: string[]): Item[] {
   return out.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
 }
 
-// Otomasyon işinden ve henüz açılmamış saatinden kart öğesi (Otomasyonlar › Bugün de aynı kartı kullanır).
+// Card item from an automation task and from a time not yet opened (Automations › Today uses the same card).
 export function itemOfTask(s: Ctx["state"], t: Task): Item {
   const ref = taskRef(s, t);
   const acc = accountOf(s, ref);
@@ -103,9 +103,9 @@ async function prepareMany(ids: string[]) {
   toast(r.ok ? `Preparing ${nPosts(ids.length)} one by one` : "Couldn't reach the server");
 }
 
-// Üstteki özet: gönderiler hangi aşamada. Tıklayınca liste o aşamaya süzülür.
+// Summary on top: which stage the posts are in. Clicking filters the list to that stage.
 
-// Sol listedeki "Gönderiler" satırının özeti: hesap adları değil, gönderilerin durumu.
+// Summary of the "Posts" row in the left list: not account names, the state of the posts.
 export function studioSummary(ctx: Ctx) {
   const accs = studioAccounts(ctx);
   if (!accs.length) return "Add an account and your posts gather here";
@@ -114,7 +114,7 @@ export function studioSummary(ctx: Ctx) {
   return [n(["ready", "failed"]) && `${n(["ready", "failed"])} awaiting approval`, n(["plan", "ghost", "working", "approved"]) && `${n(["plan", "ghost", "working", "approved"])} up next`].filter(Boolean).join(" · ") || `${accs.length} ${accs.length === 1 ? "account" : "accounts"} · no planned posts`;
 }
 
-// Sol menüdeki Gönderiler sayfası: otomasyonlardan çıkan ve planlanan bütün gönderiler tek yerde.
+// The Posts page in the left menu: all posts from automations and planned ones in one place.
 export function Posts({ ctx }: { ctx: Ctx }) {
   return (
     <div className="autos posts">
@@ -125,10 +125,10 @@ export function Posts({ ctx }: { ctx: Ctx }) {
   );
 }
 
-// Rail rozeti: onay bekleyen gönderiler (hesaplı ya da gönderi üreten otomasyonun çıktısı).
+// Rail badge: posts waiting for approval (from an account or from an automation that produces posts).
 export function postsWaiting(s: Ctx["state"], lens: string) {
   return s.runs.filter((r) => {
-    // Kenar çubuğundaki sayı Gönderiler'in "Onayını bekliyor" kutusuyla aynı: hazır ya da hazırlanamamış son çıktılar.
+    // The number in the sidebar is the same as the "Waiting for approval" box in Posts: latest outputs that are ready or failed to prepare.
     if (!["ready", "failed"].includes(r.status) || !isLatest(s, r)) return false;
     const t = s.tasks.find((x) => x.id === r.taskId);
     if (!t || t.status === "done" || (lens !== ALL && t.worldId !== lens)) return false;
@@ -141,11 +141,11 @@ export function Studio({ ctx }: { ctx: Ctx }) {
   const s = ctx.state;
   const accs = studioAccounts(ctx);
   const thisWeek = weekStart(today());
-  // Bir seferde tek hafta; oklarla geçmiş haftalara (arşiv) ve önümüzdeki haftalara geçilir.
+  // One week at a time; the arrows go to past weeks (archive) and coming weeks.
   const [wk, setWk] = useState(thisWeek);
   const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i));
-  // Otomasyon süzgeci: çipe basınca hafta o otomasyonun gönderilerine süzülür. Otomasyonların listesi burası.
-  // Proje süzgeci: hafta ve otomasyon çipleri o projenin gönderilerine daralır.
+  // Automation filter: pressing a chip filters the week to that automation's posts. The list of automations is here.
+  // Project filter: the week and automation chips narrow to that project's posts.
   const [proj, setProj] = useState<string | null>(null);
   const allAutos = postAutos(ctx, accs);
   const autos = proj ? allAutos.filter((a) => a.projectId === proj) : allAutos;
@@ -170,16 +170,16 @@ export function Studio({ ctx }: { ctx: Ctx }) {
   const addWorld = ctx.route.lens === ALL ? (s.worlds.find((w) => w.accounts?.length) ?? s.worlds[0])?.id : ctx.route.lens;
   const count = (st: St[]) => items.filter((x) => st.includes(stOf(x))).length;
   const card = (it: Item) => <PostCard key={it.key} it={it} s={s} open={sel === it.key} onToggle={() => setSel(it.key)} />;
-  // Hafta | Ay: ay görünümünde aynı süzgeçlerle ayın bütün gönderileri; karta basınca aynı ayrıntı açılır.
+  // Week | Month: in the month view all posts of the month with the same filters; clicking a card opens the same details.
   const [view, setView] = useState<"week" | "month">("week");
   const [mon, setMon] = useState(today().slice(0, 7));
-  // Ay görünümünde seçili gün: altında o günün bütün gönderileri kart olarak açılır.
+  // Selected day in the month view: below it all that day's posts open as cards.
   const [mday, setMday] = useState<string | null>(today());
   const mdays = monthDays(mon);
   const mevery = view === "month" ? itemsOf(ctx, accs, mdays) : [];
   const mitems = mevery.filter((x) => (!proj || projIdOf(s, x) === proj) && (!picked0 || autoIdOf(s, x) === picked0.id));
   const picked = (view === "month" ? mitems : items).find((x) => x.key === sel);
-  // Durum süzgeci (2026-11-01, ayrı Plan özeti kaldırıldı): sayılar planın içinde, basınca hafta/ay o duruma daralır.
+  // Status filter (2026-11-01, the separate Plan summary was removed): the numbers are inside the plan, clicking narrows the week/month to that status.
   const [stf, setStf] = useState<StKey>("all");
   const base = view === "month" ? mitems : items;
   const stRows = base.map((it) => rowOf(s, it));
@@ -193,13 +193,13 @@ export function Studio({ ctx }: { ctx: Ctx }) {
       <div className="stbox">
         <div className="stboxhead">
           <h3>Sharing plan</h3>
-          {/* Başlıkta tek yer (2026-11-01): Rou'ya talimatla planlat, haftanın konularını düzenle, tek seferlik gönderi oluştur.
-              Otomasyon kurmak projenin sayfasında. */}
+          {/* One place in the header (2026-11-01): have Rou plan with an instruction, edit the week's topics, create a one-off post.
+              Setting up an automation is on the project's page. */}
           <button className={`btn sm ghost ${noteOpen ? "on" : ""}`} disabled={past} onClick={() => setNoteOpen(!noteOpen)}><Sparkles size={14} />Plan with Rou</button>
           <button className="btn sm ghost" disabled={past} title={past ? "A past week can't be planned" : undefined} onClick={() => setPlanning(true)}><CalendarRange size={14} />Edit topics</button>
           <button className="btn sm primary" onClick={() => setCreating(true)}><Plus size={14} />Create post</button>
         </div>
-        {/* Süzgeçler tek çerçevede (2026-11-01): solda etiket sütunu, sağda aynı biçimde çipler. Proje seçilince otomasyon satırı o projeye daralır. */}
+        {/* Filters in one frame (2026-11-01): a label column on the left, chips in the same style on the right. When a project is chosen the automation row narrows to that project. */}
         {(projs.length > 1 || autos.length > 0) && (
           <div className="stfbar">
             {projs.length > 1 && (
@@ -219,7 +219,7 @@ export function Studio({ ctx }: { ctx: Ctx }) {
             )}
           </div>
         )}
-        {/* Kural satırı açılıp kapanırken alttaki hafta zıplamaz, yumuşakça kayar. */}
+        {/* When the rule row opens and closes the week below does not jump, it slides softly. */}
         <AnimatePresence initial={false}>
           {picked0 && (
             <motion.div key="rule" className="aruleWrap" initial={{ height: 0, opacity: 0, marginTop: -12 }} animate={{ height: "auto", opacity: 1, marginTop: 0 }} exit={{ height: 0, opacity: 0, marginTop: -12 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
@@ -262,7 +262,7 @@ export function Studio({ ctx }: { ctx: Ctx }) {
                 <button className="btn sm primary" onClick={() => prepareMany(todo.map((x) => x.task!.id))}>Prepare all</button>
               </div>
             )}
-            {/* Hafta yedi sütun: boş gün de yerini tutar, haftanın ritmi bir bakışta görünür. */}
+            {/* The week has seven columns: an empty day keeps its place, the rhythm of the week shows at a glance. */}
             <div className="stweek">
               <div className="stgrid">
                 {days.map((d) => {
@@ -279,7 +279,7 @@ export function Studio({ ctx }: { ctx: Ctx }) {
             </div>
           </>
         )}
-        {/* Haftalık paylaşım raporu takvimin hemen altında (2026-11-08). */}
+        {/* Weekly sharing report right under the calendar (2026-11-08). */}
         {view === "week" && <WeekReport s={s} wk={wk} />}
       </div>
       {picked && <PickedPost key={picked.key} ctx={ctx} it={picked} onClose={() => setSel(null)} />}
@@ -308,7 +308,7 @@ export function Studio({ ctx }: { ctx: Ctx }) {
   );
 }
 
-// Gönderi üreten otomasyonlar (hesabı mercekte ya da çıktısı gönderi/video), dünya sırasıyla.
+// Automations that produce posts (account in the lens or output is post/video), in world order.
 function postAutos(ctx: Ctx, accs: Acc[]): Automation[] {
   const s = ctx.state;
   const ids = new Set(accs.map((a) => a.id));
@@ -320,11 +320,11 @@ function postAutos(ctx: Ctx, accs: Acc[]): Automation[] {
 const autoIdOf = (s: Ctx["state"], it: Item) => it.auto?.id ?? (it.task ? autoOf(s, it.task)?.id : undefined);
 const platOf = (s: Ctx["state"], a: Automation) => accountOf(s, a)?.platform ?? platformsOf(s, a)[0];
 
-// Otomasyon çipleri: Tümü + her otomasyon (platform ikonu, adı, bu hafta onay bekleyen sayısı). Duraklatılmış olan soluk.
+// Automation chips: All + each automation (platform icon, name, number waiting for approval this week). A paused one is faded.
 function AutoChips({ ctx, autos, items, on, onPick }: { ctx: Ctx; autos: Automation[]; items: Item[]; on: string | null; onPick: (id: string | null) => void }) {
   const s = ctx.state;
   const wait = (id: string) => items.filter((x) => autoIdOf(s, x) === id && (x.run?.status === "ready")).length;
-  // Tek satır: taşarsa yatay kayar, taşan kenar yumuşakça solar; seçili çip görünür alana kayar.
+  // One line: slides sideways if it overflows, the overflowing edge fades softly; the selected chip slides into view.
   const box = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ l: false, r: false });
   const measure = () => { const b = box.current; if (b) setEdge({ l: b.scrollLeft > 2, r: b.scrollLeft + b.clientWidth < b.scrollWidth - 2 }); };
@@ -362,7 +362,7 @@ function AutoChips({ ctx, autos, items, on, onPick }: { ctx: Ctx; autos: Automat
   );
 }
 
-// Seçili otomasyonun kuralı tek satırda: ne zaman, kim hazırlar, nereye. Ayarlar penceresi buradan açılır.
+// The selected automation's rule in one line: when, who prepares, where to. The settings window opens from here.
 function AutoRule({ ctx, a }: { ctx: Ctx; a: Automation }) {
   const s = ctx.state;
   const acc = accountOf(s, a);
@@ -379,16 +379,16 @@ function AutoRule({ ctx, a }: { ctx: Ctx; a: Automation }) {
   );
 }
 
-// Bugün, Yarın; diğer günler kısa gün adıyla (Pzt, Sal).
+// Today, Tomorrow; other days by short day name (Mon, Tue).
 const dayTitle = (d: string, short = false) => { const n = daysBetween(today(), d); const r = n === 0 || n === 1 ? relDay(d) : short ? dayShort(d) : dayName(d); return r.charAt(0).toLocaleUpperCase("en-US") + r.slice(1); };
 
-// Hesabın okunur adı: tanıtıcı bir adres ise (linkedin.com/company/…) hesabın adı gösterilir.
+// Readable name of the account: if it is an identifying address (linkedin.com/company/…) the account's name is shown.
 const accLabel = (a: Acc) => (a.handle && !a.handle.includes("/") ? a.handle : a.name || a.handle || "unnamed");
 
-// Hesapsız gönderinin platform satırı: otomasyonun platformları, seçilen platform ya da "Rou seçer".
+// Platform row of a post with no account: the automation's platforms, the chosen platform or "Rou picks".
 const platLabel = (it: Item) => (it.plats ?? []).map((p) => PLATFORM_NAME[p] ?? p).join(", ") || (it.task?.post ? "Rou picks the platform" : "No account picked");
 
-// Paylaşılmayan çıktı (rapor, tarayıcı işi) bitince "Bitti" der, "Paylaşıldı" değil.
+// An output that is not shared (report, browser task) says "Done" when finished, not "Shared".
 const shares = (it: Item) => !!it.acc || !!it.plats?.length || !!it.format;
 const stLabel = (it: Item) => { const st = stOf(it); return it.day < today() && !["posted", "approved", "failed"].includes(st) ? "Late" : st === "posted" && !shares(it) ? "Done" : ST_LABEL[st]; };
 const stHint = (it: Item) => {
@@ -422,10 +422,10 @@ export function PostCard({ it, open, onToggle, s, when }: { it: Item; open: bool
   );
 }
 
-// Takvimdeki karta basınca açılan gönderi penceresi. Çıktı varsa gönderi gerçek görünümüyle (onayla, revize, paylaş);
-// yoksa konusu (yazılır, boşsa Rou yazar) ve şimdi hazırlatma. Alt satırda otomasyonu ve görevi açma.
-// Gönderiye tıklayınca: görevi varsa tek pencere, görev penceresi (Drawer) açılır. Görevi henüz oluşmamış otomasyon gönderisinde
-// (ileri bir günün saati) aynı düzende küçük pencere: konu, ne olacağı, şimdi hazırlat.
+// The post window that opens when a card on the calendar is pressed. If there is an output the post in its real look (approve, revise, share);
+// if not, its topic (written, or Rou writes if empty) and prepare now. On the bottom row, opening the automation and the task.
+// On clicking a post: if it has a task, a single window, the task window (Drawer), opens. For an automation post whose task does not exist yet
+// (a time on a later day) a small window in the same layout: topic, what will happen, prepare now.
 export function PickedPost({ ctx, it, onClose }: { ctx: Ctx; it: Item; onClose: () => void }) {
   const id = it.task?.id;
   useEffect(() => { if (id) { ctx.open(id); onClose(); } }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -488,7 +488,7 @@ export function PostView({ ctx, it, onClose }: { ctx: Ctx; it: Item; onClose: ()
   );
 }
 
-// Otomasyon gönderisinin konusu: metin gibi okunur, tıklayınca düzenlenir; boşsa Rou önerebilir ya da o gün kendisi yazar.
+// The topic of an automation post: reads like text, clicking edits it; if empty Rou can suggest one or writes it itself that day.
 function PostTopic({ ctx, a, day, slot }: { ctx: Ctx; a: Automation; day: string; slot: string }) {
   const t = topicOf(ctx.state, a, day, slot);
   const [title, setTitle] = useState(t?.title ?? "");
@@ -507,9 +507,9 @@ function PostTopic({ ctx, a, day, slot }: { ctx: Ctx; a: Automation; day: string
   );
 }
 
-// Hafta gezgini: ‹ hafta adı ve tarih aralığı ›; bu haftada değilse "Bu haftaya dön".
+// Week navigator: ‹ week name and date range ›; if not this week "Back to this week".
 const weekName = (wk: string) => { const n = daysBetween(weekStart(today()), wk) / 7; return n === 0 ? "This week" : n === 1 ? "Next week" : n === -1 ? "Last week" : n < 0 ? `${-n} weeks ago` : `In ${n} weeks`; };
-// Ay görünümü: ayın haftaları, her gün en çok 3 gönderi (saat, platform, konu), fazlası "+N".
+// Month view: the month's weeks, at most 3 posts per day (time, platform, topic), the rest "+N".
 const monthDays = (m: string) => { const first = `${m}-01`; const start = weekStart(first); const out: string[] = []; for (let d = start; d.slice(0, 7) <= m || out.length % 7; d = addDays(d, 1)) out.push(d); return out; };
 const shiftMonth = (m: string, n: number) => { const [y, mo] = m.split("-").map(Number); const d = new Date(y, mo - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
 const monthName = (m: string) => new Date(`${m}-01T12:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -529,7 +529,7 @@ function MonthGrid({ s, mon, days, items, day, onDay, card }: { s: Ctx["state"];
         {days.map((d) => {
           const list = of(d);
           return (
-            // Güne basınca altında o günün ayrıntısı açılır; gönderiye basınca gönderinin kendisi.
+            // Clicking a day opens that day's details below it; clicking a post opens the post itself.
             <div key={d} role="button" tabIndex={0} aria-pressed={day === d} onClick={() => pick(d)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), pick(d))}
               className={`stmcell ${d.slice(0, 7) !== mon ? "is-out" : ""} ${d === today() ? "is-today" : ""} ${day === d ? "is-sel" : ""} ${d < today() ? "is-past" : ""}`}>
               <span className="stmnum">{Number(d.slice(8))}{list.length > 0 && <em>{list.length}</em>}</span>
@@ -560,14 +560,14 @@ function MonthGrid({ s, mon, days, items, day, onDay, card }: { s: Ctx["state"];
   );
 }
 
-// Durum süzgeçleri: Onayını bekliyor (hazır ya da hatalı), Hazırlanacak (konusu olan plan), Konusu boş, Paylaşıldı.
+// Status filters: Waiting for approval (ready or failed), To prepare (a plan with a topic), No topic, Shared.
 type StKey = "all" | "you" | "plan" | "empty" | "posted";
 const ST_TILES: { id: Exclude<StKey, "all">; label: string }[] = [{ id: "you", label: "Awaiting your approval" }, { id: "plan", label: "To prepare" }, { id: "empty", label: "No topic" }, { id: "posted", label: "Shared" }];
 function stMatch(k: StKey, r: Row) {
   const empty = r.editable && !titleOf(r.it, r.topic);
   return k === "all" ? true : k === "you" ? r.st === "ready" || r.st === "failed" : k === "empty" ? empty : k === "plan" ? (r.st === "plan" || r.st === "ghost") && !empty : r.st === "posted";
 }
-// Hafta talimatı: haftanın nasıl planlanacağı yazılır; Rou hazırlanmamış gönderilerin konusunu buna göre yeniden kurar.
+// Week instruction: how to plan the week is written; Rou rebuilds the topics of unprepared posts accordingly.
 function WeekNote({ ctx, week, items, onDone }: { ctx: Ctx; week: string; items: Item[]; onDone?: () => void }) {
   const s = ctx.state;
   const [note, setNote] = useState("");
@@ -601,8 +601,8 @@ function WeekNav({ wk, min, max, onGo }: { wk: string; min: string; max: string;
   );
 }
 
-// Haftayı planla: haftanın bütün gönderileri gün gün (otomasyonların saatleri + elle eklenenler) ve her birinin konusu.
-// Konusu boş olanları Rou doldurur (server/plan.mjs fillTopics); konusu olanlar sırayla hazırlatılır. Elle gönderi de eklenir.
+// Plan week: all posts of the week day by day (automation times + hand-added ones) and the topic of each.
+// Rou fills the empty topics (server/plan.mjs fillTopics); the ones with a topic are prepared in order. A hand-added post can be added too.
 function PlanWeek({ ctx, accounts, week, min, max, onWeek, onClose }: { ctx: Ctx; accounts: Acc[]; week: string; min: string; max: string; onWeek: (w: string) => void; onClose: () => void }) {
   const s = ctx.state;
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
@@ -679,16 +679,16 @@ function rowOf(s: Ctx["state"], it: Item): Row {
   return { it, auto, slot, topic, who: auto?.who ?? "claude", st, editable: (st === "plan" || st === "ghost") && !queued && it.day >= today() };
 }
 
-// Satırda gönderinin projesi: elle eklenende işin projesi, otomasyonda otomasyonunki.
+// The project of the post on the row: for a hand-added one the task's project, for an automation the automation's.
 const projIdOf = (s: Ctx["state"], it: Item) => it.task?.projectId ?? (it.auto ?? (it.task ? autoOf(s, it.task) : undefined))?.projectId ?? null;
 const projName = (s: Ctx["state"], it: Item) => {
   const pid = projIdOf(s, it);
   return (pid && s.projects.find((p) => p.id === pid)?.name) || "";
 };
 
-// Plan özeti: gönderiler METİN olarak, gün gün: saat, nerede (platform/hesap, otomasyon ya da "Tek seferlik"), konu ve kısa açıklama.
-// Hazırlanmış gönderide "Gönderiye git", hazırlanmamışta durumu yazar; satır gönderi penceresini açar (konu orada yazılır).
-// Gönderiler'de üst satırdaki "Plan özeti" açılır kutusu (görünen hafta), proje sayfasında o projenin önümüzdeki 4 haftası.
+// Plan summary: posts as TEXT, day by day: time, where (platform/account, automation or "One-off"), topic and short description.
+// A prepared post says "Go to post", an unprepared one its status; the row opens the post window (the topic is written there).
+// In Posts the "Plan summary" popover in the top row (the shown week), on the project page that project's next 4 weeks.
 const titleOf = (it: Item, topic?: { title: string }) => topic?.title || (it.run?.title && it.run.title !== it.title ? it.run.title : it.run?.body?.split(/[.!?\n]/)[0]?.trim()) || (it.task?.post ? it.title : "");
 const briefOf = (it: Item, topic?: { brief: string }) => topic?.brief || it.task?.post?.brief || "";
 function SumList({ ctx, rows, days, solo, onOpen }: { ctx: Ctx; rows: Row[]; days: string[]; solo?: boolean; onOpen: (r: Row) => void }) {
@@ -729,7 +729,7 @@ function SumList({ ctx, rows, days, solo, onOpen }: { ctx: Ctx; rows: Row[]; day
   );
 }
 
-// Boş konuları Rou yazar (fillTopics; elle yazılana dokunmaz).
+// Rou writes the empty topics (fillTopics; does not touch hand-written ones).
 function useFill(from: string, days: number, autoIds?: string[]) {
   const [busy, setBusy] = useState(false);
   const fill = async () => {
@@ -744,7 +744,7 @@ const FillBtn = ({ n, busy, fill }: { n: number; busy: boolean; fill: () => void
   <button className="btn sm" disabled={busy} onClick={fill}>{busy ? <><RefreshCw size={14} className="spin" />Rou is writing…</> : <><Sparkles size={14} />Let Rou write {n} empty {n === 1 ? "topic" : "topics"}</>}</button>
 ) : null);
 
-// Gönderiler › Plan özeti: görünen haftanın (süzgeç uygulanmış) gönderileri, düğmenin altında açılır kutu.
+// Posts › Plan summary: the posts of the shown week (filter applied), a popover under the button.
 function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline }: { ctx: Ctx; anchor: React.RefObject<HTMLButtonElement | null>; week: string; items: Item[]; onOpen: (it: Item) => void; onPlan: () => void; onClose: () => void; inline?: boolean }) {
   const s = ctx.state;
   const box = useRef<HTMLDivElement>(null);
@@ -752,7 +752,7 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
   const allRows = items.map((it) => rowOf(s, it));
   const empty = allRows.filter((r) => r.editable && !r.topic && r.auto && r.auto.who !== "me");
-  // Özetin üstündeki sayılar aynı zamanda süzgeç: basınca liste o duruma daralır.
+  // The numbers at the top of the summary are also filters: clicking narrows the list to that status.
   const [stf, setStf] = useState<"all" | "you" | "plan" | "empty" | "posted">("all");
   const isYou = (r: Row) => r.st === "ready" || r.st === "failed";
   const isEmpty = (r: Row) => r.editable && !titleOf(r.it, r.topic);
@@ -765,7 +765,7 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
   ] as const;
   const rows = stf === "all" ? allRows : allRows.filter(stf === "you" ? isYou : stf === "plan" ? isPlan : stf === "empty" ? isEmpty : (r: Row) => r.st === "posted");
   const { busy, fill } = useFill(week < today() ? today() : week, 7);
-  // Hafta talimatı: kullanıcı haftanın nasıl planlanacağını yazar; Rou henüz hazırlanmamış bütün gönderilerin konusunu buna göre yeniden kurar.
+  // Week instruction: the user writes how the week should be planned; Rou rebuilds the topics of all unprepared posts accordingly.
   const [note, setNote] = useState("");
   const [replanning, setReplanning] = useState(false);
   const replan = async () => {
@@ -830,7 +830,7 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
         </div>
       )}
   </>);
-  // inline: Gönderiler'de Paylaşım planının altında sabit bölüm (2026-11-01); değilse düğmenin altında açılan pencere.
+  // inline: a fixed section under the Sharing plan in Posts (2026-11-01); otherwise a window that opens under the button.
   if (inline) return <section className="card autodetail studio stsum">{body}</section>;
   return createPortal(
     <motion.div ref={box} className="pspop" role="dialog" aria-label="Plan summary" style={pos ?? { visibility: "hidden" }} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
@@ -840,7 +840,7 @@ function PlanSummary({ ctx, anchor, week, items, onOpen, onPlan, onClose, inline
   );
 }
 
-// Proje sayfası: projenin önümüzdeki 4 haftalık gönderileri aynı metin özetiyle.
+// Project page: the project's posts for the next 4 weeks with the same text summary.
 const PLAN_DAYS = 28;
 const PLAN_SHOW = 6;
 export function PlannedPosts({ ctx, project }: { ctx: Ctx; project: Project }) {
@@ -870,7 +870,7 @@ export function PlannedPosts({ ctx, project }: { ctx: Ctx; project: Project }) {
   );
 }
 
-// Satırda yazılan konu: otomasyonun saatinde setTopic, elle gönderide işin başlığı ve ayrıntısı.
+// Topic written on the row: setTopic at the automation's time, for a hand-added post the task's title and details.
 function saveTopic(ctx: Ctx, r: Row, title: string, brief: string) {
   const { it, auto, topic } = r;
   const v = title.trim(), b = brief.trim();
@@ -907,8 +907,8 @@ function PlanRow({ ctx, r }: { ctx: Ctx; r: Row }) {
   );
 }
 
-// Elle gönderinin ortak parçaları: proje (bulunduğun dünyadan; mercek Hepsi ise dünyalara göre gruplu), platform (isteğe bağlı) ve kayıt.
-// Hesap zorunlu değil: platform seçilip dünyada o platformun hesabı varsa ona bağlanır; "Rou seçsin" ise Rou hazırlarken projenin hesabından seçer.
+// Shared parts of a hand-added post: project (from the world you are in; if the lens is All grouped by world), platform (optional) and save.
+// An account is not required: if a platform is chosen and the world has an account for that platform it is linked; if "Let Rou choose" Rou picks from the project's account when preparing.
 const blockOf = (t: Task, worldId: string, day: string, time: string) => ({ id: uid(), taskId: t.id, worldId, title: t.title, start: `${day}T${time}`, end: mkTs(day, toMin(time) + 30), kind: "plan" as const });
 
 function postProjects(ctx: Ctx) {
@@ -930,7 +930,7 @@ function PlatformPick({ value, onChange }: { value: string; onChange: (v: string
     </div>
   );
 }
-// Seçilen platformun dünyadaki hesabı (projenin bağlı hesabı önce); yoksa undefined.
+// The world's account for the chosen platform (the project's linked account first); undefined if none.
 const accountFor = (s: Ctx["state"], worldId: string, projectId: string, plat: string) => {
   const social = (s.worlds.find((w) => w.id === worldId)?.accounts ?? []).filter((a) => !isFeed(a.platform) && a.platform === plat);
   const p = s.projects.find((x) => x.id === projectId);
@@ -953,7 +953,7 @@ function createPost(ctx: Ctx, o: { projectId: string; day: string; time: string;
 }
 const firstProject = (ctx: Ctx, projectId?: string) => projectId ?? postProjects(ctx)[0]?.list[0]?.id ?? "";
 
-// Haftayı planla › Gönderi ekle: konudan başlar (ne anlatılacak, proje, gün, saat), platform isteğe bağlı. Rou o gün (ya da "hazırlat" ile hemen) yazar.
+// Plan week › Add post: starts from the topic (what will be told, project, day, time), platform optional. Rou writes that day (or at once with "prepare").
 function AddPost({ ctx, days, onDone }: { ctx: Ctx; days: string[]; onDone: () => void }) {
   const s = ctx.state;
   const [pid, setPid] = useState(() => firstProject(ctx));
@@ -989,20 +989,20 @@ function AddPost({ ctx, days, onDone }: { ctx: Ctx; days: string[]; onDone: () =
   );
 }
 
-// Gönderi oluştur: konu, proje, gün, saat, platform (isteğe bağlı); metni Rou yazar ya da sen yazarsın (görseliyle). Sen yazınca gönderi
-// doğrudan onayına düşer, Rou yazacaksa saatinden önce (ya da "şimdi hazırlat" ile hemen) hazırlar. Gönderiler sayfası ve proje sayfasından açılır.
+// Create post: topic, project, day, time, platform (optional); Rou writes the text or you write it (with its image). When you write it the post
+// goes straight to approval; if Rou writes it, it prepares before the time (or at once with "prepare now"). Opens from the Posts page and the project page.
 export function NewPost({ ctx, projectId, onClose }: { ctx: Ctx; projectId?: string; onClose: () => void }) {
   const s = ctx.state;
   const [pid, setPid] = useState(() => firstProject(ctx, projectId));
   const proj = s.projects.find((p) => p.id === pid);
-  // Varsayılan: iki saat sonrası. 22:00'den sonra bu saat yarına düşer; gün de yarın olur (yoksa gönderi geçmişe yazılırdı).
+  // Default: two hours later. After 22:00 this time falls on tomorrow; the day becomes tomorrow too (otherwise the post would be written in the past).
   const [day, setDay] = useState(() => (new Date().getHours() >= 22 ? addDays(today(), 1) : today()));
   const [time, setTime] = useState(() => { const n = new Date(); n.setHours(n.getHours() + 2, 0); return `${String(n.getHours()).padStart(2, "0")}:00`; });
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
   const [plat, setPlat] = useState("");
   const [mode, setMode] = useState<"rou" | "me">("rou");
-  // Kim paylaşacak: Rou (onaydan sonra hesabın tarayıcısında) ya da kullanıcı (metni alır, kendisi paylaşır, "Paylaştım" der).
+  // Who shares: Rou (in the account's browser after approval) or the user (takes the text, shares it themselves, says "I shared").
   const [sharer, setSharer] = useState<"claude" | "me">("claude");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -1025,7 +1025,7 @@ export function NewPost({ ctx, projectId, onClose }: { ctx: Ctx; projectId?: str
     const t = createPost(ctx, { projectId: pid, day, time, title, brief: brief.trim(), plat, mine: mode === "me" });
     ctx.mutate((st) => { const x = st.tasks.find((y) => y.id === t.id); if (x) x.sharer = sharer; });
     if (mode === "me") {
-      // Sen yazınca hazırlık yok: hesap şimdi seçilir (Rou seçsin ise projenin hesabından); hesap yoksa metin düz kalır.
+      // When you write it there is no preparation: the account is chosen now (if "Let Rou choose" from the project's account); with no account the text stays plain.
       const acc = t.post?.accountId ? undefined : pickAccount(ctx.state, t);
       const format = acc ? formatsOf(acc.platform)[0] : t.post?.format;
       ctx.mutate((st) => {
@@ -1082,9 +1082,9 @@ export function NewPost({ ctx, projectId, onClose }: { ctx: Ctx; projectId?: str
   );
 }
 
-// Haftalık paylaşım raporu: seçili haftada ne paylaşıldı, hangi dünyada, hangi projede, hangi hesaptan (src/postReport.ts).
-// 2026-11-08: dünyalar tek satırda kayan şerit; proje ve hesap kırılımı kartın altında açılan menüde (masaüstü: üstüne gelince
-// ya da odaklanınca, dokunmatik: dokununca). Menü body'de portal, şerit kırpmaz.
+// Weekly sharing report: what was shared in the selected week, in which world, which project, from which account (src/postReport.ts).
+// 2026-11-08: worlds as a sliding strip in one row; project and account breakdown in a menu that opens under the card (desktop: on hover
+// or focus, touch: on tap). The menu is a portal in body, the strip does not clip it.
 type RW = ReturnType<typeof weekReport>["worlds"][number];
 function WeekReport({ s, wk }: { s: Ctx["state"]; wk: string }) {
   const r = weekReport(s, wk, today());
@@ -1147,7 +1147,7 @@ function WeekReport({ s, wk }: { s: Ctx["state"]; wk: string }) {
   );
 }
 
-// Dünya kartının altında açılan proje · hesap listesi. Ekran kenarına taşmaz; Esc ve dışarı tıklama kapatır.
+// Project · account list that opens under a world card. It does not overflow the screen edge; Esc and a click outside close it.
 function ReportMenu({ w, anchor, onEnter, onLeave, onClose }: { w: RW; anchor: HTMLElement; onEnter: () => void; onLeave: () => void; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);

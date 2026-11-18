@@ -23,7 +23,7 @@ import { Select, projectGroups } from "./Select";
 import { TimeField } from "./Fields";
 
 
-// Yeni iş: ayrıntılarıyla eklemek için iş kartı "Yeni iş" olarak açılır. Vazgeç işi siler, Ekle kapatır.
+// New task: to add it with details the task card opens as "New task". Cancel deletes the task, Add closes.
 const freshNew = new Set<string>();
 export function openNew(ctx: Ctx, id: string) {
   freshNew.add(id);
@@ -32,9 +32,9 @@ export function openNew(ctx: Ctx, id: string) {
 
 export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task; ctx: Ctx; onClose: () => void }) {
   const isNew = freshNew.has(task0.id);
-  // Paylaşılmış gönderi: plan alanları (kim, gün, saat, durum) artık anlamsız; kart ne paylaşıldığını ve sıradaki adımları gösterir.
+  // Shared post: the plan fields (who, day, time, status) no longer matter; the card shows what was shared and the next steps.
   const shared = real.state.runs.filter((r) => r.taskId === task0.id && r.status === "posted").at(-1);
-  // Var olan işte değişiklikler taslakta birikir; Kaydet hepsini birden uygular ve iş Rou'nunsa başlatır.
+  // On an existing task changes collect in a draft; Save applies them all at once and starts the task if it is Rou's.
   const ops = useRef<((st: State) => void)[]>([]);
   const [rev, bump] = useState(0);
   const [leave, setLeave] = useState(false);
@@ -46,7 +46,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
   }, [real.state, rev]);
   const ctx: Ctx = { ...real, state: draft, mutate: (fn) => { ops.current.push(stable(fn)); bump((n) => n + 1); } };
   const task = ctx.state.tasks.find((x) => x.id === task0.id) ?? task0;
-  // Gerçekten fark var mı: işin kendisi, saatleri, odak kayıtları ve otomasyonu taslakta öncekinden farklıysa (aç-kapa geri alınmış seçim sayılmaz).
+  // Is there a real difference: the task itself, its times, focus records and automation differ from before in the draft (a toggle that was switched back does not count).
   const slice = (st: State) => JSON.stringify([st.tasks.find((x) => x.id === task0.id), st.blocks.filter((b) => b.taskId === task0.id), st.sessions.filter((x) => x.taskId === task0.id), task0.autoId ? st.automations.find((a) => a.id === task0.autoId) : null]);
   const pending = () => {
     if (!ops.current.length) return false;
@@ -63,7 +63,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
     bump((n) => n + 1);
   };
   const onClose = () => (freshNew.delete(task0.id), close());
-  // Kapatırken kaydedilmemiş değişiklik varsa sorar (yazılan alan önce blur ile taslağa düşer).
+  // On close it asks if there are unsaved changes (the field being typed in first drops into the draft on blur).
   const tryClose = () => {
     (document.activeElement as HTMLElement | null)?.blur();
     if (pending()) setLeave(true);
@@ -89,14 +89,14 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
   };
   const s = ctx.state;
   const what = kickOffWhat(s, task);
-  // Rou bu iş üzerinde çalışıyor mu (hazırlıyor, Chrome'da yapıyor): düğme bunu söyler ve kilitlenir.
+  // Is Rou working on this task (preparing, doing it in Chrome): the button says so and is locked.
   const lastRun = real.state.runs.filter((r) => r.taskId === task0.id).sort((a, b) => b.at.localeCompare(a.at))[0];
   const fresh = (at?: string, min = 45) => !!at && Date.now() - new Date(at).getTime() < min * 60 * 1000;
   const working = !isNew && ((lastRun?.status === "working" && fresh(lastRun.at, 30)) || (!!lastRun?.act?.phase && fresh(lastRun.act.at)));
   const [starting, setStarting] = useState(false);
   useEffect(() => {
     if (!starting) return;
-    // Başlatma bitti sayılır: Rou çalışmaya geçti, Chrome seçimi ya da soru göründü, ya da 2 dakika geçti.
+    // Starting counts as finished: Rou moved on to work, the Chrome choice or a question appeared, or 2 minutes passed.
     const done = () => setStarting(false);
     addEventListener("pg-do-ready", done);
     const id = setTimeout(done, 120000);
@@ -104,8 +104,8 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
   }, [starting]);
   useEffect(() => { if (working) setStarting(false); }, [working]);
   const busyLabel = working ? "Rou is working" : starting ? "Rou is starting" : "";
-  // Yazılan alan blur olmadan taslağa düşmez; yazılan değer alanın ilk hâlinden farklıysa kaydet düğmesi çıkar, aynı hâle dönünce kaybolur.
-  // Alandan çıkınca değer taslağa geçer ve farkı dirty söyler.
+  // A typed field does not reach the draft without blur; the save button appears when the typed value differs from the field's first state and disappears when it returns to it.
+  // On leaving the field the value goes to the draft and dirty tells the difference.
   const edited = useRef(new Set<Element>());
   const [typed, setTyped] = useState(false);
   const track = (el: EventTarget, on: boolean) => {
@@ -133,7 +133,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
   const [check, setCheck] = useState("");
   const [ask, setAsk] = useState(false);
   const [askSlot, setAskSlot] = useState<string | null>(null);
-  // Saati düzenleme: çipe tıklayınca başlangıç ve bitiş saati (gün aynı kalır).
+  // Editing the time: clicking the chip edits start and end time (the day stays).
   const [editSlot, setEditSlot] = useState<{ id: string; a: string; b: string } | null>(null);
   const saveSlot = () => {
     if (!editSlot || !editSlot.a || !editSlot.b || editSlot.b <= editSlot.a) return;
@@ -175,13 +175,13 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
           <textarea key={task.id} className="titlein" rows={1} autoFocus={isNew} onFocus={(e) => isNew && e.target.select()} defaultValue={task.title} onBlur={(e) => {
             const v = e.target.value.trim();
             if (!v || v === task.title) return;
-            // Tekrarlayan işin adı değişince seri de (ilerideki günler) aynı adı alır.
+            // When a repeating task is renamed the series (later days) gets the same name.
             ctx.mutate((st) => {
               const x = st.tasks.find((y) => y.id === task.id);
               if (x) x.title = v;
               const a = task.autoId ? st.automations.find((y) => y.id === task.autoId) : undefined;
               if (a) a.title = v;
-              // Tek seferlik gönderide ad konudur: hazırlanan çıktının adı da güncellenir (takvim, bildirim eski adı göstermesin).
+              // In a one-off post the name is the topic: the prepared output's name is updated too (so the calendar and notices do not show the old name).
               if (x?.post && !a) for (const r of st.runs) if (r.taskId === task.id) r.title = v;
             });
           }} />
@@ -190,8 +190,8 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
 
         {shared && <SharedBar task={task} run={shared} ctx={real} onClose={onClose} />}
 
-        {/* Ne yapılacağı: başlığın hemen altında; Rou işi bu metinden anlar (task.notes). */}
-        {/* Rou'nun yazdığı otomasyon işi: talimat otomasyonda, bu günün işi "Konu"dur. Rou her sabah önümüzdeki 7 günün boş konularını yazar. */}
+        {/* What to do: right under the title; Rou understands the task from this text (task.notes). */}
+        {/* An automation task written by Rou: the instruction is on the automation, this day's task is the "Topic". Every morning Rou writes the empty topics of the next 7 days. */}
         {!shared && topical && <section className="dsec">
           <div className="dsechead"><span className="flabel">Topic</span><span className="muted">Rou writes it if left empty</span></div>
           <div className="brief topicbox">
@@ -204,11 +204,11 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
           {task.source?.url && <a className="srclink" href={task.source.url} target="_blank" rel="noreferrer">Open source ({task.source.type})</a>}
         </div>}
 
-        {/* Rou yapıyorsa ne olacağı (ya da çıktısı) açıklamanın hemen altında: işin ne olacağı ilk bakışta anlaşılsın. */}
+        {/* If Rou does it, what will happen (or its output) is right under the description: so it is clear at first glance what the task will be. */}
         {task.post && !shared && <PostBasis task={task} ctx={real} />}
         <OutputSection task={task} ctx={real} />
 
-        {/* Ayarlar: kim yapacak · ne zaman · durum ve tekrar; tek yumuşak panel, gruplar boşlukla ayrılır. */}
+        {/* Settings: who does it · when · status and repeat; one soft panel, groups separated by space. */}
         {shared ? (task.autoId && s.automations.some((a) => a.id === task.autoId) && <dl className="props dprops"><div className="dgroup"><AutoInfoRow task={task} ctx={real} onGo={() => (commit(), onClose())} /></div></dl>) : <section className="dsec"><div className="dsechead"><span className="flabel">Settings</span></div><dl className="props dprops">
           <div className="dgroup">
           <WhoRow task={task} ctx={ctx} play={!isNew && <span className="whoplay" onClickCapture={commit}><Play task={task} ctx={real} label /></span>} />
@@ -278,7 +278,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
             <dd className="chips stchips">
               {(["todo", "doing", "waiting", "done"] as const).map((st) => (
                 <button key={st} className={`${task.status === st ? "on" : ""} st-${st}`} onClick={() => {
-                  // Bitti seçilirken zamanlayıcı bu işteyse süre kaydedilip durdurulur.
+                  // When Done is chosen and the timer is on this task, the time is saved and the timer stopped.
                   if (st === "done" && s.timer?.taskId === task.id) stop(ctx.mutate, true);
                   else set((x) => setStatus(x, st));
                 }}>{STATUS_LABEL[st]}</button>
@@ -364,7 +364,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
             <div className="bmbtns">
               <button className="btn sm ghost" onClick={() => setAsk(false)}>Cancel</button>
               <button className="btn sm dangerfill" onClick={() => {
-              // İşle birlikte saatleri, odak kayıtları ve çıktıları gider; bildirimden geri alınabilir.
+              // Its times, focus records and outputs go with the task; can be undone from the notice.
               const recs = { tasks: [task], blocks: s.blocks.filter((x) => x.taskId === task.id), sessions: s.sessions.filter((x) => x.taskId === task.id), runs: s.runs.filter((x) => x.taskId === task.id) };
               ops.current = [];
               binIt(real, "task", task.title, recs, (st) => {
@@ -388,7 +388,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
             <button className="dsdel" onClick={() => setAsk(true)}>
               <Trash2 size={14} />Delete task
             </button>
-            {/* Değişiklik yoksa kaydet düğmesi yok; yalnız Rou'yu başlatmak gibi gerçek bir iş varsa düğme kalır. */}
+            {/* With no changes there is no save button; it stays only when there is real work, such as starting Rou. */}
             {busyLabel && !changed ? (
               <button className="btn sm primary dsave is-busy" disabled aria-live="polite"><RefreshCw size={14} className="spin" />{busyLabel}</button>
             ) : !changed && !what ? null : (
@@ -421,7 +421,7 @@ export function Drawer({ task: task0, ctx: real, onClose: close }: { task: Task;
   );
 }
 
-// Paylaşıldıktan sonra kartın başı: nerede, ne zaman paylaşıldı; sıradaki iş gönderiyi açmak, benzerini ürettirmek ya da Rou'ya sormak.
+// Top of the card after sharing: where and when it was shared; next steps are opening the post, producing a similar one or asking Rou.
 function SharedBar({ task, run, ctx, onClose }: { task: Task; run: Run; ctx: Ctx; onClose: () => void }) {
   const s = ctx.state;
   const ref = taskRef(s, task);
@@ -469,12 +469,12 @@ function Section({ title, meta, fold, children }: { title: string; meta?: string
   );
 }
 
-// Üstteki proje seçici: dünya › proje. Seçince iş (ve saatleri) o projeye/dünyaya taşınır.
+// Project picker at the top: world › project. Choosing moves the task (and its times) to that project/world.
 function ProjectPick({ task, ctx }: { task: Task; ctx: Ctx }) {
   const s = ctx.state;
   const w = worldOf(s, task.worldId);
   const p = projectOf(s, task.projectId);
-  // Paylaşılmış gönderinin ya da bir otomasyonun işinin yeri değişmez: yalnız gösterilir (otomasyonun projesi otomasyonda ayarlanır).
+  // The place of a shared post or an automation's task does not change: it is only shown (the automation's project is set on the automation).
   const locked = !!task.autoId || s.runs.some((r) => r.taskId === task.id && r.status === "posted");
   if (locked) return <span className="ppick is-locked" style={{ ["--w" as string]: w.color }} title={task.autoId ? "An automation's task; its project is set on the automation" : "Shared"}><i />{w.name}<span className="sep">›</span><b>{p ? p.name : "No project"}</b></span>;
   return (
@@ -495,7 +495,7 @@ function ProjectPick({ task, ctx }: { task: Task; ctx: Ctx }) {
   );
 }
 
-// Atanan iş ne zaman başlar (server/schedule.mjs ile aynı kural: günü gelince 07:00'de, takvimde saati varsa 1 saat önce).
+// When an assigned task starts (same rule as server/schedule.mjs: at 07:00 when its day comes, 1 hour before if it has a time on the calendar).
 function startText(s: Ctx["state"], task: Task) {
   if (kickOffWhat(s, task)) return "Starts as soon as you save.";
   if (s.runs.some((r) => r.taskId === task.id)) return "";
@@ -510,7 +510,7 @@ function startText(s: Ctx["state"], task: Task) {
   return at <= `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}` ? "Starts shortly." : `Starts on its own today at ${at}.`;
 }
 
-// Kim yapacak. Otomasyon işinde adımlar otomasyondan gelir (değiştirilmez); tek işte Sen ya da Rou seçilir.
+// Who does it. In an automation task the steps come from the automation (not changed); in a single task You or Rou is chosen.
 const STEP_NAME: Record<string, string> = { write: "Prepare", voice: "Voice", video: "Video", approve: "Approval", publish: "Share" };
 const WHO_HINT: Record<string, string> = { me: "You do it.", claude: "Rou writes, makes images and videos, researches, and does page and form tasks in the browser." };
 const BRIEF_HINT: Record<string, string> = {
@@ -527,7 +527,7 @@ function WhoRow({ task, ctx, play }: { task: Task; ctx: Ctx; play?: React.ReactN
         <dt><UserRound size={15} />Who</dt>
         <dd className="whosteps">
           {st.steps.map((x) => x.key === "publish" && !st.finished ? (
-            // Paylaşan bu gönderi için değiştirilebilir (otomasyonun varsayılanını ezer).
+            // The sharer can be changed for this post (overrides the automation's default).
             <span key={x.key} className={`whostep is-pick ${x.key === st.current && !st.finished ? "is-now" : ""}`}>{STEP_NAME[x.key]}
               {(["claude", "me"] as const).map((k) => <button key={k} className={x.who === BOT[k] ? "on" : ""} aria-pressed={x.who === BOT[k]} onClick={() => ctx.mutate((stt) => { const y = stt.tasks.find((z) => z.id === task.id); if (y) { if (k === (a.sharer ?? "claude")) delete y.sharer; else y.sharer = k; } })}>{BOT[k]}</button>)}
             </span>
@@ -548,7 +548,7 @@ function WhoRow({ task, ctx, play }: { task: Task; ctx: Ctx; play?: React.ReactN
           ))}
         </div>
         {who === "me" && task.status !== "done" && play}
-        {/* Ne yapacağını üstteki "Rou yapar" anlatır; burada yalnız ne zaman başlayacağı. */}
+        {/* What it will do is told by the "Rou does it" above; here only when it will start. */}
         {who !== "me" && startText(s, task) && <p className="whohint">{startText(s, task)}</p>}
       </dd>
     </div>

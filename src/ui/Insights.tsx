@@ -6,8 +6,8 @@ import type { Ctx } from "../lib";
 import type { Account } from "../types";
 import { toast } from "./Toast";
 
-// Hesap analizi (Instagram): Rou hesabın profilini arka planda okuyup Instagram becerilerini uygular (server/insight.mjs).
-// Üç bölüm: Profil puanı (ig-profile), Ne işe yarıyor (ig-audit), Haftanın planı (ig-plan). Sonuç hesapta saklanır.
+// Account insights (Instagram): Rou reads the account's profile in the background and applies the Instagram skills (server/insight.mjs).
+// Three sections: Profile score (ig-profile), What works (ig-audit), Plan of the week (ig-plan). The result is stored on the account.
 type Kind = "profile" | "audit" | "plan";
 const TABS: { id: Kind; label: string; what: string }[] = [
   { id: "profile", label: "Profile score", what: "Scores the profile out of 100 and rewrites the weak parts." },

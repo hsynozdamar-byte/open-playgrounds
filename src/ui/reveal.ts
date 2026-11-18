@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-// Aramadan açılan bir kaydı sayfası gösterir: sayfa yeni açılıyorsa bekleyen hedefi alır, açıksa olayı dinler.
+// Shows a record opened from search on its page: a page that is just opening takes the waiting target, an open page listens for the event.
 type Kind = "note" | "auto" | "feed" | "incoming";
 let pending: { kind: Kind; id: string } | null = null;
 
@@ -25,7 +25,7 @@ export function useReveal(kind: Kind, fn: (id: string) => void) {
   }, [kind]);
 }
 
-// Kartı görünür yapıp kısa bir vurgu verir.
+// Makes the card visible and gives it a short highlight.
 export function flash(selector: string) {
   requestAnimationFrame(() => setTimeout(() => {
     const el = document.querySelector<HTMLElement>(selector);

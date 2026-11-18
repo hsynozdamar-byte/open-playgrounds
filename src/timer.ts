@@ -4,30 +4,30 @@ import type { Mutate } from "./lib";
 import { setStatus } from "./lib";
 import { uid } from "./store";
 
-// Pomodoro ve mola süreleri kullanıcı ayarı (bu tarayıcıda saklanır); varsayılan 25 / 5 dk.
+// Pomodoro and break lengths are a user setting (stored in this browser); default 25 / 5 min.
 const num = (k: string, d: number) => { try { return Number(localStorage.getItem(k)) || d; } catch { return d; } };
 export const pomoLen = () => num("pg-pomo", 25);
 export const breakLen = () => num("pg-break", 5);
 export const POMO_OPTS = [15, 25, 45, 50, 90];
 export const BREAK_OPTS = [5, 10, 15];
 export function setLens(mutate: Mutate, focus: number, brk: number) {
-  try { localStorage.setItem("pg-pomo", String(focus)); localStorage.setItem("pg-break", String(brk)); } catch { /* yok */ }
-  // Çalışan pomodoro varsa hedefi hemen güncellenir.
+  try { localStorage.setItem("pg-pomo", String(focus)); localStorage.setItem("pg-break", String(brk)); } catch { /* none */ }
+  // If a pomodoro is running, its target updates right away.
   mutate((s) => {
     if (s.timer?.mode !== "pomo") return;
     s.timer = { ...s.timer, length: s.timer.phase === "break" ? brk : focus };
   });
 }
-// Şu anki parça (son başlatma ya da devamdan beri); duraklatılmışsa 0.
+// The current segment (since the last start or resume); 0 if paused.
 const segment = (t: Timer, now = Date.now()) => (t.pausedAt ? 0 : Math.max(0, Math.floor((now - new Date(t.startedAt).getTime()) / 1000)));
 export const elapsed = (t: Timer, now = Date.now()) => (t.base ?? 0) + segment(t, now);
 
-// Çalışan odak süresini oturum olarak kaydeder (toplamı 1 dk altı kaydedilmez). Kaydedilmeyen saniyeyi döndürür:
-// duraklatırken bu süre sayaçta (carry) taşınır, böylece 50 sn + 50 sn çalışma kaybolmaz.
+// Saves the running focus time as a session (a total under 1 min is not saved). Returns the unsaved seconds:
+// on pause they are carried in the timer (carry), so 50 s + 50 s of work is not lost.
 export function commit(s: State, now = Date.now()) {
   const t = s.timer;
   if (!t || t.phase !== "focus") return 0;
-  // Sadece son parça (ve önceki kısa parçalardan taşınan süre) kaydedilir; önceki parçalar duraklatırken kaydedildi.
+  // Only the last segment (and time carried from earlier short segments) is saved; earlier segments were saved on pause.
   const seg = segment(t, now);
   const own = t.mode === "pomo" ? Math.min(seg, Math.max(0, t.length * 60 - (t.base ?? 0))) : seg;
   const sec = own + (t.carry ?? 0);
@@ -50,9 +50,9 @@ export function start(mutate: Mutate, taskId: string, mode: Timer["mode"], round
   mutate((s) => begin(s, taskId, mode, round));
 }
 
-// Sürükleyip bırakınca durum değişir (pano sütunu). "Yapılıyor"a bırakılan kendi işin sayacı başlar;
-// çalışan iş başka sütuna bırakılınca sayaç durur ve süre kaydedilir. Rou'nun ve otomasyonun işi sayaç başlatmaz.
-// (2026-11-18: bir kullanıcı işi "In progress"a sürükledi, sayaç başlamadı.)
+// Dropping a card changes its status (board column). A task of your own dropped on "In progress" starts its timer;
+// dropping the running task on another column stops the timer and saves the time. Rou's and automation tasks do not start a timer.
+// (2026-11-18: a user dragged a task to "In progress" and the timer did not start.)
 export function dropStatus(s: State, id: string, status: Task["status"], mode: Timer["mode"] = "free", length = 25) {
   const t = s.tasks.find((x) => x.id === id);
   if (!t) return;
@@ -66,7 +66,7 @@ export function dropStatus(s: State, id: string, status: Task["status"], mode: T
   if (t.status !== status) setStatus(t, status);
 }
 
-// Durdur: oturum kaydedilir, iş "Yapılıyor"da kalır. Bitti: iş kapanır.
+// Stop: the session is saved, the task stays "In progress". Done: the task closes.
 export function stop(mutate: Mutate, done = false) {
   mutate((s) => {
     const id = s.timer?.taskId;
@@ -77,7 +77,7 @@ export function stop(mutate: Mutate, done = false) {
   });
 }
 
-// Zamanlayıcıyı durdurup işi bitirir; yanlışlıkla basılırsa geri alınabilir.
+// Stops the timer and finishes the task; can be undone if pressed by accident.
 export function finish(mutate: Mutate, state: State) {
   const id = state.timer?.taskId;
   const prev = state.tasks.find((x) => x.id === id)?.status;
@@ -85,7 +85,7 @@ export function finish(mutate: Mutate, state: State) {
   toast("Task marked as done", () => mutate((s) => { const t = s.tasks.find((x) => x.id === id); if (t && prev) setStatus(t, prev); }));
 }
 
-// Duraklat: o ana kadarki çalışma kaydedilir, sayaç kaldığı yerde durur. Devam et: aynı sayaç sürer.
+// Pause: the work so far is saved, the timer stops where it is. Resume: the same timer continues.
 export function pause(mutate: Mutate) {
   mutate((s) => {
     const t = s.timer;
@@ -109,7 +109,7 @@ export function toBreak(mutate: Mutate) {
   mutate((s) => {
     if (!s.timer) return;
     commit(s);
-    // Mola sıfırdan sayar: odak sırasındaki duraklatmadan kalan base ile başlasaydı "Mola bitti" hemen çıkardı.
+    // A break counts from zero: starting with the base left over from a pause during focus would make "Break over" fire immediately.
     const { base: _b, pausedAt: _p, carry: _c, ...rest } = s.timer;
     s.timer = { ...rest, phase: "break", startedAt: new Date().toISOString(), length: breakLen() };
   });
@@ -118,8 +118,8 @@ export function toBreak(mutate: Mutate) {
 export function setMode(mutate: Mutate, mode: Timer["mode"]) {
   mutate((s) => {
     if (!s.timer || s.timer.mode === mode || s.timer.phase !== "focus") return;
-    // Mod değişince süre sıfırlanmaz: aynı oturum devam eder, sadece sayma biçimi değişir.
-    // 25 dk'yı çoktan geçtiyse hedef bir sonraki pomodoro sınırına uzar.
+    // Changing mode does not reset the time: the same session continues, only the counting style changes.
+    // If it is already past 25 min, the target extends to the next pomodoro boundary.
     const min = elapsed(s.timer) / 60;
     s.timer = { ...s.timer, mode, length: mode === "pomo" ? Math.ceil((min + 1) / pomoLen()) * pomoLen() : 0 };
   });
@@ -151,15 +151,15 @@ export function chime() {
       o.start(t0);
       o.stop(t0 + 0.55);
     });
-  } catch { /* ses yok */ }
+  } catch { /* no sound */ }
 }
 export function notify(title: string, body: string) {
   try {
     if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body, silent: true });
-  } catch { /* bildirim yok */ }
+  } catch { /* no notification */ }
 }
 export const lastMode = (): Timer["mode"] => { try { return localStorage.getItem("pg-mode") === "pomo" ? "pomo" : "free"; } catch { return "free"; } };
-export const saveMode = (m: Timer["mode"]) => { try { localStorage.setItem("pg-mode", m); } catch { /* yok */ } };
+export const saveMode = (m: Timer["mode"]) => { try { localStorage.setItem("pg-mode", m); } catch { /* none */ } };
 export function startTask(mutate: Mutate, id: string) {
   const mode = lastMode();
   if (mode === "pomo" && "Notification" in window && Notification.permission === "default") Notification.requestPermission();

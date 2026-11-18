@@ -6,8 +6,8 @@ import { isQueued, isStale, queuePrepare } from "./Auto";
 import { makeOccurrence } from "../../shared/repeat.mjs";
 import { toast } from "./Toast";
 
-// Otomasyonun önümüzdeki gönderileri ve her birinin konusu. Konu, iş açılmadan önce otomasyonda (a.topics),
-// açıldıktan sonra işte (task.topic) durur; Rou hazırlarken buna göre yazar (server/prepare.mjs topicBlock).
+// An automation's upcoming posts and the topic of each. The topic lives on the automation (a.topics) before the task is opened,
+// and on the task (task.topic) after; Rou writes accordingly when preparing (server/prepare.mjs topicBlock).
 
 export function topicOf(s: State, a: Automation, day: string, slot: string): Topic | undefined {
   return occurrenceOf(s, a, day, slot)?.topic ?? a.topics?.[topicKey(day, slot)];
@@ -27,13 +27,13 @@ export function setTopic(ctx: Ctx, a: Automation, day: string, slot: string, t: 
 export async function suggestTopics(ctx: Ctx, a: Automation, count: number) {
   const r = await fetch("/api/plan-topics", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ autoId: a.id, count }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Couldn't reach the server" }));
   if (!r.ok) return toast(`No topics came back: ${r.error ?? "error"}`);
-  // Elle yazılmış konuya dokunmaz; yalnız boş olanları doldurur.
+  // Does not touch a hand-written topic; only fills the empty ones.
   const items = (r.items as { day: string; slot: string; title: string; brief: string; source?: string }[]).filter((x) => !topicOf(ctx.state, a, x.day, x.slot));
   for (const x of items) setTopic(ctx, a, x.day, x.slot, { title: x.title, brief: x.brief, ...(x.source ? { source: x.source } : {}) });
   toast(items.length ? `Topics planned for ${items.length} ${items.length === 1 ? "post" : "posts"}` : "No empty topics left");
 }
 
-// Otomasyon saatlerini (iş açılmamışsa açarak) Rou'nun sırasına alır; konu otomasyondan işe geçer.
+// Puts the automation's times (opening the task if it is not open) in Rou's queue; the topic moves from the automation to the task.
 export function queueSlots(ctx: Ctx, list: { a: Automation; day: string; slot: string }[], extra: string[] = []) {
   const s = ctx.state;
   const tmp = { tasks: [], blocks: [] } as unknown as State;
@@ -47,7 +47,7 @@ export function queueSlots(ctx: Ctx, list: { a: Automation; day: string; slot: s
   toast(`${all.length} ${all.length === 1 ? "post" : "posts"} added to Rou's queue; Rou prepares them one by one`);
 }
 
-// Satırın durumu: boşta, sırada, hazırlanıyor ya da hazırlanamadı.
+// State of the row: idle, queued, preparing or failed.
 export const stateOf = (s: State, t?: { id: string; queuedAt?: string }) => {
   if (!t) return "idle";
   const r = runOfTask(s.runs, t.id);

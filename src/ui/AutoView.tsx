@@ -16,9 +16,9 @@ import { openAutoForm } from "./AutoForm";
 import { topicOf } from "./Topics";
 import { type Item, PickedPost, itemOfSlot, itemOfTask } from "../views/Studio";
 
-// Tekrarlayan görev = otomasyon. Projenin altında tek bir görev; günlük gönderiler onun çıktıları.
-// Pencerede: ne zaman, nereye, kim (özet) · neye göre yazar (talimat ve kaynaklar) · plan (sıradaki saatler ve konuları) · çıktılar.
-// "Nasıl çalışır": başlığın yanında küçük ? düğmesi, basınca adımlar küçük bir pencerede.
+// Repeating task = automation. One task under the project; the daily posts are its outputs.
+// In the window: when, where, who (summary) · what it writes from (instruction and sources) · plan (upcoming times and their topics) · outputs.
+// "How it works": a small ? button next to the title, pressing it shows the steps in a small window.
 function HowItWorks({ flow }: { flow: { k: string; v: string }[] }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
@@ -72,21 +72,21 @@ function AutoView({ ctx, a, onClose }: { ctx: Ctx; a: Automation; onClose: () =>
   const paused = a.status !== "active";
   const toggle = () => ctx.mutate((st) => { const x = st.automations.find((y) => y.id === a.id); if (x) x.status = x.status === "active" ? "paused" : "active"; });
   const goProject = () => p && (onClose(), ctx.go({ view: "projects", lens: a.worldId, project: p.id }));
-  // Sıradakiler: bugünden iki hafta; her saat bir satır (açılmış iş ya da henüz açılmamış saat).
+  // Upcoming: two weeks from today; one row per time (an opened task or a time not yet opened).
   const days = Array.from({ length: 14 }, (_, i) => addDays(today(), i));
   const tasks = s.tasks.filter((t) => t.autoId === a.id && t.day && days.includes(t.autoDay ?? t.day)).map((t) => itemOfTask(s, t));
   const slots = ghosts(s, a.worldId, days).filter((g) => g.a.id === a.id).map((g) => itemOfSlot(s, a, g.day, g.slot));
   const items: Item[] = [...tasks, ...slots];
   const upcoming = [...items].sort((x, y) => (x.day + x.time).localeCompare(y.day + y.time));
   const last = s.runs.find((r) => r.body && s.tasks.find((t) => t.id === r.taskId)?.autoId === a.id);
-  // Neye bağlı: projenin marka sesi, medya klasörü, bilgi notları, hesap.
+  // What it depends on: the project's brand voice, media folder, notes, account.
   const brand = !!(p?.brand && (p.brand.use || p.brand.avoid || p.brand.audience));
   const media = (p?.mediaDirs?.length ?? 0) + (p?.mediaDir ? 1 : 0);
   const notes = p?.sources?.filter((x) => x.use).length ?? 0;
   const langId = (acc as { lang?: string } | undefined)?.lang ?? DEFAULT_LANG;
   const langName = (id: string) => LANGS.find((l) => l.id === id)?.label ?? id;
   const lang = langName(langId);
-  // Dil hesabındır (aynı hesabın bütün otomasyonları); talimattaki dil sözünü geçer (shared/social.mjs langRule).
+  // Language belongs to the account (all automations of the same account); it overrides a language word in the instruction (shared/social.mjs langRule).
   const setLang = (id: Lang) => {
     if (!acc) return;
     ctx.mutate((st) => { for (const w of st.worlds) for (const x of w.accounts ?? []) if (x.id === acc.id) x.lang = id; });
@@ -103,7 +103,7 @@ function AutoView({ ctx, a, onClose }: { ctx: Ctx; a: Automation; onClose: () =>
   ];
   const stOf = (it: Item) => (!it.task ? "ghost" : !it.run ? "plan" : it.run.status === "acted" ? "posted" : it.run.status);
   const titleOf = (it: Item) => it.task ? (it.task.topic?.title ?? (it.run?.title && it.run.title !== a.title ? it.run.title : it.run?.body?.split(/[.!?\n]/)[0] || undefined)) : topicOf(s, a, it.day, it.time)?.title;
-  // Sağlık: son çalışma, sıradaki, bekleyen, hata. Geçmiş: bütün çalışmalar, en yeni başta.
+  // Health: last run, next, waiting, error. History: all runs, newest first.
   const own = s.tasks.filter((t) => t.autoId === a.id && t.day);
   const runOf = (id: string) => runOfTask(s.runs, id);
   const past = own.filter((t) => (t.autoDay ?? t.day)! < today() || runOf(t.id)).map((t) => itemOfTask(s, t)).sort((x, y) => (y.day + y.time).localeCompare(x.day + x.time));
@@ -137,13 +137,13 @@ function AutoView({ ctx, a, onClose }: { ctx: Ctx; a: Automation; onClose: () =>
           <nav className="seg avtabs" role="tablist">
             {([["plan", "Tasks"], ["setup", "Settings and sources"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}
           </nav>
-          {/* Sekme içeriği sabit yükseklikte kayar: sekme değişince pencere boyu oynamaz. */}
+          {/* The tab content scrolls at a fixed height: the window height does not jump when the tab changes. */}
           <div className="avpanel">
-          {/* Sıradakiler: önümüzdeki iki haftanın gönderileri, Geçmiş ile aynı satırlar. Haftalık takvim Gönderiler'de (bu otomasyonun çipi). */}
-          {/* İşler: projedeki Otomasyonlar kartıyla aynı görünüm (Sırada · Hazırlanan · Tamamlanan, toplu hazırlatma). */}
+          {/* Upcoming: posts of the next two weeks, same rows as History. The weekly calendar is in Posts (this automation's chip). */}
+          {/* Tasks: same look as the Automations card in the project (Queued · Preparing · Done, bulk prepare). */}
           {tab === "plan" && <AutoRuns ctx={ctx} autos={[a]} single />}
           {tab === "setup" && <>
-          {/* 2. Neye bağlı / Ne üretir: iki kutu yan yana. */}
+          {/* 2. What it depends on / What it produces: two boxes side by side. */}
           <div className="avduo">
             <section className="avbox">
               <h3>Draws on</h3>

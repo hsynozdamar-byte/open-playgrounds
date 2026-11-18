@@ -3,58 +3,58 @@ import { createPortal } from "react-dom";
 import { Maximize2, X } from "lucide-react";
 import type { Run } from "../types";
 
-// Gönderinin ekleri: görseller ve videolar tek şeritte, Instagram gibi yana kayar. Kaynak üç yerden gelir:
-// run.video, run.images (data/media altında) ve metnin içine yazılmış görsel/video bağlantıları (Rou bazen ekleri böyle yazar).
+// A post's attachments: images and videos in one strip that slides sideways like Instagram. The source comes from three places:
+// run.video, run.images (under data/media) and image/video links written into the text (the assistant sometimes writes attachments that way).
 export type MediaItem = { src: string; kind: "image" | "video"; remote?: boolean; poster?: string };
 
 const VIDEO = /\.(mp4|mov|m4v|webm)(\?.*)?$/i;
 const MEDIA_URL = /^https?:\/\/\S+\.(png|jpe?g|gif|webp|avif|svg|mp4|mov|m4v|webm)(\?\S*)?$/i;
 const MEDIA_HEAD = /^(görseller|görsel|ekler|medya|videolar|images|media)\s*:?\s*$/i;
-const GAP = 8; // styles.css .galstrip gap ile aynı
+const GAP = 8;   // same as styles.css .galstrip gap
 export const srcOf = (src: string) => (/^https?:/i.test(src) ? src : `/${src}`);
 export const kindOf = (src: string): MediaItem["kind"] => (VIDEO.test(src) ? "video" : "image");
 
-// Metni ve içindeki ek bağlantılarını ayırır: bağlantı satırları (ve üstlerindeki "Görseller:" satırı) metinden çıkar.
+// Splits the text from the attachment links in it: link lines (and the "Images:" line above them) are taken out of the text.
 export function splitBody(body: string) {
   const urls: string[] = [];
   const lines = body.split("\n");
   const keep = lines.filter((l, i) => {
     const t = l.trim().replace(/^[-•*]\s*/, "");
     if (MEDIA_URL.test(t)) return void urls.push(t);
-    // Başlık satırı: altındaki ilk dolu satır bağlantıysa.
+    // Heading line: only if the first non-empty line below it is a link.
     if (MEDIA_HEAD.test(t)) { const next = lines.slice(i + 1).find((x) => x.trim()); return !(next && MEDIA_URL.test(next.trim().replace(/^[-•*]\s*/, ""))); }
     return true;
   });
   return { text: keep.join("\n").replace(/\n{3,}/g, "\n\n").trim(), urls };
 }
-// Metin ve uzak ekler yeniden tek gövdeye: ekler sonda "Görseller:" altında.
+// Text and remote attachments back into one body: attachments go at the end under "Images:".
 export const joinBody = (text: string, urls: string[]) => (urls.length ? `${text.trim()}\n\nImages:\n${urls.join("\n")}` : text.trim());
 
-// cover: video varken ilk görsel onun kapağıdır (render ve pg run --video --img böyle yazar): ayrı ek olarak değil, videonun posteri olarak gösterilir.
-// Videonun kendi kapağı: render çıktısı (-cover.) ya da `pg run --video --img` ile verilen <runId>-0.
+// cover: when there is a video, the first image is its cover (render and pg run --video --img write it that way): shown as the video's poster, not as a separate attachment.
+// The video's own cover: the render output (-cover.) or <runId>-0 given with `pg run --video --img`.
 export const isCover = (r: Run, f?: string) => !!f && (/-cover\./.test(f) || new RegExp(`^media/${r.id}-0\\.(jpe?g|png)$`).test(f));
 export function mediaOf(r: Run, cover = false): MediaItem[] {
   const imgs = r.images ?? [];
-  // Kapak yalnız videonun kendi kapağıysa (-cover.); ayrı görseller videonun üstüne kapak olarak binmez.
+  // The cover is only the video's own cover (-cover.); separate images are not laid over the video as a cover.
   const poster = cover && r.video && isCover(r, imgs[0]) ? imgs[0] : undefined;
   const at = (m: MediaItem) => { const i = (r.order ?? []).indexOf(m.src); return i < 0 ? Infinity : i; };
   const own: MediaItem[] = [...(r.video ? [{ src: r.video, kind: "video" as const, ...(poster ? { poster } : {}) }] : []), ...(poster ? imgs.slice(1) : imgs).map((src) => ({ src, kind: kindOf(src) }))];
   const remote = r.post ? [] : splitBody(r.body ?? "").urls.map((src) => ({ src, kind: kindOf(src), remote: true }));
-  // run.order: carousel sırası (kapak bento videodan önce gelebilir); sırasız çıktıda video başta kalır.
+  // run.order: carousel order (the bento cover can come before the video); without an order the video stays first.
   if (r.order?.length) own.sort((a, b) => at(a) - at(b));
   return [...own, ...remote];
 }
 
 export function Gallery({ items, alt = [] }: { items: MediaItem[]; alt?: string[] }) {
   const [i, setI] = useState(0);
-  // Şeridin oranı ilk ekin kendi oranından: dikey video kare kutuya sıkışmasın (4:5 ile 1.91:1 arası; Instagram/LinkedIn sınırları).
+  // The strip's ratio follows the first attachment's own ratio: a portrait video is not squeezed into a square box (between 4:5 and 1.91:1; Instagram/LinkedIn limits).
   const [ratio, setRatio] = useState(1);
   const fit = (w: number, h: number) => w && h && setRatio(Math.min(1.91, Math.max(0.8, w / h)));
   const strip = useRef<HTMLDivElement>(null);
   const [big, setBig] = useState<MediaItem | null>(null);
   if (!items.length) return null;
   const n = items.length;
-  // Slaytlar arasında GAP kadar boşluk var; bir adım = şerit genişliği + boşluk.
+  // There is a GAP between slides; one step = strip width + gap.
   const step = (el: HTMLElement) => el.clientWidth + GAP;
   const go = (k: number) => strip.current?.scrollTo({ left: k * step(strip.current), behavior: "smooth" });
   return (
@@ -80,7 +80,7 @@ export function Gallery({ items, alt = [] }: { items: MediaItem[]; alt?: string[
   );
 }
 
-// Tam boyut: görsel ekrana sığan en büyük hâliyle, hiç kırpılmadan. Esc ya da dışarı tıklama kapatır.
+// Full size: the image at the largest size that fits the screen, never cropped. Esc or a click outside closes it.
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };

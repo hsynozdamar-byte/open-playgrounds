@@ -7,10 +7,10 @@ import { addDays, iso, relDay, today } from "../date";
 import { repeatsOn, slotsOf, topicKey } from "../../shared/repeat.mjs";
 import { openAutoView } from "./openAuto";
 
-// Projenin görev panosu (2026-11-01): Planlanan · Üzerinde çalışılan · Tamamlanan.
-// Planlanan: açık görevler ve otomasyonların önümüzdeki 14 günü (henüz açılmamış saatler de, soluk kart olarak), güne göre.
-// Üzerinde çalışılan: sürmekte olan iş (doing/waiting) ya da Rou'nun çıktısı hazırlanıyor, onay bekliyor, paylaşılacak.
-// Tamamlanan: son 14 günde biten ya da paylaşılan. Kart sürüklenince durum değişir; basınca görev (soluksa otomasyon) açılır.
+// The project's task board (2026-11-01): Planned · In progress · Done.
+// Planned: open tasks and the automations' next 14 days (including times not yet opened, as faded cards), by day.
+// In progress: work under way (doing/waiting) or Rou's output being prepared, waiting for approval, to be shared.
+// Done: finished or shared in the last 14 days. Dragging a card changes its status; pressing it opens the task (the automation if faded).
 
 type Col = "plan" | "work" | "done";
 type Card = { key: string; day: string | null; time: string; title: string; line: string; tone?: "you" | "bad" | "ok" | "ghost" | "late"; task?: Task; auto?: Automation };
@@ -24,7 +24,7 @@ const STATUS: Record<Col, Task["status"]> = { plan: "todo", work: "doing", done:
 
 const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) : "");
 
-// manualOnly: otomasyonların görevleri burada değil (Otomasyonlar kartında, AutoRuns).
+// manualOnly: automation tasks are not here (they are on the Automations card, AutoRuns).
 export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; projectId: string; manualOnly?: boolean }) {
   const s = ctx.state;
   const t0 = today();
@@ -52,7 +52,7 @@ export function ProjectBoard({ ctx, projectId, manualOnly }: { ctx: Ctx; project
       cols.plan.push({ ...base, line: `${late ? "Late · " : ""}${t.autoId ? "Automation · " : ""}${who(t) === "Rou" ? "Rou will prepare it" : "You will do it"}`, tone: late ? "late" : undefined });
     }
   }
-  // Otomasyonların henüz açılmamış saatleri: zamanlayıcı günü gelince açar; burada soluk kart.
+  // Automation times not yet opened: the scheduler opens them when the day comes; here a faded card.
   for (const a of manualOnly ? [] : s.automations.filter((x) => x.projectId === projectId && x.status === "active")) {
     for (let i = 0; i < HORIZON; i++) {
       const day = addDays(t0, i);

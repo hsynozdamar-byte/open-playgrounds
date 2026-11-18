@@ -14,7 +14,7 @@ import { reveal } from "./reveal";
 
 export const openSearch = () => dispatchEvent(new Event("pg-search"));
 
-// Türkçe harfler sadeleşir: "gorsel" yazınca "görsel" de bulunur.
+// Turkish letters are folded: typing "gorsel" also finds "görsel".
 const fold = (x: string) => x.toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i");
 
 type Kind = "task" | "project" | "note" | "auto" | "world" | "cmd";
@@ -22,14 +22,14 @@ type Hit = { kind: Kind; id: string; title: string; meta: string; worldId: strin
 
 const GROUP: Record<Kind, string> = { cmd: "Commands", task: "Tasks", project: "Projects", note: "Notebook", auto: "Automations", world: "Worlds" };
 const ORDER: Kind[] = ["world", "project", "task", "auto", "note", "cmd"];
-// Aramadan çalışan komutlar: id → başlık ve arama kelimeleri.
+// Commands that run from search: id → title and search words.
 const CMDS: { id: string; title: string; meta: string; words: string }[] = [
   { id: "backups", title: "Restore from backup", meta: "Daily backups", words: "backup restore recover undo" },
   { id: "world", title: "New world", meta: "Add a world", words: "new world add create" },
 ];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-// Başlıkta baştan eşleşme en üstte, sonra kelime başı, sonra içinde; yalnız açıklamada geçen en altta.
+// A match at the start of the title comes first, then at a word start, then inside; matches only in the description come last.
 function score(q: string, title: string, rest: string[]) {
   const t = fold(title);
   if (t.startsWith(q)) return 100;
@@ -44,7 +44,7 @@ export function find(s: State, raw: string): Hit[] {
   const wname = (id: string | null) => (id ? s.worlds.find((w) => w.id === id)?.name ?? "" : "");
   const out: Hit[] = [];
   if (!q) {
-    // Boşken: bugünün ve geciken açık işler.
+    // When empty: today's and late open tasks.
     const t = today();
     return s.tasks
       .filter((x) => x.status !== "done" && x.day && x.day <= t)
@@ -79,7 +79,7 @@ export function find(s: State, raw: string): Hit[] {
     const n = score(q, c.title, [c.words]);
     if (n) out.push({ kind: "cmd", id: c.id, title: c.title, meta: c.meta, worldId: null, score: n });
   }
-  // Her grupta en iyi 6, gruplar sabit sırada.
+  // Best 6 per group, groups in fixed order.
   return ORDER.flatMap((k) => out.filter((h) => h.kind === k).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "en")).slice(0, 6));
 }
 
@@ -87,7 +87,7 @@ export function SearchHost({ ctx }: { ctx: Ctx }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const o = () => setOpen(true);
-    // ⌘K her yerde; "/" yazı alanı dışında.
+    // ⌘K everywhere; "/" outside text fields.
     const k = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement).closest("input,textarea,select,[contenteditable]");
       if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey)) {
@@ -120,13 +120,13 @@ function Palette({ ctx, onClose }: { ctx: Ctx; onClose: () => void }) {
     if (h.kind === "world") return ctx.go({ lens: h.id });
     if (h.kind === "project") return ctx.go({ view: "projects", lens: h.worldId!, project: h.id });
     if (h.kind === "auto") return openAutoView(h.id);
-    // Not dünyasızsa açık dünyada da görünür; değilse kendi dünyasına geçilir.
+    // A note without a world also shows in the open world; otherwise switch to its own world.
     if (h.kind === "note") ctx.go({ view: "inbox", lens: h.worldId ?? ctx.route.lens, project: undefined });
     reveal(h.kind, h.id);
   };
 
   const key = (e: React.KeyboardEvent) => {
-    // Yalnız arama kapanır; alttaki iş kartı ya da Rou sohbeti aynı Esc ile kapanmaz.
+    // Only the search closes; the task card or Rou chat underneath does not close with the same Esc.
     if (e.key === "Escape") { e.stopPropagation(); return onClose(); }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();

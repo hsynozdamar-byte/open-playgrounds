@@ -5,8 +5,8 @@ import { applyPart, applyVersion, canTakePart } from "../../shared/versions.mjs"
 import { ago } from "../date";
 import { toast } from "./Toast";
 
-// Gönderinin sürümleri: bu çıktının eski hâlleri (düzenleme, yeniden çizim, geri dönüş) ve aynı işin önceki çıktıları (revizeler).
-// Geri dön seçileni şu anki çıktıya uygular; şu anki hâl de geçmişe girer, yani dönüş de geri alınabilir.
+// Versions of a post: older states of this output (edit, redraw, restore) and earlier outputs of the same task (revisions).
+// Restore applies the chosen one to the current output; the current state also goes into history, so a restore can be undone too.
 const WHY: Record<string, string> = { edit: "Before edit", render: "Before redraw", kit: "Before look change", restore: "Before going back" };
 
 type Item = { key: string; label: string; at: string; img?: string; text: string; from: Partial<Run>; mediaOnly?: boolean };
@@ -15,7 +15,7 @@ export function versionsOf(s: Ctx["state"], r: Run): Item[] {
   const own = (r.versions ?? []).map((v, i) => ({ key: `v${i}`, label: WHY[v.why] ?? "Earlier version", at: v.at, img: v.images?.[0], text: v.body ?? "", from: v }));
   const older = s.runs
     .filter((x) => x.taskId && x.taskId === r.taskId && x.id !== r.id && x.status !== "working" && (x.status !== "failed" ? x.post || x.body : x.video || x.images?.length))
-    // Hazırlanamayan çıktının yalnız görseli/videosu alınabilir (metni hata mesajı olabilir).
+    // For an output that failed to prepare only the image/video can be taken (its text may be an error message).
     .map((x) => ({ key: x.id, label: x.status === "failed" ? "Failed output" : "Earlier output", at: x.at, img: x.images?.[0] ?? x.cover, text: x.status === "failed" ? (x.video ? "Has a video" : "Has an image") : x.body, from: x, mediaOnly: x.status === "failed" }));
   return [...own, ...older].sort((a, b) => b.at.localeCompare(a.at));
 }

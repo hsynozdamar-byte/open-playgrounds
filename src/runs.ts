@@ -1,6 +1,6 @@
 import type { Run } from "./types";
 
-// Bir işin geçerli çıktısı: paylaşılmış çıktı varsa o (sonradan açılan taslak onu gölgelemez), yoksa en yenisi.
+// A task's current output: the shared one if there is one (a draft opened later does not shadow it), else the newest.
 export function runOfTask(runs: Run[], taskId: string | undefined): Run | undefined {
   if (!taskId) return undefined;
   let first: Run | undefined;

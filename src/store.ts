@@ -2,17 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { State } from "./types";
 import { toast } from "./ui/Toast";
 
-// Sunucudaki JSON dosyası tek kaynak. Değişiklikler iyimser uygulanır ve sırayla yazılır.
+// The JSON file on the server is the single source. Changes are applied optimistically and written in order.
 export function useStore() {
   const [state, setState] = useState<State | null>(null);
   const rev = useRef<string>("");
-  // Henüz diske yazılmamış değişiklikler. Dosya başka yerden (Claude, pg) değiştiyse hepsi güncel duruma yeniden uygulanır.
+  // Changes not yet written to disk. If the file changes elsewhere (Claude, pg), they are all re-applied to the current state.
   const pending = useRef<((s: State) => void)[]>([]);
   const saving = useRef(false);
   const warned = useRef(false);
-  // Her yükleme ve her yazma bu sayacı artırır: yolda eskimiş bir yükleme cevabı yeni durumun üstüne yazmaz.
+  // Every load and every write bumps this counter: a stale load response in flight does not overwrite the new state.
   const epoch = useRef(0);
-  // Sunucunun bildirdiği son sürüm; yazma sürerken gelen bildirim kaçmasın diye yazma bitince bakılır.
+  // The latest version the server announced; checked when a write finishes so a notice that arrived mid-write is not missed.
   const seen = useRef("");
 
   const load = useCallback(async () => {
@@ -20,7 +20,7 @@ export function useStore() {
     const r = await fetch("/api/state").then((r) => r.json());
     if (mine !== epoch.current) return;
     rev.current = r.rev;
-    // Yazılmamış değişiklik varken gelen yeni dosya bunları silmesin: üstüne yeniden uygulanır.
+    // A new file arriving while changes are unwritten must not wipe them: they are re-applied on top.
     const next = structuredClone(r.state as State);
     for (const fn of pending.current) fn(next);
     if (pending.current.length) mergeBlocks(next);
@@ -34,23 +34,23 @@ export function useStore() {
       seen.current = e.data;
       if (e.data !== rev.current && !saving.current) load();
     };
-    // Sunucunun bildirimi (server/notify.mjs): Mac uygulamasında Notification yerel bildirime döner, uygulamanın ikonuyla.
+    // Server notification (server/notify.mjs): in the desktop app, Notification becomes a native notification with the app's icon.
     es.addEventListener("notice", (e) => {
       try {
         const n = JSON.parse((e as MessageEvent).data) as { title: string; text: string };
         if ("Notification" in window && Notification.permission === "granted") new Notification(n.title, { body: n.text });
-      } catch { /* bildirim gösterilemezse görev yine sürer */ }
+      } catch { /* if a notification cannot be shown, the task still goes on */ }
     });
     return () => es.close();
   }, [load]);
 
-  // Kuyruğu sırayla yazar. Ağ hatasında bekleyip yeniden dener; değişiklik kaybolmaz.
+  // Writes the queue in order. On a network error it waits and retries; no change is lost.
   const flush = useCallback(async () => {
     if (saving.current) return;
     saving.current = true;
     let wait = 1000;
-    // Cevabı gelmeyen yazma aynı gövde ve aynı kimlikle yinelenir: ilki sunucuya ulaşmışsa sunucu onu tanır ve
-    // değişiklikler ikinci kez uygulanmaz (yoksa 409 birleştirmesi aynı işi, oturumu ya da notu bir daha eklerdi).
+    // A write with no response is repeated with the same body and the same id: if the first one reached the server, it recognizes it and
+    // the changes are not applied twice (otherwise the 409 merge would add the same task, session or note again).
     let again: { sent: number; body: string } | null = null;
     try {
       while (pending.current.length) {
@@ -84,7 +84,7 @@ export function useStore() {
           continue;
         }
         if (r.status === 409 && j.state) {
-          // Dosya bu arada değişti: bekleyen her değişiklik güncel dosyaya yeniden uygulanır.
+          // The file changed meanwhile: every pending change is re-applied to the current file.
           rev.current = j.rev;
           const merged = structuredClone(j.state);
           for (const fn of pending.current) fn(merged);
@@ -99,11 +99,11 @@ export function useStore() {
     } finally {
       saving.current = false;
     }
-    // Yazma sürerken dosya başka yerden değiştiyse (çıktı hazır oldu, pg yazdı) bildirimi atlanmıştı: şimdi yüklenir.
+    // If the file changed elsewhere during a write (output became ready, pg wrote), its notice was skipped: load it now.
     if (seen.current && seen.current !== rev.current) load();
   }, [load]);
 
-  // Geri al / yinele: her değişikliğin öncesi ve sonrası saklanır; geri alırken yalnız o değişikliğin dokunduğu kayıtlar geri döner.
+  // Undo / redo: the before and after of each change are kept; on undo only the records that change touched are restored.
   const past = useRef<Step[]>([]);
   const future = useRef<Step[]>([]);
 
@@ -114,7 +114,7 @@ export function useStore() {
       const next = structuredClone(s);
       fn(next);
       mergeBlocks(next);
-      // React updater'ı iki kez çağırabilir; aynı adımı iki kez kaydetme.
+      // React may call an updater twice; do not record the same step twice.
       if (mode === "edit" && past.current.at(-1)?.before !== s) {
         past.current.push({ before: s, after: next });
         if (past.current.length > 60) past.current.shift();
@@ -150,8 +150,8 @@ type Step = { before: State; after: State };
 type Rec = { id: string };
 const LISTS = ["worlds", "projects", "tasks", "blocks", "sessions", "inbox", "automations", "runs", "memory", "rous"] as const;
 
-// from → to yönündeki değişikliği şimdiki duruma uygular, yalnız değişen kayıtlara dokunur.
-// Arada pg ya da Claude'un yazdıkları (yeni çıktı, oturum, iş) yerinde kalır.
+// Applies the change from → to onto the current state, touching only records that differ.
+// What pg or Claude wrote in between (new output, session, task) stays in place.
 export function revert(s: State, from: State, to: State) {
   for (const k of LISTS) {
     const a = (from[k] ?? []) as Rec[], b = (to[k] ?? []) as Rec[];
@@ -162,15 +162,15 @@ export function revert(s: State, from: State, to: State) {
       const old = A.get(x.id);
       if (old && JSON.stringify(old) === JSON.stringify(x)) continue;
       const at = list.findIndex((y) => y.id === x.id);
-      // Paylaşılmış çıktı geri alınmaz: "Onayla"yı geri almak onu yeniden onay bekler yapar, ikinci kez paylaşılırdı.
+      // A shared output is not undone: undoing "Approve" would make it wait for approval again and it would be shared twice.
       if (k === "runs" && at >= 0 && (list[at] as { status?: string }).status === "posted") continue;
-      // Kayıt iki durumda da varsa yalnız bu adımın değiştirdiği alanlar geri döner: aynı kayda bu arada
-      // başkasının (Rou, pg, zamanlayıcı) yazdığı başka alanlar yerinde kalır.
+      // If the record exists in both states, only the fields this step changed are restored: other fields someone else
+      // (Rou, pg, the timer) wrote to the same record in the meantime stay in place.
       if (at >= 0 && old) list[at] = fields(list[at], old, x);
       else if (at >= 0) list[at] = structuredClone(x);
       else list.splice(Math.min(i, list.length), 0, structuredClone(x));
     }
-    // Sıra değiştiyse (ör. dünyaları sürükleyip dizmek) hedefteki sırayı geri kur; diğer kayıtlar yerinde kalır.
+    // If the order changed (e.g. worlds dragged into a new order), restore the target order; other records stay in place.
     const order = (l: Rec[]) => l.filter((x) => A.has(x.id) && B.has(x.id)).map((x) => x.id).join();
     if (order(a) !== order(b)) {
       const want = b.filter((x) => list.some((y) => y.id === x.id)).map((x) => x.id);
@@ -180,9 +180,9 @@ export function revert(s: State, from: State, to: State) {
     }
     (s as unknown as Record<string, Rec[]>)[k] = list;
   }
-  // Yazım rehberi (set_guide) tek alan: değiştiyse önceki hâline döner.
+  // The writing guide (set_guide) is a single field: if changed, it returns to its previous value.
   if (JSON.stringify(from.writingGuide) !== JSON.stringify(to.writingGuide)) { if (to.writingGuide) s.writingGuide = structuredClone(to.writingGuide); else delete s.writingGuide; }
-  // Zamanlayıcı geri alınmaz (süre gerçek zaman); yalnız işi artık yoksa görünmez bir sayaç kalmasın.
+  // The timer is not undone (the time is real); just make sure no invisible timer is left if its task no longer exists.
   if (s.timer && !s.tasks.some((t) => t.id === s.timer!.taskId)) s.timer = null;
 }
 
@@ -196,7 +196,7 @@ function fields(now: Rec, from: Rec, to: Rec): Rec {
   return out as Rec;
 }
 
-// Aynı işin aynı gündeki üst üste binen ya da uç uca değen saatleri tek blokta birleşir.
+// Times of the same task on the same day that overlap or touch end to end merge into one block.
 function mergeBlocks(s: State) {
   const sorted = [...s.blocks].sort((a, b) => a.start.localeCompare(b.start));
   const keep: typeof s.blocks = [];
@@ -214,9 +214,9 @@ function mergeBlocks(s: State) {
   if (keep.length !== s.blocks.length) s.blocks = keep;
 }
 
-// Aynı değişiklik birden çok kez uygulanır (iyimser kopya, geri al kopyası, taslak, 409 sonrası yeniden uygulama). Kimlik her
-// seferinde yeniden üretilirse kopyadaki kayıtla verideki kayıt ayrı kimlik alır: geri al yanlış kaydı arar, taslakta eklenen
-// satırı düzenleyen sonraki adım onu bulamaz. withIds içinde çalışan işlev her uygulanışta aynı kimlikleri alır.
+// The same change is applied many times (optimistic copy, undo copy, draft, re-apply after 409). If ids were regenerated
+// each time, the copy's record and the data's record would get different ids: undo would look for the wrong record, and a later step
+// editing a row added in the draft could not find it. A function run inside withIds gets the same ids on every application.
 const fresh = () => Math.random().toString(36).slice(2, 8);
 let tape: { ids: string[]; at: number } | null = null;
 export const uid = () => {
@@ -229,5 +229,5 @@ export function withIds<T>(ids: string[], fn: () => T): T {
   tape = { ids, at: 0 };
   try { return fn(); } finally { tape = prev; }
 }
-// Bir değişikliği kimlikleri sabit hâle getirir.
+// Makes a change's ids stable.
 export const stable = (fn: (s: State) => void) => { const ids: string[] = []; return (s: State) => withIds(ids, () => fn(s)); };

@@ -9,9 +9,9 @@ import { toast } from "./Toast";
 import { accountForRun } from "./Preview";
 import { Stepper } from "./Fields";
 
-// Gönderiyi onaydan önce yerinde düzenle. Metin biçimleri hemen kaydedilir; görselli/videolu gönderide
-// kaydedince sunucu gönderiyi yazar ve görselleri/videoyu yeniden üretir (POST /api/rerender).
-// Şablon adları render/src/look.tsx ile aynı.
+// Edit a post in place before approval. Text formats save at once; for a post with images/video
+// saving makes the server write the post and regenerate the images/video (POST /api/rerender).
+// Template names match render/src/look.tsx.
 export const TEMPLATES = [
   { id: "night", label: "Night", hint: "Dark ground, light in the account color" },
   { id: "paper", label: "Paper", hint: "Light ground, dark text" },
@@ -28,7 +28,7 @@ export function PostEditor({ r, ctx, color, onDone }: { r: Run; ctx: Ctx; color:
   const [template, setTemplate] = useState(r.template ?? "night");
   const [busy, setBusy] = useState(false);
   const media = p.format === "ig_post" || isVideo(p.format);
-  // Metin gönderilerinde (X, Threads, LinkedIn) ekler elle düzenlenir; görselli/videolu biçimlerde ekleri şablon üretir.
+  // In text posts (X, Threads, LinkedIn) attachments are edited by hand; in image/video formats the template makes them.
   const [items, setItems] = useState<MediaItem[]>(() => mediaOf(r, true));
   const [uploading, setUploading] = useState(0);
   const mediaKey = (xs: MediaItem[]) => xs.map((m) => `${m.src}|${m.poster ?? ""}`).join(",");
@@ -39,7 +39,7 @@ export function PostEditor({ r, ctx, color, onDone }: { r: Run; ctx: Ctx; color:
   const issues = problems(normalize(p.format, full()), acc);
 
   const save = async () => {
-    // Metin gönderisi boş kaydedilebilir (yalnız görsel ya da sonra yazılacak); slayt/sahne gönderisinde en az biri gerekir.
+    // A text post can be saved empty (image only, or to be written later); a slide/scene post needs at least one.
     const next = normalize(p.format, full()) ?? (p.format === "linkedin" || p.format === "text" ? { format: p.format, text: "" } : null);
     if (!next) return toast("The post can't be empty");
     if (!media) {
@@ -50,7 +50,7 @@ export function PostEditor({ r, ctx, color, onDone }: { r: Run; ctx: Ctx; color:
         pushVersion(x, "edit");
         Object.assign(x, { post: next, body: bodyOf(next), edited: true });
         if (!mediaChanged) return;
-        // Elle değişen ekler şablon planına bağlı kalmaz: zamanlayıcı kit değişince bunları yeniden çizmesin.
+        // Hand-edited attachments are not tied to the template plan: the scheduler must not redraw them when the kit changes.
         if (x.video !== m.video) delete x.cover;
         delete x.order;
         if (m.video) x.video = m.video; else delete x.video;
@@ -159,8 +159,8 @@ export function PostEditor({ r, ctx, color, onDone }: { r: Run; ctx: Ctx; color:
   );
 }
 
-// Ekler alanı: görsel ve video ekle, çıkar, sırala. Yüklenen dosyalar data/media'ya gider (/api/upload).
-// Taslak düzenleyicisi ve hesaplı metin gönderileri (X, Threads, LinkedIn) aynı alanı kullanır.
+// Attachments field: add, remove and reorder images and videos. Uploaded files go to data/media (/api/upload).
+// The draft editor and text posts with an account (X, Threads, LinkedIn) use the same field.
 function MediaField({ items, setItems, busy, setBusy, hint }: { items: MediaItem[]; setItems: (f: (xs: MediaItem[]) => MediaItem[]) => void; busy: number; setBusy: (f: (n: number) => number) => void; hint?: string }) {
   const add = async (files: FileList | null) => {
     for (const f of Array.from(files ?? [])) {
@@ -197,15 +197,15 @@ function MediaField({ items, setItems, busy, setBusy, hint }: { items: MediaItem
   );
 }
 
-// Hesaplı metin gönderisinin ekleri: video tek (ilki), görseller sırayla; videonun kendi kapağı (poster) görselin önünde kalır.
+// Attachments of a text post with an account: one video (the first), images in order; the video's own cover (poster) stays ahead of the image.
 export function mediaFromItems(items: MediaItem[]) {
   const vid = items.find((m) => m.kind === "video");
   const imgs = items.filter((m) => m.kind !== "video" && !m.remote).map((m) => m.src);
   return { video: vid?.src, images: [...(vid?.poster ? [vid.poster] : []), ...imgs] };
 }
 
-// Hesabı bağlı olmayan taslağın düzenleyicisi: başlık, ekler (görsel ve video; ekle, çıkar, sırala) ve metin.
-// Yüklenen dosyalar data/media'ya gider (run.images); metindeki uzak bağlantılar metnin sonunda kalır.
+// Editor for a draft with no account: title, attachments (images and video; add, remove, reorder) and text.
+// Uploaded files go to data/media (run.images); remote links in the text stay at the end of the text.
 export function DraftEditor({ r, ctx, onDone }: { r: Run; ctx: Ctx; onDone: () => void }) {
   const [title, setTitle] = useState(r.title);
   const [text, setText] = useState(() => splitBody(r.body).text);

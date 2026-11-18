@@ -6,7 +6,7 @@ import { Gallery, mediaOf, splitBody, srcOf } from "./Gallery";
 import { PLATFORM_NAME, platformsOf } from "../../shared/stages.mjs";
 import { IG_FOLD, LI_FOLD, THREADS_MAX, accountOf, tweetMax, isVideo, missingImage, platformName, problems, taskRef } from "../../shared/social.mjs";
 
-// Sosyal gönderinin önizlemesi: gönderi platformda nasıl görünecekse öyle. Veri Run.post'tan gelir.
+// Preview of a social post: as it will look on the platform. Data comes from Run.post.
 type Acc = { name: string; handle: string; color: string; platform: string; label: string; premium?: boolean };
 
 export function accountForRun(s: State, r: Run): Acc {
@@ -21,13 +21,13 @@ function Avatar({ acc, size = 36 }: { acc: Acc; size?: number }) {
   return <span className="pvav" style={{ ["--c" as string]: acc.color, width: size, height: size }}>{initials(acc.name)}</span>;
 }
 
-// Metnin katlanmadan görünen kısmı: en fazla `chars` karakter ve `lines` satır.
+// The part of the text visible without folding: at most `chars` characters and `lines` lines.
 function fold(text: string, chars: number, lines: number) {
   let cut = Math.min(text.length, chars);
   let n = 0;
   for (let i = 0; i < cut; i++) if (text[i] === "\n" && ++n >= lines) { cut = i; break; }
   if (cut >= text.length) return null;
-  // Kelime sınırında kes; yeni paragrafın ilk birkaç harfinde kalırsa paragraf sonunda kes. Sondaki noktalama "…" ile çakışmasın.
+  // Cut at a word boundary; if that lands in the first few letters of a new paragraph, cut at the end of the paragraph. Trailing punctuation must not collide with "…".
   const nl = text.lastIndexOf("\n", cut);
   const sp = text.lastIndexOf(" ", cut);
   const end = nl > 0 && cut - nl < 40 ? nl : sp > cut * 0.6 ? sp : cut;
@@ -49,7 +49,7 @@ function Folded({ text, chars, lines, more, children }: { text: string; chars: n
 
 const Tags = ({ tags }: { tags: string[] }) => (tags.length ? <p className="pvtags">{tags.join(" ")}</p> : null);
 
-// LinkedIn ve platformu "Diğer" olan hesabın düz gönderisi. LinkedIn feed'deki gibi: metin, altında görsel (yoksa "Image missing").
+// Plain post for LinkedIn and for an account whose platform is "Other". Like the LinkedIn feed: text, image below (if none "Image missing").
 const whenOf = (r: Run) => {
   const at = r.postedAt;
   if (!at) return "now";
@@ -69,8 +69,8 @@ function TextPost({ post, acc, r, compact }: { post: Extract<Post, { format: "li
   );
 }
 
-// X / Threads: hesap üstte bir kez, altında çizgi; tweetler aynı sol kenarda alt alta.
-// r verilirse ilk tweet'in altında ekleri (video, görsel) gösterilir: X gönderisi gibi.
+// X / Threads: the account once on top, a line below; tweets stacked on the same left edge.
+// If r is given the attachments (video, images) show under the first tweet: like an X post.
 function Tweets({ post, acc, compact, r }: { post: Extract<Post, { format: "tweet" | "thread" | "threads" }>; acc: Acc; compact?: boolean; r?: Run }) {
   const handle = acc.handle || acc.label;
   const max = post.format === "threads" ? THREADS_MAX : tweetMax(acc);
@@ -96,9 +96,9 @@ function Tweets({ post, acc, compact, r }: { post: Extract<Post, { format: "twee
   );
 }
 
-// Alıntılanan ya da yanıtlanan tweet: X'teki gibi çerçeveli kutu (yazar, metin, görsel ya da video kapağı; o da bir tweeti alıntılıyorsa iç kutu).
+// A quoted or replied-to tweet: a framed box as on X (author, text, image or video cover; an inner box if it quotes a tweet too).
 function XQuote({ t, reply }: { t: XTarget; reply: boolean }) {
-  // Video X'teki gibi sessiz, döngüde oynar; tıklama kutunun bağlantısına gitmesin diye video kendi kontrollerini taşır.
+  // The video plays muted in a loop as on X; it carries its own controls so a click does not go to the box's link.
   const thumb = (m?: XTarget["media"]) => m && (
     <div className="pvq-media" onClick={(e) => m.video && e.preventDefault()}>
       {m.video ? <video src={m.video} poster={m.thumb} muted loop autoPlay playsInline controls /> : <img src={m.thumb} alt="" loading="lazy" />}
@@ -122,11 +122,11 @@ function XQuote({ t, reply }: { t: XTarget; reply: boolean }) {
   );
 }
 
-// Instagram: slayt görselleri yan yana kayar; görsel yoksa (render olmadıysa) slayt metni yer tutar.
+// Instagram: slide images slide sideways; if there are no images (not rendered) the slide text is a placeholder.
 function Carousel({ post, r, acc }: { post: Extract<Post, { format: "ig_post" }>; r: Run; acc: Acc }) {
   const [i, setI] = useState(0);
   const strip = useRef<HTMLDivElement>(null);
-  // İşin kendisi paylaşılan carousel'de video da bir karedir ve sırası run.order'dan gelir.
+  // In a carousel where the work itself is shared, the video is also one frame and its order comes from run.order.
   const items = mediaOf(r).filter((m) => !m.remote);
   const n = items.length || post.slides.length;
   const go = (k: number) => {
@@ -171,8 +171,8 @@ function Instagram({ post, acc, r }: { post: Extract<Post, { format: "ig_post" }
   );
 }
 
-// Önizleme videosu: dokununca durur/oynar, altta sürüklenebilir ilerleme çubuğu, üstte geçen ve toplam süre.
-// Durunca ortada oynat işareti çıkar; hangi saniyede olunduğu her an görünür (2026-11-04).
+// Preview video: tap to pause/play, a draggable progress bar below, elapsed and total time on top.
+// When paused a play mark shows in the middle; the current second is always visible (2026-11-04).
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
 function ReelVideo({ src, poster }: { src: string; poster?: string }) {
   const v = useRef<HTMLVideoElement>(null);
@@ -205,7 +205,7 @@ function ReelVideo({ src, poster }: { src: string; poster?: string }) {
   );
 }
 
-// Reels, TikTok, Shorts: video varsa oynar (sessiz, döngü); yoksa sahne metinleri.
+// Reels, TikTok, Shorts: plays the video if there is one (muted, loop); otherwise the scene texts.
 function Reel({ post, acc, r }: { post: Extract<Post, { format: "ig_reel" | "short" }>; acc: Acc; r: Run }) {
   const handle = (acc.handle || acc.name).replace(/^@/, "");
   const [script, setScript] = useState(false);
@@ -237,12 +237,12 @@ function Reel({ post, acc, r }: { post: Extract<Post, { format: "ig_reel" | "sho
   );
 }
 
-// Metin gönderisinin ekleri: görseller ve videolar tek şeritte yana kayar.
+// Attachments of a text post: images and videos slide sideways in one strip.
 function Media({ r }: { r: Run }) {
   return <Gallery items={mediaOf(r, true)} />;
 }
 
-// compact: kart içinde (geçmiş, gönderi listesi); kontrol notları ve uyarılar gösterilmez.
+// compact: inside a card (history, post list); check notes and warnings are not shown.
 export function PostPreview({ r, s, compact }: { r: Run; s: State; compact?: boolean }) {
   const post = r.post;
   if (!post) return null;
@@ -267,15 +267,15 @@ export function PostPreview({ r, s, compact }: { r: Run; s: State; compact?: boo
   );
 }
 
-// Hesap kaydı olmayan gönderi taslağı (paylaşım dünyanın tarayıcısındaki oturumdan): paylaşılacağı gibi, tam metniyle görünür.
-// Satırlar paragraf olur, #etiketler vurgulanır; hesap yoksa adı proje adından gelir.
+// Draft of a post with no account record (shared from the world's browser session): shown as it will be shared, with the full text.
+// Lines become paragraphs, #tags are highlighted; with no account the name comes from the project name.
 export function DraftPost({ r, s, compact }: { r: Run; s: State; compact?: boolean }) {
   const task = s.tasks.find((t) => t.id === r.taskId);
   const acc = accountForRun(s, r);
   const name = acc.name === "Account" ? s.projects.find((p) => p.id === task?.projectId)?.name ?? worldOf(s, task?.worldId ?? null).name : acc.name;
   const who = { ...acc, name };
   const pls = platformsOf(s, s.automations.find((a) => a.id === task?.autoId));
-  // X ya da Threads taslağı (yalnız metin): gönderi kartıyla aynı görünüm.
+  // X or Threads draft (text only): same look as the post card.
   if (pls.length > 0 && pls.every((pl) => pl === "x" || pl === "threads")) return <div className="pvwrap"><Tweets post={{ format: pls[0] === "threads" ? "threads" : "tweet", tweets: [r.body.trim()] }} acc={who} compact={compact} /></div>;
   const paras = splitBody(r.body).text.split(/\n+/).map((x) => x.trim()).filter(Boolean);
   return (<>
@@ -294,9 +294,9 @@ export function DraftPost({ r, s, compact }: { r: Run; s: State; compact?: boole
   </>);
 }
 
-// İndirilecek dosyalar: Reels videosu ya da slayt görselleri.
+// Files to download: the Reels video or the slide images.
 export function mediaFiles(r: Run) {
-  // Carousel'de video da bir karedir: görsellerle birlikte, gönderideki sırayla iner.
+  // In a carousel the video is also one frame: it downloads with the images, in the post's order.
   if (r.post?.format === "ig_post") return mediaOf(r).filter((m) => !m.remote).map((m) => m.src);
   return r.video ? [r.video] : [];
 }

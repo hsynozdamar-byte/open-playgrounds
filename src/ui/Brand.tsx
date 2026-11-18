@@ -3,8 +3,8 @@ import { Ban, MessageSquareQuote, Palette, Plus, Shapes, Users, X } from "lucide
 import type { Brand, Project } from "../types";
 import type { Ctx } from "../lib";
 
-// Projenin marka sesi: Rou gönderi hazırlarken ve haftayı planlarken uyar (server/prepare.mjs brandBlock).
-// Rou da sohbette verilen kalıcı kararları buraya yazar (edit_project). Satırlar okunur durur, tıklayınca düzenlenir.
+// The project's brand voice: Rou follows it when preparing posts and planning the week (server/prepare.mjs brandBlock).
+// Rou also writes lasting decisions given in the chat here (edit_project). Rows stay readable, click to edit.
 const EMPTY: Brand = { audience: "", pillars: [], use: "", avoid: "" };
 
 type TextKey = "audience" | "use" | "avoid";
@@ -38,7 +38,7 @@ export function BrandCard({ ctx, project }: { ctx: Ctx; project: Project }) {
   );
 }
 
-// Okunur metin; tıklayınca aynı yerde yazı alanı olur. Enter (Shift'siz) ya da dışarı tıklamak kaydeder, Esc vazgeçer.
+// Readable text; on click it becomes a text field in place. Enter (without Shift) or clicking outside saves, Esc cancels.
 function InlineText({ value, ph, label, onSave }: { value: string; ph: string; label: string; onSave: (v: string) => void }) {
   const [edit, setEdit] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);

@@ -22,7 +22,7 @@ import { openAutoForm } from "../ui/AutoForm";
 const START = 0;
 const END = 24;
 const HOUR = 80;
-// Kısa (15 dk) blok da okunur yükseklikte kalır: başlık ve durum işareti rahat sığar.
+// A short (15 min) block stays readable in height: the title and status mark fit comfortably.
 const MIN_BLK = 34;
 const SNAP = 15;
 const MINUTES = (END - START) * 60;
@@ -38,7 +38,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   const t = today();
   const [mode, setMode] = useState<"week" | "day">(() => (embedded || isNarrow() ? "day" : "week"));
   const [anchor, setAnchor] = useState(t);
-  // Uygulama gece yarısını açık geçerse bugünü gösteren takvim yeni güne geçer (yoksa dünün saatlerine iş bırakılır).
+  // If the app stays open past midnight the calendar that shows today moves to the new day (otherwise tasks would be left at yesterday's times).
   const wasToday = useRef(t);
   useEffect(() => {
     const was = wasToday.current;
@@ -52,7 +52,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   const tasks = s.tasks.filter(inLens(lens));
   const cols = useRef<(HTMLDivElement | null)[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
-  // Saat ızgarası pencerenin altına kadar uzar; altta yanlardaki gibi 12 px boşluk kalır.
+  // The hour grid extends to the bottom of the window; at the bottom a 12 px gap remains like on the sides.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (embedded || !el) return;
@@ -74,15 +74,15 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   };
   const [draft, setDraft] = useState<{ col: number; a: number; b: number } | null>(null);
   const [sel, setSel] = useState<string | null>(null);
-  // Silme her zaman onaylı: Delete tuşu da menüyü onay adımında açar.
+  // Delete always asks: the Delete key also opens the menu at the confirm step.
   const [askRemove, setAskRemove] = useState(false);
   const [review, setReview] = useState(false);
   const overTray = useRef(false);
   const [trayHot, setTrayHot] = useState(false);
-  // Sağ panel: saati olmayan işler. Bugün, bu hafta (gösterilen günler) ya da tarihsiz.
+  // Right panel: tasks with no time. Today, this week (the shown days) or undated.
   const [trayTab, setTrayTab] = useState<"today" | "week" | "none">(() => { try { return (localStorage.getItem("pg-tray") as "today" | "week" | "none" | null) ?? "today"; } catch { return "today"; } });
-  const pickTray = (k: "today" | "week" | "none") => { setTrayTab(k); try { localStorage.setItem("pg-tray", k); } catch { /* yok */ } };
-  // Blok backlog'a dönerse: blok silinir; işin başka saati kalmadıysa tarihi de kalkar.
+  const pickTray = (k: "today" | "week" | "none") => { setTrayTab(k); try { localStorage.setItem("pg-tray", k); } catch { /* no storage */ } };
+  // If a block goes back to the backlog: the block is deleted; if the task has no other time its date is removed too.
   const unplan = (blockId: string) =>
     mutate((st) => {
       const blk = st.blocks.find((x) => x.id === blockId);
@@ -93,7 +93,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   const now = useNow(true, 30000);
 
   useEffect(() => {
-    // Bir saat önceden başla; en alta dayanınca da tam saat çizgisine otursun ki üstteki saat etiketi kesilmesin.
+    // Start an hour earlier; at the very bottom also snap to the full hour line so the hour label at the top is not cut off.
     const g = scroller.current;
     if (!g) return;
     const h = new Date().getHours();
@@ -101,7 +101,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     g.scrollTo({ top: Math.max(0, top - 12) });
   }, []);
 
-  // Sadece bu saat takvimden kalkar; iş ve diğer saatleri kalır. Bildirimden geri alınır.
+  // Only this time leaves the calendar; the task and its other times stay. Can be undone from the notice.
   const removeBlock = (id: string) => {
     const blk = s.blocks.find((b) => b.id === id);
     setSel(null);
@@ -110,10 +110,10 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     toast("Block removed from the calendar", () => mutate((st) => void (st.blocks.some((b) => b.id === blk.id) || st.blocks.push(blk))));
   };
 
-  // Seçili bloğu Delete ile sil.
+  // Delete the selected block with Delete.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      // İş kartı açıkken ya da yazı alanındayken blok silinmez.
+      // A block is not deleted while the task card is open or the focus is in a text field.
       if (!sel || (e.target as HTMLElement).closest("input,textarea,select") || document.querySelector(".drawer, .modal")) return;
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); setAskRemove(true); }
       if (e.key === "Escape") setSel(null);
@@ -132,14 +132,14 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     return i < 0 ? fallback : i;
   };
 
-  // Sürükleme: pencere üzerinden izlenir, bırakınca kaydedilir.
+  // Dragging: tracked on the window, saved on drop.
   useEffect(() => {
     if (!drag) return;
     const move = (e: PointerEvent) => {
       const d = dragRef.current;
       if (!d) return;
       if (d.kind === "move") {
-        // Bloğu backlog'a sürüklemek: takvimden çıkar.
+        // Dragging a block to the backlog: it leaves the calendar.
         const hit = !!(document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest(".tray");
         if (hit !== overTray.current) { overTray.current = hit; setTrayHot(hit); }
       }
@@ -167,12 +167,12 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
       if (d.kind === "move" && toTray && d.moved) return unplan(d.id);
       if (d.kind === "create") return setDraft({ col: d.col, a: d.a, b: Math.min(END * 60, d.moved ? d.b : d.a + 60) });
       if (!d.moved) {
-        // Tıklama: bloğu seç, yanında ne yapılacağını soran küçük menü açılır.
+        // Click: selects the block, a small menu next to it asks what to do.
         setSel(d.id);
         return;
       }
       const day = days[d.col];
-      // ⌥ ile sürükleme: aynı işe yeni bir saat eklenir (ayrı iş açılmaz); değerse eskisiyle birleşir.
+      // Dragging with ⌥: a new time is added to the same task (no separate task); if equal it merges with the old one.
       if (d.kind === "move" && d.copy) {
         const nid = uid();
         mutate((st) => {
@@ -213,7 +213,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     setDrag({ kind, id: b.id, col, a, b: bb, y0: e.clientY, x0: e.clientX, a0: a, b0: bb, col0: col, moved: false, lane, of });
   };
 
-  // Kenar çubuğundan (ya da listeden) bir işi takvime bırakma.
+  // Dropping a task from the sidebar (or a list) onto the calendar.
   const dropTask = (taskId: string, day: string, min: number | null) =>
     mutate((st) => {
       const task = st.tasks.find((x) => x.id === taskId);
@@ -221,7 +221,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
       if (task.autoId) task.autoDay ??= task.day ?? day;
       task.day = day;
       if (min === null) return;
-      // İşin bu aralıkta zaten bir saati varsa o taşınır; ikinci saat eklenmez (ek saat için ⌥ ya da "+ Saat ekle").
+      // If the task already has a time in this range that one is moved; a second time is not added (for an extra time use ⌥ or "+ Add time").
       const existing = st.blocks.find((b) => b.taskId === taskId && days.includes(tsDay(b.start)));
       if (existing) {
         const len = Math.max(SNAP, spanMin(existing.start, existing.end));
@@ -236,23 +236,23 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
     });
 
   const visible = (d: string) => tasks.filter((x) => x.day === d && x.status !== "done" && !s.blocks.some((b) => b.taskId === x.id && tsDay(b.start) === d));
-  // Backlog: takvimde hiç yeri olmayan işler (tarihsiz ya da günü geçmiş). Günü ya da saati olan iş burada görünmez.
+  // Backlog: tasks with no place on the calendar (undated or past their day). A task with a day or time does not show here.
   const unplanned = tasks.filter((x) => x.status !== "done" && (!x.day || (x.day < t && !days.includes(x.day))) && !s.blocks.some((b) => b.taskId === x.id && days.includes(tsDay(b.start))));
   const weekMin = blocks.reduce((n, b) => n + spanMin(b.start, b.end), 0);
   const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes();
 
-  // Gerçekte çalışılan süre (oturumlar + çalışan zamanlayıcı), yerel saate çevrilir.
+  // Time actually worked (sessions + the running timer), converted to local time.
 
-  // Botların hazırladığı, belli bir güne planlanmış çıktılar (ör. Sosyal gönderileri).
+  // Outputs prepared by bots and planned for a given day (e.g. social posts).
   const runWorld = (r: (typeof s.runs)[number]) => s.tasks.find((x) => x.id === r.taskId)?.worldId;
   const posts = s.runs.filter((r) => r.on && (r.status === "ready" || r.status === "approved") && days.includes(r.on) && runWorld(r) && (lens === ALL || runWorld(r) === lens));
-  // İlerideki tekrarlar: henüz açılmamış günlerde soluk yer tutucu.
+  // Future repeats: faded placeholders on days not yet opened.
   const ghostList = ghosts(s, lens, days);
   const openGhost = (a: (typeof s.automations)[number]) => openAutoForm({ id: a.id });
 
   const calEl = (
         <div className="cal" style={{ ["--days" as string]: days.length }}>
-          {/* Takvimin kendi araç satırı: gezinme ve görünüm, yönettiği ızgaranın hemen üstünde, sol kenarda. */}
+          {/* The calendar's own tool row: navigation and view, right above the grid it controls, on the left edge. */}
           {!embedded && <div className="caltool">
             <div className="seg sm">
               <button onClick={() => setAnchor(addDays(anchor, mode === "week" ? -7 : -1))} aria-label="Previous"><ChevronLeft size={16} /></button>
@@ -274,7 +274,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
               </button>
             ))}
           </div>
-          {/* Gün satırı yalnız gösterilecek bir şey varsa (deadline, gönderi, saatsiz otomasyon) görünür. */}
+          {/* The day row shows only if there is something to show (deadline, post, untimed automation). */}
           {!embedded && days.some((d) => tasks.some((x) => x.deadline === d && x.status !== "done") || s.projects.filter(inLens(lens)).some((p) => p.deadline === d && p.status !== "done") || posts.some((r) => r.on === d) || ghostList.some((g) => g.day === d && !g.slot)) && <div className="allday">
             <span className="gut">day</span>
             {days.map((d) => (
@@ -325,13 +325,13 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
               >
 
                 {(() => {
-                  // Sürüklenen blok da şerit hesabına girer: yan yana duran bloklar sürüklerken genişlemez.
+                  // A block being dragged also counts in the lane calculation: blocks side by side do not widen while dragging.
                   const live = drag && "id" in drag ? drag : null;
                   const isCopy = !!live && live.kind === "move" && !!live.copy && live.moved;
                   const orig = live ? s.blocks.find((x) => x.id === live.id) : undefined;
-                  // Sürükleme boyunca yerleşim donar: diğer bloklar yerinde kalır, sürüklenen başladığı genişliği korur.
+                  // The layout freezes during the drag: other blocks stay in place, the dragged one keeps the width it started with.
                   const list = blocks.filter((b) => tsDay(b.start) === d && !(live && b.id === live.id && !isCopy && live.col0 !== ci));
-                  // Henüz açılmamış otomasyon saatleri de şeride girer: gerçek işlerin üstüne binmez, yanına dizilir.
+                  // Automation times not yet opened also enter the lanes: they do not overlap real tasks, they line up beside them.
                   const gs = ghostList.filter((g) => g.day === d && g.slot).map((g) => {
                     const m = tsMin(`${d}T${g.slot}`);
                     return { id: `g:${g.a.id}:${g.slot}`, taskId: null, worldId: g.a.worldId, title: g.a.title, start: `${d}T${g.slot}`, end: `${d}T${fromMin(Math.min(1440, m + (g.a.minutes || 30)))}`, kind: "plan" as const, g };
@@ -422,7 +422,7 @@ export function Calendar({ ctx, embedded }: { ctx: Ctx; embedded?: boolean }) {
   );
 }
 
-// Çakışan bloklar yan yana dizilir: her kümede şerit sayısı kadar sütun.
+// Overlapping blocks line up side by side: in each cluster as many columns as lanes.
 function lanes(list: Block[]) {
   const sorted = [...list].sort((x, y) => x.start.localeCompare(y.start));
   const out: { b: Block; lane: number; of: number }[] = [];
@@ -441,7 +441,7 @@ function lanes(list: Block[]) {
   return out;
 }
 
-// Otomasyonun henüz açılmamış saati: o gün iş olarak açılacak. Gerçek blok gibi durur, soluk ve tekrar simgeli.
+// An automation time not yet opened: it will open as a task that day. Looks like a real block, faded and with a repeat icon.
 function GhostView({ g, ctx, a, e, lane, of, onOpen }: { g: { a: Automation }; ctx: Ctx; a: number; e: number; lane: number; of: number; onOpen: (a: Automation) => void }) {
   const len = e - a;
   const tall = (len / 60) * HOUR - 2 >= 48;
@@ -466,19 +466,19 @@ function BlockView({ b, ctx, a, e, lane = 0, of = 1, sel, dragging, copy, onDown
   const w = worldOf(s, b.worldId);
   const len = e - a;
 
-  // Günü geçmiş ve bitmemiş iş: takvimde de gecikmiş görünür.
-  // Rou'nun otomasyon işi senin zamanın değil: gecikti/saati geçti yazmaz, hangi adımda olduğunu yazar.
+  // A task past its day and not done: it looks late on the calendar too.
+  // Rou's automation task is not your time: it does not say late/overdue, it says which step it is on.
   const auto = task ? autoOf(s, task) : undefined;
   const bot = !!auto && auto.who !== "me";
   const stage = bot && task ? whereText(stagesOf(s, auto!, task, runOfTask(s.runs, task.id)), runOfTask(s.runs, task.id)) : "";
   const late = !bot && !!task && task.status !== "done" && tsDay(b.start) < today();
-  // Bugün saati geçmiş ama bitmemiş (ve şu an üzerinde çalışılmıyor): süresi doldu.
+  // Past its time today but not done (and not being worked on now): overdue.
   const n = new Date();
   const ended = !bot && !late && !!task && task.status !== "done" && s.timer?.taskId !== task.id && tsDay(b.start) === today() && e <= n.getHours() * 60 + n.getMinutes();
-  // Alt satırlar: saat (30 dk ve üstü), durum (1 saat ve üstü, kendi satırında; kesilmez).
+  // Bottom lines: time (30 min and above), status (1 hour and above, on its own line; not cut).
   const tag = late ? "Late" : ended ? "Time is up" : bot ? stage : "";
   const showTag = !!tag && len >= 60 && of === 1;
-  // Saat satırı yalnız sığdığında (48px ve üstü); sığmıyorsa blok tek satır, başlık ortada.
+  // The time line only when it fits (48px and above); if it does not fit the block is one line, title in the middle.
   const tall = (len / 60) * HOUR - 2 >= 48;
   const lines = Math.max(1, Math.floor(((len / 60) * HOUR - (tall ? 24 : 8) - (showTag ? 18 : 0)) / 16));
   return (
@@ -554,7 +554,7 @@ function DropZone({ className, onDrop, children }: { className: string; onDrop: 
 }
 
 
-// Takvimdeki bloğa tıklayınca: o saat için ne yapılacağı. "Takvimden kaldır" işi silmez, sadece bu saati.
+// On clicking a block in the calendar: what to do for that time. "Remove from calendar" does not delete the task, only this time.
 function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx: Ctx; ask: boolean; onAsk: (x: boolean) => void; onClose: () => void; onRemove: () => void }) {
   const s = ctx.state;
   const b = s.blocks.find((x) => x.id === id);
@@ -566,7 +566,7 @@ function BlockMenu({ id, ctx, ask, onAsk, onClose, onRemove }: { id: string; ctx
       const el = document.querySelector(`[data-blk="${id}"]`);
       const m = ref.current;
       if (!el || !m) return onClose();
-      // Mobilde alttaki dünya çubuğu: menü onun üstünde kalır.
+      // On mobile the world bar at the bottom: the menu stays above it.
       const floor = matchMedia("(max-width: 720px)").matches ? (document.querySelector(".topbar")?.getBoundingClientRect().top ?? innerHeight) : innerHeight;
       const r = el.getBoundingClientRect(), W = m.offsetWidth, H = m.offsetHeight, G = 8;
       const x = r.right + G + W <= innerWidth - 12 ? r.right + G : r.left - G - W >= 12 ? r.left - G - W : Math.max(12, Math.min(innerWidth - W - 12, r.left));

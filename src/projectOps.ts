@@ -1,7 +1,7 @@
 import type { State } from "./types";
 import { commit as commitTimer } from "./timer";
 
-// Proje silinince işleri, blokları, odak kayıtları, çıktıları ve otomasyonları da gider. Geri al hepsini geri koyar.
+// Deleting a project also removes its tasks, blocks, focus sessions, outputs and automations. Undo puts them all back.
 export function takeProject(s: State, id: string) {
   const tasks = new Set(s.tasks.filter((t) => t.projectId === id).map((t) => t.id));
   return {
@@ -51,7 +51,7 @@ export function projectStats(s: State, id: string) {
   return parts.length ? `Everything inside goes too: ${parts.join(", ")}. You can undo right after.` : "There is nothing inside.";
 }
 
-// Projeyi başka dünyaya taşır: işleri, takvim blokları ve otomasyonları da onunla gider.
+// Moves a project to another world: its tasks, calendar blocks and automations go with it.
 export function moveProject(s: State, id: string, worldId: string) {
   const p = s.projects.find((x) => x.id === id);
   if (!p || !s.worlds.some((w) => w.id === worldId)) return;

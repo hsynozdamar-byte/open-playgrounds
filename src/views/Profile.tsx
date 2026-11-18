@@ -7,17 +7,17 @@ import { Orb, Sphere } from "../ui/Orb";
 import { Settings } from "./Settings";
 import { AllAccounts } from "../ui/Social";
 
-// Profil: kim olduğun (karşılamadaki girişten), son 7/30/90 günde ne yaptığın ve elindeki her şey.
-// Her satır kendi sayfasına götürür: güne tıkla takvim, dünyaya tıkla dünya, projeye tıkla proje.
+// Profile: who you are (from the welcome sign-in), what you did in the last 7/30/90 days and everything you have.
+// Each row leads to its own page: click a day for the calendar, a world for the world, a project for the project.
 const PKEY = "pg-profile";
 type Me = { name: string; email: string };
 export const readMe = (): Me => {
   try { return { name: "", email: "", ...JSON.parse(localStorage.getItem(PKEY) || "{}") }; } catch { return { name: "", email: "" }; }
 };
-export const saveMe = (m: Partial<Me>) => { try { localStorage.setItem(PKEY, JSON.stringify({ ...readMe(), ...m })); } catch { /* yok */ } };
+export const saveMe = (m: Partial<Me>) => { try { localStorage.setItem(PKEY, JSON.stringify({ ...readMe(), ...m })); } catch { /* no storage */ } };
 
 const PERIODS = [7, 30, 90] as const;
-// Profil üç sekme: Özet (ne yaptın), Hesaplar (paylaşım ve giriş hesapları), Ayarlar. Seçili sekme hatırlanır.
+// Profile has three tabs: Summary (what you did), Accounts (posting and login accounts), Settings. The selected tab is remembered.
 type Tab = "summary" | "accounts" | "settings";
 const TABS: { id: Tab; label: string }[] = [{ id: "summary", label: "Summary" }, { id: "accounts", label: "Accounts" }, { id: "settings", label: "Settings" }];
 const TKEY = "pg-profile-tab";
@@ -29,7 +29,7 @@ export function Profile({ ctx }: { ctx: Ctx }) {
   const [me, setMe] = useState(readMe);
   const [editing, setEditing] = useState(false);
   const [tab, setTabState] = useState<Tab>(readTab);
-  const setTab = (t: Tab) => { setTabState(t); try { localStorage.setItem(TKEY, t); } catch { /* yok */ } };
+  const setTab = (t: Tab) => { setTabState(t); try { localStorage.setItem(TKEY, t); } catch { /* no storage */ } };
   const st = useMemo(() => profileStats(s, days), [s, days]);
   const raw = me.name || (me.email ? me.email.split("@")[0] : "You");
   const name = raw.charAt(0).toLocaleUpperCase("en") + raw.slice(1);
@@ -74,7 +74,7 @@ export function Profile({ ctx }: { ctx: Ctx }) {
           <Stat big={st.onTime == null ? "–" : `${st.onTime}%`} label="On time" note="of tasks with a deadline" />
         </div>
         {!st.focus ? (
-          // Boşken grafiğin yeri korunur: silik örnek çubuklar + ortada kısa açıklama ve tek ana düğme
+          // When empty the chart's place is kept: faint sample bars + a short explanation in the middle and one main button
           <div className="prochart-empty">
             <div className={`bars d${days} is-ghost`} aria-hidden>
               {st.chart.map((c, i) => <span key={c.day} className="bar"><i style={{ height: `${18 + ((i * 37) % 61)}%` }} /></span>)}
