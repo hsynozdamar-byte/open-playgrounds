@@ -1,1 +1,1 @@
-Read AGENTS.md: it covers both planning with the user through `pg` and changing this code.
+Read AGENTS.md: it covers planning with the user through `pg`, doing tasks for them, and changing this code.
