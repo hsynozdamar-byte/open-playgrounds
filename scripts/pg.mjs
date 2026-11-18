@@ -1,33 +1,34 @@
 #!/usr/bin/env node
-// pg: Playgrounds'a terminalden yazmak için (Claude da bunu kullanır).
-//   pg add "Başlık" --pg <dünya> [--project <proje>] [--day bugün|yarın|pzt..paz|YYYY-MM-DD|tarihsiz] [--post <hesapId|@kullanıcı|platform> [--format linkedin] [--brief ".."] [--at 10:00]]  (--post: tek seferlik gönderi; Gönderiler'de görünür)
-//          [--at 14:00 --min 90] [--est 60] [--deadline cum] [--status todo|doing|waiting|done] [--check "a;b"] [--notes ".."] [--who claude|me] [--by claude]
-//   pg in "Başlık" [--pg <dünya>] [--source mail|slack|clickup|note|claude] [--from ".."] [--body ".."] [--url ..] [--suggest "İş başlığı"]
-//   pg world "Ad" [--desc ".."] [--color "#3d5afe"]   pg wcolor <dünya> "#rrggbb" ["#ikinci"]   pg wkit <dünya> '{"alan":değer|null}'   pg project "Ad" --pg <dünya> [--deadline YYYY-MM-DD] [--desc ".."]
-//   pg wdesc <dünya> "açıklama"   pg pmove <projeId> <dünya>   (proje işleri, blokları, otomasyonları, notları ve yalnız onun kullandığı hesaplarla taşınır)
-//   pg block <taskId> <gün> <HH:MM> <dk>
-//   pg brand <projeId> [--use ".."] [--avoid ".."] [--set]   (projenin marka alanlarına ekler, eskisini korur; --set verilen alanı tümden yazar)   pg aaction <otomasyonId> "talimat"   (otomasyonun talimatını değiştirir)   pg avisual <otomasyonId> "kural"   (otomasyonun görsel kural alanını yazar)   pg alang <hesapId> tr|en|tr+en   pg acolor <otomasyonId> "#rrggbb"|yok   (otomasyonun vurgu rengi; yalnız sonraki hazırlıklar)
-//   pg src <projeId> "Başlık" --body ".." [--url ..]   (projenin Bilgi'sine not ya da bağlantı ekler)   pg srcrm <projeId> <kaynakId>   (Bilgi kaynağını Çöp Kutusu'na atar)
-//   pg pedit <projeId> [--name ".."] [--desc ".."] [--ongoing] [--accounts "id,id"] [--brand-from <projeId>] [--media-dir <klasör> [--good "a.mp4;b.mp4"]]   (projeyi düzenler; --brand-from marka alanlarını aynen kopyalar)
-//   pg aproject <otomasyonId> <projeId>   (otomasyonu projeye bağlar; açtığı işler ve hesabının planlı gönderileri de taşınır)
-//   pg topic <işId> yok | pg topic <otomasyonId> "YYYY-MM-DD HH:MM" yok   (gönderinin konusunu boşaltır; Rou yenisini yazar)
-//   pg aslot <otomasyonId> [--days her|hafta-içi|1,3] [--at "12:30,20:00"]   (otomasyonun günlerini ve saatlerini değiştirir; bugünün eksik işleri açılır)
-//   pg auto "Başlık" --pg <dünya> --project X [--at "08:00,20:00"] [--min 30] --days her|hafta-içi|1,3 [--who claude|me] --action ".."   (otomasyon)
-//          [--account <hesapId|@kullanıcı> [--format "ig_reel,ig_post"]] [--sharer claude|me]   (birden çok biçim: çalışmalar sırayla alır)
-//   pg account "Ad" --pg <dünya> --platform instagram --handle "@kullanıcı" [--lang tr|en|tr+en] [--voice ".."] [--project <projeId>]   (paylaşım hesabı ekler)
-//   pg avoice <hesapId> "ses"   (hesabın yazım sesini değiştirir)
-//   pg aedit <hesapId> [--name ".."] [--handle "@yeni"] [--login ".."]   (hesabın görünen adını, kullanıcı adını, giriş adını değiştirir)
-//   pg run <işId> "Başlık" --body ".." [--img "a.png;b.png"] [--video a.mp4] [--mention "Acme"] [--on cum]   (işin çıktısı; onay bekler)
-//   pg run ... --items <json>   (Chrome otomasyonunun önerdiği öğeler)   pg pdf <html> <pdf>
-//   pg due   (bugün Rou'nun hazırlayacağı, henüz çıktısı olmayan otomasyon işleri)   pg prepare <işId> [--revise "not"] [--img "a.png;b.png"] [--world <id>] [--project <id>] [--account <id>]   (Claude'a şimdi hazırlat; hedef verilirse gönderi oraya taşınır)   pg image <çıktıId>   (LinkedIn çıktısına eksik görseli üret)
-//   pg propose '<json>' [--text "neden"] [--from "Claude Code"]   (dış araç Rou'ya öneri bırakır; tek eylem ya da {"type":"plan","steps":[..]}; kullanıcı uygulamada onaylar)
-//   pg posted <çıktıId> --url "<adres>" | --error "<neden>"   (paylaşımın sonucunu yazar; paylaşılınca iş biter)
-//   pg pb <dünya> [adres]   (Playgrounds tarayıcısında dünyanın profilini öne getirir; adres verilirse orada açar)   pg pb   (profiller, oturumlar, açık sekmeler)
-//   pg notes [--pg <dünya>]   (Defter'de bekleyen notlar, kimlikleriyle)
+// pg: write to Playgrounds from the terminal (your AI tools use it too).
+//   pg add "Title" --pg <world> [--project <project>] [--day today|tomorrow|mon..sun|YYYY-MM-DD|someday] [--post <accountId|@handle|platform> [--format linkedin] [--brief ".."] [--at 10:00]]  (--post: a one-off post; it shows on Posts)
+//          [--at 14:00 --min 90] [--est 60] [--deadline fri] [--status todo|doing|waiting|done] [--check "a;b"] [--notes ".."] [--who claude|me] [--by claude]
+//   pg in "Title" [--pg <world>] [--source mail|slack|clickup|note|claude] [--from ".."] [--body ".."] [--url ..] [--suggest "Task title"]
+//   pg world "Name" [--desc ".."] [--color "#3d5afe"]   pg wcolor <world> "#rrggbb" ["#second"]   pg wkit <world> '{"field":value|null}'   pg project "Name" --pg <world> [--deadline YYYY-MM-DD] [--desc ".."]
+//   pg wdesc <world> "description"   pg pmove <projectId> <world>   (the project moves with its tasks, blocks, automations, notes and the accounts only it uses)
+//   pg block <taskId> <day> <HH:MM> <min>
+//   pg brand <projectId> [--use ".."] [--avoid ".."] [--set]   (adds to the project's brand fields and keeps the old text; --set replaces the given field)   pg aaction <automationId> "instruction"   (changes the automation's instruction)   pg avisual <automationId> "rule"   (writes the automation's visual rule)   pg alang <accountId> tr|en|tr+en   pg acolor <automationId> "#rrggbb"|none   (the automation's accent colour; later preparations only)
+//   pg src <projectId> "Title" --body ".." [--url ..]   (adds a note or link to the project's Notes)   pg srcrm <projectId> <sourceId>   (moves a Notes source to the Trash)
+//   pg pedit <projectId> [--name ".."] [--desc ".."] [--ongoing] [--accounts "id,id"] [--brand-from <projectId>] [--media-dir <folder> [--good "a.mp4;b.mp4"]]   (edits the project; --brand-from copies the brand fields as they are)
+//   pg aproject <automationId> <projectId>   (moves the automation to a project, with the tasks it opened and its account's planned posts)
+//   pg topic <taskId> none | pg topic <automationId> "YYYY-MM-DD HH:MM" none   (clears a post's topic; Rou writes a new one)
+//   pg aslot <automationId> [--days every|weekdays|weekends|1,3] [--at "12:30,20:00"]   (changes the automation's days and times; today's missing tasks are opened)
+//   pg auto "Title" --pg <world> --project X [--at "08:00,20:00"] [--min 30] --days every|weekdays|weekends|1,3 [--who claude|me] --action ".."   (automation)
+//          [--account <accountId|@handle> [--format "ig_reel,ig_post"]] [--sharer claude|me]   (several formats: runs take them in turn)
+//   pg account "Name" --pg <world> --platform instagram --handle "@handle" [--lang tr|en|tr+en] [--voice ".."] [--project <projectId>]   (adds a sharing account)
+//   pg avoice <accountId> "voice"   (changes the account's writing voice)
+//   pg aedit <accountId> [--name ".."] [--handle "@new"] [--login ".."]   (changes the account's display name, handle or login name)
+//   pg run <taskId> "Title" --body ".." [--img "a.png;b.png"] [--video a.mp4] [--mention "Acme"] [--on fri]   (a task's output; it waits for approval)
+//   pg run ... --items <json>   (items proposed by a Chrome automation)   pg pdf <html> <pdf>
+//   pg due   (automation tasks Rou should prepare today that have no output yet)   pg prepare <taskId> [--revise "note"] [--img "a.png;b.png"] [--world <id>] [--project <id>] [--account <id>]   (Rou prepares it now; with a target the post moves there)   pg image <runId>   (makes the missing image for a LinkedIn output)
+//   pg propose '<json>' [--text "why"] [--from "Claude Code"]   (an outside tool leaves Rou a proposal; one action or {"type":"plan","steps":[..]}; the user approves it in the app)
+//   pg posted <runId> --url "<address>" | --error "<reason>"   (writes the result of a share; the task is done once shared)
+//   pg pb <world> [address]   (brings the world's profile to the front in the Playgrounds browser; opens the address there if given)   pg pb   (profiles, logins, open tabs)
+//   pg notes [--pg <world>]   (notes waiting in the Notebook, with their ids)
 //   pg start <id> [--pomo]   pg stop   pg now
-//   pg rmedia <çıktıId> --from <çıktıId>   (başka bir çıktının videosunu ve görsellerini/kapağını bu çıktıya taşır; metin aynen kalır)
-//   pg tnote <id> "metin"   (işin notuna ekler)   pg done <id>   pg status <id> <durum>   pg move <id> <gün>   pg rm <id | çıktıId>
-//   pg list [--week] [--pg <dünya>]   pg worlds   pg json
+//   pg rmedia <runId> --from <runId>   (moves another output's video and images/cover to this output; the text stays as it is)
+//   pg tnote <id> "text"   (appends to the task's note)   pg done <id>   pg status <id> <status>   pg move <id> <day>   pg rm <id | runId>
+//   pg list [--week] [--pg <world>]   pg worlds   pg json
+//   Days: today, tomorrow, someday, mon..sun or monday..sunday (the next one), YYYY-MM-DD. The Turkish words (bugün, yarın, tarihsiz, pzt..paz) and her|hafta-içi|yok still work.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -49,40 +50,56 @@ for (let i = 0; i < rest.length; i++) {
 }
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-// Tam ad ya da üç harfli kısaltma. İlk üç harfe bakılırsa "pazartesi" pazar, "cumartesi" cuma olur (öyle kısaltılmasın).
-const DAYS = { pazartesi: 1, pzt: 1, salı: 2, sali: 2, sal: 2, çarşamba: 3, carsamba: 3, çar: 3, car: 3, perşembe: 4, persembe: 4, per: 4, cuma: 5, cum: 5, cumartesi: 6, cmt: 6, pazar: 0, paz: 0 };
+// A full name or a set abbreviation, never a bare prefix ("t" would be both tue and thu). The Turkish names stay as aliases.
+const DAYS = {
+  monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2, wednesday: 3, wed: 3, thursday: 4, thu: 4, thur: 4, thurs: 4, friday: 5, fri: 5, saturday: 6, sat: 6, sunday: 0, sun: 0,
+  pazartesi: 1, pzt: 1, salı: 2, sali: 2, sal: 2, çarşamba: 3, carsamba: 3, çar: 3, car: 3, perşembe: 4, persembe: 4, per: 4, cuma: 5, cum: 5, cumartesi: 6, cmt: 6, pazar: 0, paz: 0,
+};
+// Lower-cased both ways, so "FRIDAY" and "PAZAR" match under any locale rule.
+const lowers = (v) => [...new Set([String(v).trim().toLowerCase(), String(v).trim().toLocaleLowerCase("tr")])];
 function parseDay(v, fallback) {
   if (v === undefined || v === true) return fallback;
-  const s = String(v).toLocaleLowerCase("tr");
-  if (["tarihsiz", "sonra", "-"].includes(s)) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const forms = lowers(v);
+  const is = (...w) => forms.some((f) => w.includes(f));
+  if (is("someday", "none", "tarihsiz", "sonra", "-")) return null;
+  const iso8601 = forms.find((f) => /^\d{4}-\d{2}-\d{2}$/.test(f));
+  if (iso8601) return iso8601;
   const d = new Date();
-  if (["bugün", "bugun"].includes(s)) return iso(d);
-  if (["yarın", "yarin"].includes(s)) return d.setDate(d.getDate() + 1), iso(d);
-  const k = DAYS[s];
+  if (is("today", "tod", "bugün", "bugun")) return iso(d);
+  if (is("tomorrow", "tmr", "yarın", "yarin")) return d.setDate(d.getDate() + 1), iso(d);
+  const k = forms.map((f) => DAYS[f]).find((x) => x !== undefined);
   if (k !== undefined) return d.setDate(d.getDate() + (((k - d.getDay() + 7) % 7) || 7)), iso(d);
-  throw new Error(`Gün anlaşılamadı: ${v}`);
+  throw new Error(`Unknown day: ${v}`);
 }
+// --days value: every | weekdays | weekends | 1,3 (the Turkish her | hafta-içi also work).
+function parseDays(d) {
+  const f = lowers(d);
+  if (f.some((x) => ["every", "her"].includes(x))) return [0, 1, 2, 3, 4, 5, 6];
+  if (f.some((x) => ["weekdays", "hafta-içi", "hafta-ici"].includes(x))) return [1, 2, 3, 4, 5];
+  if (f.some((x) => ["weekends", "hafta-sonu"].includes(x))) return [0, 6];
+  return String(d).split(",").map(Number);
+}
+const isNone = (v) => lowers(v).some((x) => ["none", "yok"].includes(x));
 const norm = (s) => String(s).toLocaleLowerCase("tr").replace(/\s+/g, "");
 function world(s, v, optional) {
-  if (!v || v === true) { if (optional) return null; throw new Error(`--pg gerekli: ${s.worlds.map((w) => w.id).join(", ")}`); }
+  if (!v || v === true) { if (optional) return null; throw new Error(`--pg is required: ${s.worlds.map((w) => w.id).join(", ")}`); }
   const w = s.worlds.find((w) => w.id === v || norm(w.name) === norm(v));
-  if (!w) throw new Error(`Dünya yok: ${v}. Var olanlar: ${s.worlds.map((w) => w.id).join(", ")}`);
+  if (!w) throw new Error(`No world: ${v}. Worlds: ${s.worlds.map((w) => w.id).join(", ")}`);
   return w;
 }
 function project(s, w, name) {
   if (!name || name === true) return null;
-  // Proje kimliği de verilebilir (ör. --project qndiql); yoksa adla eşleşir, o da yoksa yeni proje açılır.
+  // A project id works too (e.g. --project qndiql); otherwise the name is matched, and a new name opens a new project.
   let p = s.projects.find((p) => p.worldId === w.id && (p.id === String(name) || norm(p.name) === norm(name)));
   if (!p) s.projects.push((p = { id: id(), worldId: w.id, name, description: "", status: "active", deadline: null }));
   return p.id;
 }
-// Boş kimlik (ör. boş kalmış bir kabuk değişkeni) her kimliğin başıyla eşleşir ve ilk işi seçerdi: `pg rm ""` onu Çöp'e atardı.
-const find = (s, ref) => { if (typeof ref !== "string" || !ref.trim()) throw new Error("İş kimliği gerekli"); const t = s.tasks.find((x) => x.id.startsWith(ref)); if (!t) throw new Error(`İş yok: ${ref}`); return t; };
+// An empty id (e.g. a blank shell variable) would match the start of every id and pick the first task: `pg rm ""` would trash it.
+const find = (s, ref) => { if (typeof ref !== "string" || !ref.trim()) throw new Error("A task id is required"); const t = s.tasks.find((x) => x.id.startsWith(ref)); if (!t) throw new Error(`No task: ${ref}`); return t; };
 const now = () => new Date().toISOString();
 const addMin = (day, hm, m) => { const [h, mi] = hm.split(":").map(Number); const t = Math.min(24 * 60 - 1, h * 60 + mi + m); return `${day}T${pad(Math.floor(t / 60))}:${pad(t % 60)}`; };
 function setStatus(t, st) { t.status = st; if (st === "done") t.doneAt = now(); else delete t.doneAt; }
-// Çalışan odak süresini oturum olarak kaydeder (uygulamadaki timer.ts ile aynı kural).
+// Writes the running focus time as a session (the same rule as the app's timer.ts).
 function commit(s) {
   const t = s.timer;
   if (!t || t.phase !== "focus") return;
@@ -96,7 +113,7 @@ let out = "";
 
 try {
   if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
-    // Bu dosyanın başındaki açıklama komutların listesidir.
+    // The comment block at the top of this file is the command list.
     const lines = fs.readFileSync(new URL(import.meta.url), "utf8").split("\n").slice(1);
     out = lines.slice(0, lines.findIndex((l) => !l.startsWith("//"))).map((l) => l.replace(/^\/\/ ?/, "")).join("\n");
   } else if (cmd === "add") {
@@ -110,62 +127,62 @@ try {
         checklist: args.check ? String(args.check).split(";").map((x) => ({ id: id(), text: x.trim(), done: false })) : [],
         by: args.by || "me", createdAt: now(),
       };
-      if (!t.title) throw new Error("Başlık gerekli");
-      // --who claude|me: işi Rou'ya atar (verilmezse kullanıcının).
+      if (!t.title) throw new Error("A title is required");
+      // --who claude|me: assigns the task to Rou (the user's own if omitted).
       if (["claude", "me"].includes(args.who)) t.who = args.who;
-      // --post <hesapId|@kullanıcı|platform>: tek seferlik gönderi. Görev Gönderiler'de görünür, kimin hesabından paylaşılacağı bellidir.
+      // --post <accountId|@handle|platform>: a one-off post. The task shows on Posts and the account that shares it is known.
       if (args.post) {
         const accs = w.accounts ?? [];
         const q = String(args.post === true ? "" : args.post).replace(/^@/, "").toLowerCase();
         const own = t.projectId ? s.projects.find((p) => p.id === t.projectId)?.accountIds ?? [] : [];
         const acc = accs.find((a) => a.id === q) ?? accs.find((a) => String(a.handle ?? "").replace(/^@/, "").toLowerCase() === q)
           ?? accs.filter((a) => a.platform === q).sort((x, y) => Number(own.includes(y.id)) - Number(own.includes(x.id)))[0]
-          // Kimlikle verilen başka dünyanın hesabı (ör. başka dünyanın hesabından): yalnız tam kimlik, kullanıcı adı ya da platform değil.
+          // An account of another world, given by its exact id only (not by handle or platform).
           ?? (() => { const a = accountById(s, String(args.post)); return a && !isFeed(a.platform) ? a : undefined; })();
-        if (!acc) throw new Error(`Hesap yok: ${args.post}. Bu dünyanın hesapları: ${accs.map((a) => `${a.id} ${a.platform} ${a.handle ?? a.name}`).join(", ") || "yok"}`);
+        if (!acc) throw new Error(`No account: ${args.post}. Accounts of this world: ${accs.map((a) => `${a.id} ${a.platform} ${a.handle ?? a.name}`).join(", ") || "none"}`);
         const format = args.format && args.format !== true ? String(args.format) : formatsOf(acc.platform)[0];
-        if (!formatsOf(acc.platform).includes(format)) throw new Error(`${acc.platform} için biçim: ${formatsOf(acc.platform).join(" | ")}`);
+        if (!formatsOf(acc.platform).includes(format)) throw new Error(`Formats for ${acc.platform}: ${formatsOf(acc.platform).join(" | ")}`);
         if (t.by === "claude") t.who = "claude";
         t.post = { accountId: acc.id, format, brief: args.brief && args.brief !== true ? String(args.brief) : t.notes, ...(args.at ? { at: String(args.at) } : {}) };
       }
       s.tasks.push(t);
       if (args.at && day) s.blocks.push({ id: id(), taskId: t.id, worldId: w.id, title: "", start: `${day}T${args.at}`, end: addMin(day, args.at, +(args.min || 60)), kind: "plan" });
-      out = `+ ${t.id}  [${w.id}] ${t.title}  (${day ?? "tarihsiz"}${args.at ? " " + args.at : ""})`;
+      out = `+ ${t.id}  [${w.id}] ${t.title}  (${day ?? "someday"}${args.at ? " " + args.at : ""})`;
     });
   } else if (cmd === "in") {
     update((s) => {
       const w = world(s, args.pg, true);
       const i = { id: id(), worldId: w?.id ?? null, source: args.source || "claude", from: args.from || "", url: args.url || "", title: args._.join(" "), body: args.body || "", receivedAt: now(), state: "new", ...(args.suggest ? { suggestion: { title: args.suggest } } : {}) };
       s.inbox.unshift(i);
-      out = `+ gelen ${i.id}  ${i.title}`;
+      out = `+ inbox ${i.id}  ${i.title}`;
     });
   } else if (cmd === "world") {
     update((s) => {
       const name = args._.join(" ").trim();
-      if (!name) throw new Error("Dünya adı gerekli");
-      if (s.worlds.some((w) => norm(w.name) === norm(name))) throw new Error(`Bu adla bir dünya var: ${name}`);
+      if (!name) throw new Error("A world name is required");
+      if (s.worlds.some((w) => norm(w.name) === norm(name))) throw new Error(`A world with this name exists: ${name}`);
       const w = newWorld(s, name, args.desc || "", args.color);
       s.worlds.push(w);
-      out = `+ dünya ${w.id}`;
+      out = `+ world ${w.id}`;
     });
   } else if (cmd === "wcolor") {
     update((s) => {
       const w = world(s, args._[0]);
       const c = String(args._[1] || "");
-      if (!/^#[0-9a-f]{6}$/i.test(c)) throw new Error("Renk #rrggbb olmalı");
+      if (!/^#[0-9a-f]{6}$/i.test(c)) throw new Error("Colour must be #rrggbb");
       w.color = c;
       const c2 = String(args._[2] || "");
-      if (c2 && !/^#[0-9a-f]{6}$/i.test(c2)) throw new Error("İkinci ton #rrggbb olmalı");
+      if (c2 && !/^#[0-9a-f]{6}$/i.test(c2)) throw new Error("Second tone must be #rrggbb");
       if (c2) w.color2 = c2; else delete w.color2;
-      out = `~ dünya ${w.id} ${c}${c2 ? ` + ${c2}` : ""}`;
+      out = `~ world ${w.id} ${c}${c2 ? ` + ${c2}` : ""}`;
     });
   } else if (cmd === "wkit") {
-    // Dünyanın görsel kitini (world.kit) günceller: verilen alanlar yazılır, null olan silinir.
+    // Updates the world's visual kit (world.kit): given fields are written, null removes one.
     update((s) => {
       const w = world(s, args._[0]);
       let patch;
-      try { patch = JSON.parse(String(args._[1] ?? "")); } catch { throw new Error("Kit JSON nesnesi olmalı"); }
-      if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw new Error("Kit JSON nesnesi olmalı");
+      try { patch = JSON.parse(String(args._[1] ?? "")); } catch { throw new Error("The kit must be a JSON object"); }
+      if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw new Error("The kit must be a JSON object");
       const kit = { ...(w.kit ?? {}) };
       for (const [k, v] of Object.entries(patch)) if (v === null) delete kit[k]; else kit[k] = v;
       w.kit = kit;
@@ -175,168 +192,170 @@ try {
     update((s) => {
       const w = world(s, args._[0]);
       w.description = args._.slice(1).join(" ").trim();
-      out = `~ dünya ${w.id} açıklama`;
+      out = `~ world ${w.id} description`;
     });
   } else if (cmd === "brand") {
     update((s) => {
       const p = s.projects.find((x) => x.id === args._[0]);
-      if (!p) throw new Error(`Proje yok: ${args._[0]}`);
+      if (!p) throw new Error(`No project: ${args._[0]}`);
       p.brand = { ...(p.brand || {}) };
       for (const k of ["use", "avoid"]) if (args[k] && args[k] !== true) p.brand[k] = [args.set ? "" : p.brand[k], String(args[k]).trim()].filter(Boolean).join("\n");
-      out = `~ proje ${p.id} marka`;
+      out = `~ project ${p.id} brand`;
     });
   } else if (cmd === "avoice") {
     update((s) => {
       const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === args._[0]);
-      if (!acc) throw new Error(`Hesap yok: ${args._[0]}`);
+      if (!acc) throw new Error(`No account: ${args._[0]}`);
       acc.voice = args._.slice(1).join(" ").trim();
-      out = `~ hesap ${acc.id} ses`;
+      out = `~ account ${acc.id} voice`;
     });
   } else if (cmd === "aedit") {
     update((s) => {
       const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === args._[0]);
-      if (!acc) throw new Error(`Hesap yok: ${args._[0]}`);
+      if (!acc) throw new Error(`No account: ${args._[0]}`);
       if (args.name && args.name !== true) acc.name = String(args.name).trim();
       if (args.handle && args.handle !== true) {
         const h = String(args.handle).trim();
         acc.handle = /^[\w.]+$/.test(h) ? `@${h}` : h;
-        delete acc.check;  // eski kullanıcı adının kontrolü artık geçmez
+        delete acc.check;  // the check of the old handle no longer applies
       }
       if (args.login && args.login !== true) acc.login = String(args.login).trim();
-      out = `~ hesap ${acc.id}  ${acc.name} ${acc.handle ?? ""}${acc.login ? `  giriş ${acc.login}` : ""}`;
+      out = `~ account ${acc.id}  ${acc.name} ${acc.handle ?? ""}${acc.login ? `  login ${acc.login}` : ""}`;
     });
   } else if (cmd === "account") {
     update((s) => {
       const w = world(s, args.pg);
       const name = args._.join(" ").trim();
-      if (!name) throw new Error("Hesap adı gerekli");
+      if (!name) throw new Error("An account name is required");
       const platform = String(args.platform ?? "");
       if (!PLATFORMS[platform]) throw new Error(`Platform: ${Object.keys(PLATFORMS).join(" | ")}`);
       const lang = args.lang && args.lang !== true ? String(args.lang) : undefined;
-      if (lang && !["tr", "en", "tr+en"].includes(lang)) throw new Error("Dil: tr | en | tr+en");
+      if (lang && !["tr", "en", "tr+en"].includes(lang)) throw new Error("Language: tr | en | tr+en");
       const h = args.handle && args.handle !== true ? String(args.handle).trim() : "";
       const handle = /^[\w.]+$/.test(h) ? `@${h}` : h;
-      if (handle && (w.accounts ?? []).some((x) => x.platform === platform && x.handle === handle)) throw new Error(`Bu hesap zaten var: ${handle}`);
+      if (handle && (w.accounts ?? []).some((x) => x.platform === platform && x.handle === handle)) throw new Error(`This account already exists: ${handle}`);
       const p = args.project && args.project !== true ? s.projects.find((x) => x.id === args.project && x.worldId === w.id) : null;
-      if (args.project && !p) throw new Error(`Bu dünyada proje yok: ${args.project}`);
+      if (args.project && !p) throw new Error(`No project in this world: ${args.project}`);
       const acc = { id: id(), platform, name, handle, voice: args.voice && args.voice !== true ? String(args.voice).trim() : "", lang: lang ?? "en" };
       w.accounts = [...(w.accounts ?? []), acc];
       if (p) p.accountIds = [...(p.accountIds ?? []), acc.id];
-      out = `+ hesap ${acc.id}  ${acc.name} ${acc.handle}${p ? `  proje ${p.id}` : ""}`;
+      out = `+ account ${acc.id}  ${acc.name} ${acc.handle}${p ? `  project ${p.id}` : ""}`;
     });
   } else if (cmd === "alang") {
     update((s) => {
       const acc = s.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === args._[0]);
-      if (!acc) throw new Error(`Hesap yok: ${args._[0]}`);
-      if (!["tr", "en", "tr+en"].includes(args._[1])) throw new Error("Dil: tr | en | tr+en");
+      if (!acc) throw new Error(`No account: ${args._[0]}`);
+      if (!["tr", "en", "tr+en"].includes(args._[1])) throw new Error("Language: tr | en | tr+en");
       acc.lang = args._[1];
-      out = `~ hesap ${acc.id} dil ${acc.lang}`;
+      out = `~ account ${acc.id} language ${acc.lang}`;
     });
   } else if (cmd === "rmedia") {
     update((s) => {
       const r = s.runs.find((x) => x.id === args._[0]);
       const src = s.runs.find((x) => x.id === args.from);
-      if (!r) throw new Error(`Çıktı yok: ${args._[0]}`);
-      if (!src) throw new Error(`Kaynak çıktı yok: ${args.from}`);
-      if (!src.video && !src.images?.length) throw new Error(`${src.id} çıktısında video ya da görsel yok`);
-      for (const f of [src.video, ...(src.images ?? [])].filter(Boolean)) if (!fs.existsSync(path.join(DATA_DIR, f))) throw new Error(`Dosya yok: ${f}`);
+      if (!r) throw new Error(`No output: ${args._[0]}`);
+      if (!src) throw new Error(`No source output: ${args.from}`);
+      if (!src.video && !src.images?.length) throw new Error(`Output ${src.id} has no video or images`);
+      for (const f of [src.video, ...(src.images ?? [])].filter(Boolean)) if (!fs.existsSync(path.join(DATA_DIR, f))) throw new Error(`No such file: ${f}`);
       if (src.video) r.video = src.video; else delete r.video;
       r.images = [...(src.images ?? [])];
       if (src.kitHash) r.kitHash = src.kitHash;
-      out = `~ çıktı ${r.id}: ${[r.video, ...r.images].join(", ")} (${src.id} çıktısından)`;
+      out = `~ output ${r.id}: ${[r.video, ...r.images].join(", ")} (from output ${src.id})`;
     });
   } else if (cmd === "aaction") {
     update((s) => {
       const a = s.automations.find((x) => x.id === args._[0]);
-      if (!a) throw new Error(`Otomasyon yok: ${args._[0]}`);
+      if (!a) throw new Error(`No automation: ${args._[0]}`);
       a.action = args._.slice(1).join(" ").trim();
-      out = `~ otomasyon ${a.id} talimat`;
+      out = `~ automation ${a.id} instruction`;
     });
   } else if (cmd === "avisual") {
     update((s) => {
       const a = s.automations.find((x) => x.id === args._[0]);
-      if (!a) throw new Error(`Otomasyon yok: ${args._[0]}`);
+      if (!a) throw new Error(`No automation: ${args._[0]}`);
       a.visual = args._.slice(1).join(" ").trim();
-      out = `~ otomasyon ${a.id} görsel kural`;
+      out = `~ automation ${a.id} visual rule`;
     });
   } else if (cmd === "acolor") {
     const { isHex } = await import("../shared/series.mjs");
-    const v = String(args._[1] ?? "").toLowerCase();
-    if (v !== "yok" && !isHex(v)) throw new Error('Renk: "#rrggbb" ya da yok');
+    const raw = String(args._[1] ?? "");
+    const none = isNone(raw);
+    const v = raw.toLowerCase();
+    if (!none && !isHex(v)) throw new Error('Colour: "#rrggbb" or none');
     update((s) => {
       const a = s.automations.find((x) => x.id === args._[0]);
-      if (!a) throw new Error(`Otomasyon yok: ${args._[0]}`);
-      if (v === "yok") delete a.color;
+      if (!a) throw new Error(`No automation: ${args._[0]}`);
+      if (none) delete a.color;
       else a.color = v;
-      out = `~ otomasyon ${a.id} renk ${a.color ?? "yok"}`;
+      out = `~ automation ${a.id} colour ${a.color ?? "none"}`;
     });
   } else if (cmd === "aslot") {
     update((s) => {
       const a = s.automations.find((x) => x.id === args._[0]);
-      if (!a) throw new Error(`Otomasyon yok: ${args._[0]}`);
-      if (args.days && args.days !== true) { const d = String(args.days); a.days = d === "her" ? [0, 1, 2, 3, 4, 5, 6] : d === "hafta-içi" ? [1, 2, 3, 4, 5] : d.split(",").map(Number); }
+      if (!a) throw new Error(`No automation: ${args._[0]}`);
+      if (args.days && args.days !== true) a.days = parseDays(String(args.days));
       if (args.at && args.at !== true) a.times = String(args.at).split(",").map((x) => x.trim()).filter(Boolean).sort();
-      // Uygulamadaki gibi: günler/saatler değişince horizon sıfırlanır, bugünün eksik işleri açılır.
+      // As in the app: changing days or times resets the horizon and opens today's missing tasks.
       a.horizon = null;
       materialize(s);
-      out = `~ otomasyon ${a.id}  günler ${a.days.join(",")}  saatler ${a.times.join(", ") || "-"}`;
+      out = `~ automation ${a.id}  days ${a.days.join(",")}  times ${a.times.join(", ") || "-"}`;
     });
   } else if (cmd === "pedit") {
     update((s) => {
       const p = s.projects.find((x) => x.id === args._[0]);
-      if (!p) throw new Error(`Proje yok: ${args._[0]}`);
+      if (!p) throw new Error(`No project: ${args._[0]}`);
       if (args.name && args.name !== true) p.name = String(args.name).trim();
       if (args.desc && args.desc !== true) p.description = String(args.desc).trim();
-      // --icon <png>: uygulama ikonu (kapakta kelime logosu yerine). --icon yok: siler.
-      if (args.icon === "yok") delete p.icon;
+      // --icon <png>: the app icon (used on covers instead of the wordmark). --icon none removes it.
+      if (args.icon !== undefined && args.icon !== true && isNone(args.icon)) delete p.icon;
       else if (args.icon && args.icon !== true) {
         const f = path.resolve(String(args.icon));
-        if (!fs.existsSync(f) || !/\.(png|jpe?g|webp)$/i.test(f)) throw new Error(`İkon görseli yok: ${f}`);
+        if (!fs.existsSync(f) || !/\.(png|jpe?g|webp)$/i.test(f)) throw new Error(`No icon image: ${f}`);
         p.icon = f;
       }
       if (args.ongoing) p.ongoing = true;
-      // --media-dir <klasör> [--good "a.mp4;b.mp4"]: projenin Medya klasörü (dosyalar yerinde kalır) ve İyi işaretlenen dosyaları.
+      // --media-dir <folder> [--good "a.mp4;b.mp4"]: the project's Media folder (files stay in place) and the files marked Good.
       if (args["media-dir"] && args["media-dir"] !== true) {
         const dir = path.resolve(expandHome(args["media-dir"], os.homedir()));
-        if (!fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`Klasör yok: ${dir}`);
+        if (!fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`No such folder: ${dir}`);
         p.mediaDir = dir;
       }
       if (args.good && args.good !== true) {
-        if (!p.mediaDir) throw new Error("Önce --media-dir ver");
+        if (!p.mediaDir) throw new Error("Give --media-dir first");
         for (const rel of String(args.good).split(";").map((x) => x.trim()).filter(Boolean)) {
           const f = path.resolve(p.mediaDir, rel);
-          if (!f.startsWith(p.mediaDir + path.sep) || !fs.existsSync(f)) throw new Error(`Medya klasöründe yok: ${rel}`);
+          if (!f.startsWith(p.mediaDir + path.sep) || !fs.existsSync(f)) throw new Error(`Not in the media folder: ${rel}`);
           (p.media ??= {})[mediaKey(path.relative(p.mediaDir, f))] = "good";
         }
       }
       if (args.accounts && args.accounts !== true) p.accountIds = String(args.accounts).split(",").map((x) => x.trim()).filter(Boolean);
       if (args["brand-from"]) {
         const src = s.projects.find((x) => x.id === args["brand-from"]);
-        if (!src) throw new Error(`Proje yok: ${args["brand-from"]}`);
+        if (!src) throw new Error(`No project: ${args["brand-from"]}`);
         p.brand = structuredClone(src.brand || {});
       }
-      out = `~ proje ${p.id}  ${p.name}`;
+      out = `~ project ${p.id}  ${p.name}`;
     });
   } else if (cmd === "aproject") {
     update((s) => {
       const a = s.automations.find((x) => x.id === args._[0]);
-      if (!a) throw new Error(`Otomasyon yok: ${args._[0]}`);
+      if (!a) throw new Error(`No automation: ${args._[0]}`);
       const p = s.projects.find((x) => x.id === args._[1]);
-      if (!p) throw new Error(`Proje yok: ${args._[1]}`);
+      if (!p) throw new Error(`No project: ${args._[1]}`);
       const from = a.projectId;
       a.projectId = p.id;
-      // Çıktılar işe bağlı (run.taskId), işle birlikte gelir.
+      // Outputs belong to the task (run.taskId) and move with it.
       let n = 0;
       for (const t of s.tasks) if (t.autoId === a.id || (a.accountId && t.post?.accountId === a.accountId && t.projectId === from)) { t.projectId = p.id; n++; }
-      out = `→ otomasyon ${a.id} ${p.id}  ${n} iş taşındı`;
+      out = `→ automation ${a.id} ${p.id}  ${n} tasks moved`;
     });
   } else if (cmd === "pmove") {
     update((s) => {
       const p = s.projects.find((x) => x.id === args._[0]);
-      if (!p) throw new Error(`Proje yok: ${args._[0]}`);
+      if (!p) throw new Error(`No project: ${args._[0]}`);
       const w = world(s, args._[1]);
       moveProjectTo(s, p.id, w.id);
-      out = `→ proje ${p.id} ${w.id}`;
+      out = `→ project ${p.id} ${w.id}`;
     });
   } else if (cmd === "project") {
     update((s) => {
@@ -345,7 +364,7 @@ try {
       const p = s.projects.find((x) => x.id === pid);
       if (args.deadline) p.deadline = parseDay(args.deadline);
       if (args.desc) p.description = args.desc;
-      out = `+ proje ${pid}`;
+      out = `+ project ${pid}`;
     });
   } else if (cmd === "block") {
     update((s) => {
@@ -353,38 +372,38 @@ try {
       const day = parseDay(args._[1]);
       s.blocks.push({ id: id(), taskId: t.id, worldId: t.worldId, title: "", start: `${day}T${args._[2]}`, end: addMin(day, args._[2], +(args._[3] || 60)), kind: "plan" });
       if (!t.day) t.day = day;
-      out = `+ blok ${day} ${args._[2]}`;
+      out = `+ block ${day} ${args._[2]}`;
     });
   } else if (cmd === "auto") {
-    // Otomasyon: seçili günlerde her saat için iş açılır. --who claude: Claude hazırlar, kullanıcı onaylar.
+    // Automation: on the chosen days one task opens for each time. --who claude: Rou prepares, the user approves.
     update((s) => {
       const w = world(s, args.pg);
-      const d = String(args.days || "her");
-      const days = d === "her" ? [0, 1, 2, 3, 4, 5, 6] : d === "hafta-içi" ? [1, 2, 3, 4, 5] : d.split(",").map(Number);
+      const d = String(args.days || "every");
+      const days = parseDays(d);
       const a = { id: id(), worldId: w.id, projectId: project(s, w, args.project), title: args._.join(" "), action: args.action && args.action !== true ? args.action : "", times: args.at && args.at !== true ? String(args.at).split(",").map((x) => x.trim()).filter(Boolean).sort() : [], minutes: +(args.min || 30), days, status: "active", who: args.who === "me" ? "me" : "claude", horizon: null, createdAt: now() };
-      if (!a.title) throw new Error("Başlık gerekli");
-      // --account <hesapId|@kullanıcı>: dünyanın paylaşım hesabı. --format "ig_reel,ig_post": birden çoksa çalışmalar sırayla alır.
+      if (!a.title) throw new Error("A title is required");
+      // --account <accountId|@handle>: the world's sharing account. --format "ig_reel,ig_post": with several, runs take them in turn.
       if (args.account && args.account !== true) {
         const ref = String(args.account).replace(/^@/, "").toLowerCase();
         const acc = (w.accounts ?? []).find((x) => x.id === args.account || String(x.handle || "").replace(/^@/, "").toLowerCase() === ref);
-        if (!acc) throw new Error(`Hesap yok: ${args.account}`);
+        if (!acc) throw new Error(`No account: ${args.account}`);
         a.accountId = acc.id;
         if (args.format && args.format !== true) {
           const list = String(args.format).split(",").map((x) => x.trim()).filter(Boolean);
           const bad = list.find((f) => !formatsOf(acc.platform).includes(f));
-          if (bad) throw new Error(`Biçim ${acc.platform} hesabına uymuyor: ${bad}`);
+          if (bad) throw new Error(`Format does not fit a ${acc.platform} account: ${bad}`);
           a.format = list[0];
-          if (list.length > 1) { a.formats = list; a.formatsFrom = iso(new Date()); } // sıra yerel bugünden sayılır
+          if (list.length > 1) { a.formats = list; a.formatsFrom = iso(new Date()); } // the order counts from local today
         }
       }
       if (["claude", "me"].includes(args.sharer)) a.sharer = args.sharer;
       (s.automations ??= []).push(a);
       materialize(s);
-      out = `+ otomasyon ${a.id}  ${a.title}`;
+      out = `+ automation ${a.id}  ${a.title}`;
     });
   } else if (cmd === "run") {
-    // pg run <işId> "Çıktı başlığı" --body "Hazırlanan metin" [--img "a.png;b.png"] [--on cum]
-    // Eski kullanım: <otomasyonId> verilirse serinin bugünkü işine bağlanır. Görseller data/media'ya kopyalanır.
+    // pg run <taskId> "Output title" --body "Prepared text" [--img "a.png;b.png"] [--on fri]
+    // Legacy use: an <automationId> attaches to the series' latest task. Images are copied to data/media.
     const { parseItems, folderOf } = args.items ? await import("../server/browse.mjs") : {};
     update((s) => {
       materialize(s);
@@ -392,13 +411,13 @@ try {
       let task = ref && s.tasks.find((x) => x.id.startsWith(ref));
       if (!task) {
         const a = (s.automations ?? []).find((x) => x.id.startsWith(ref));
-        if (!a) throw new Error(`İş ya da tekrarlayan iş yok: ${ref}`);
+        if (!a) throw new Error(`No task or automation: ${ref}`);
         task = s.tasks.filter((x) => x.autoId === a.id).sort((x, y) => String(y.day).localeCompare(String(x.day)))[0];
-        if (!task) throw new Error(`Bu serinin henüz bir işi yok: ${a.title}`);
+        if (!task) throw new Error(`This series has no task yet: ${a.title}`);
       }
       const rid = id();
       const images = args.img && args.img !== true ? String(args.img).split(";").map((f) => f.trim()).filter(Boolean).map((f, i) => {
-        if (!fs.existsSync(f)) throw new Error(`Görsel yok: ${f}`);
+        if (!fs.existsSync(f)) throw new Error(`No such image: ${f}`);
         fs.mkdirSync(MEDIA_DIR, { recursive: true });
         const name = `${rid}-${i}${path.extname(f).toLowerCase()}`;
         fs.copyFileSync(f, path.join(MEDIA_DIR, name));
@@ -407,63 +426,63 @@ try {
       let video;
       if (args.video && args.video !== true) {
         const f = String(args.video);
-        if (!fs.existsSync(f)) throw new Error(`Video yok: ${f}`);
+        if (!fs.existsSync(f)) throw new Error(`No such video: ${f}`);
         fs.mkdirSync(MEDIA_DIR, { recursive: true });
         fs.copyFileSync(f, path.join(MEDIA_DIR, `${rid}${path.extname(f).toLowerCase()}`));
         video = `media/${rid}${path.extname(f).toLowerCase()}`;
       }
-      // --items <json dosyası>: Chrome otomasyonunun önerdiği öğeler (onaylanınca uygulamadan yapılır).
+      // --items <json file>: items proposed by a Chrome automation (done from the app once approved).
       let items;
       if (args.items && args.items !== true) {
         const a = s.automations.find((x) => x.id === task.autoId);
-        if (!a) throw new Error("--items yalnız otomasyon işlerinde");
+        if (!a) throw new Error("--items only works on automation tasks");
         items = parseItems(JSON.parse(fs.readFileSync(String(args.items), "utf8")), folderOf(a));
       }
       const body = args.body && args.body !== true ? String(args.body) : "";
-      // Gönderi görevinin çıktısı gönderinin kendisidir: önizleme, onay ve paylaşım run.post'u okur.
-      // --mention "Acme;..." : paylaşırken etiketlenecek sayfalar (paylaşan @Ad'ı platform önerisinden seçer).
+      // A post task's output is the post itself: preview, approval and sharing read run.post.
+      // --mention "Acme;...": pages to tag when sharing (the sharer picks @Name from the platform's suggestions).
       const mentions = args.mention && args.mention !== true ? String(args.mention).split(";").map((x) => x.trim().replace(/^@/, "")).filter(Boolean) : [];
-      // Otomasyon görevinde biçim otomasyondan gelir (hesaplı otomasyon: tweet, linkedin...).
+      // On an automation task the format comes from the automation (account automations: tweet, linkedin...).
       const auto = s.automations.find((x) => x.id === task.autoId);
-      const format = task.post?.format ?? (auto?.accountId ? formatOf(s, auto) ?? undefined : undefined);  // format boşsa hesabın platformundan
+      const format = task.post?.format ?? (auto?.accountId ? formatOf(s, auto) ?? undefined : undefined);  // with no format, from the account's platform
       const post = format ? { ...postOfText(format, body), ...(mentions.length ? { mentions } : {}) } : undefined;
       if (!post && task.projectId && s.projects.find((p) => p.id === task.projectId)?.accountIds?.length && (video || images.length))
-        console.error(`Uyarı: ${task.id} bir gönderi görevi değil; Gönderiler'de görünmez, kimin paylaşacağı belli olmaz. Paylaşılacaksa görevi pg add ... --post <hesap> ile aç.`);
+        console.error(`Warning: ${task.id} is not a post task; it will not show on Posts and nobody is set to share it. If it should be shared, create the task with pg add ... --post <account>.`);
       const r = { id: rid, taskId: task.id, at: now(), title: args._.slice(1).join(" ") || task.title, body, status: "ready", images, ...(video ? { video } : {}), ...(post ? { post } : {}), ...(items ? { items } : {}), on: args.on ? parseDay(args.on) : null, by: args.by && args.by !== true ? String(args.by) : "claude" };
       (s.runs ??= []).unshift(r);
-      out = `+ çıktı ${r.id}  ${r.title} → ${task.id}`;
+      out = `+ output ${r.id}  ${r.title} → ${task.id}`;
     });
   } else if (cmd === "posted") {
-    // pg posted <çıktıId> --url "<gönderi adresi>" | --error "<neden>"   (paylaşımın sonucunu yazar)
+    // pg posted <runId> --url "<post address>" | --error "<reason>"   (writes the result of a share)
     const { markPosted } = await import("../server/share.mjs");
     update((s) => {
       const r = markPosted(s, String(args._[0] ?? ""), { url: args.url && args.url !== true ? String(args.url) : undefined, error: args.error && args.error !== true ? String(args.error) : undefined });
-      out = r.status === "posted" ? `Paylaşıldı: ${r.title}${r.postUrl ? `  ${r.postUrl}` : ""}` : `Paylaşılamadı olarak yazıldı: ${r.title}`;
+      out = r.status === "posted" ? `Shared: ${r.title}${r.postUrl ? `  ${r.postUrl}` : ""}` : `Marked as not shared: ${r.title}`;
     });
-    // Kullanıcı uygulamada değilse de haberi olsun (bildirim; uygulamada ayrıca bildirim ve Bugün'de "Paylaşılanlar").
+    // Notify the user even when the app is not open.
     const { notify } = await import("../server/notify.mjs");
-    notify(out.startsWith("Paylaşıldı") ? "Gönderi paylaşıldı" : "Gönderi paylaşılamadı", out.replace(/^Paylaş[^:]*: /, "").slice(0, 140));
+    notify(out.startsWith("Shared") ? "Post shared" : "Post not shared", out.replace(/^[^:]*: /, "").slice(0, 140));
   } else if (cmd === "pb") {
-    // Playgrounds tarayıcısı (server/pb.mjs): her dünya bir profil.
+    // The Playgrounds browser (server/pb.mjs): one profile per world.
     const P = await import("../server/pb.mjs");
     const { state: s } = read();
     if (args._[0]) {
       const w = world(s, args._[0]);
       const r = await P.openProfile(w, args._[1]);
       if (!r.ok) throw new Error(r.error);
-      out = `${P.PB_NAME} · ${w.name} profili önde${args._[1] ? `: ${args._[1]}` : ""}`;
+      out = `${P.PB_NAME} · ${w.name} profile in front${args._[1] ? `: ${args._[1]}` : ""}`;
     } else {
       const st = await P.pbState(s);
-      if (!st.installed) throw new Error(`${P.PB_NAME} masaüstü uygulaması açık değil`);
-      out = [`${P.PB_NAME}: ${st.running ? "açık" : "kapalı"}`, ...st.profiles.map((p) => {
+      if (!st.installed) throw new Error(`The ${P.PB_NAME} desktop app is not open`);
+      out = [`${P.PB_NAME}: ${st.running ? "open" : "closed"}`, ...st.profiles.map((p) => {
         const w = s.worlds.find((x) => x.id === p.worldId);
-        const accs = (w.accounts ?? []).map((a) => `${a.handle || a.name} ${p.accounts[a.id] ? "✓" : p.accounts[a.id] === false ? "giriş yok" : "?"}`);
-        return [`${w.name} (${w.id})${p.open ? " · açık" : ""}`, accs.length ? `  hesaplar: ${accs.join(", ")}` : "", ...p.pages.map((x) => `  - ${x.title || x.url}  ${x.url}`)].filter(Boolean).join("\n");
+        const accs = (w.accounts ?? []).map((a) => `${a.handle || a.name} ${p.accounts[a.id] ? "✓" : p.accounts[a.id] === false ? "not signed in" : "?"}`);
+        return [`${w.name} (${w.id})${p.open ? " · open" : ""}`, accs.length ? `  accounts: ${accs.join(", ")}` : "", ...p.pages.map((x) => `  - ${x.title || x.url}  ${x.url}`)].filter(Boolean).join("\n");
       })].join("\n");
     }
   } else if (cmd === "due") {
-    const STALE_MS = 6 * 60 * 1000; // uygulamadaki gibi: 6 dakikadır "hazırlanıyor" kalan çıktı yarıda kalmıştır
-    // pg due: bugün Rou'nun hazırlaması gereken, henüz çıktısı olmayan otomasyon işleri.
+    const STALE_MS = 6 * 60 * 1000; // as in the app: an output stuck "working" for 6 minutes was cut off
+    // pg due: automation tasks Rou should prepare today that have no output yet.
     if (needsMaterialize(read().state)) update((s) => void materialize(s));
     const { state: s } = read();
     const today = iso(new Date());
@@ -475,48 +494,48 @@ try {
       const a = s.automations.find((x) => x.id === t.autoId);
       const w = s.worlds.find((x) => x.id === t.worldId);
       const p = s.projects.find((x) => x.id === t.projectId);
-      out += `${t.id}  ${t.title}${t.autoSlot ? "  " + t.autoSlot : ""}  [${w?.name ?? t.worldId}${p ? " › " + p.name : ""}]  hazırlayan: ${a.who}\n   ${a.browser ? `Chrome'da yapılır; tam talimat: pg brief ${t.id}` : `talimat: ${a.action || "(yok)"}`}\n`;
+      out += `${t.id}  ${t.title}${t.autoSlot ? "  " + t.autoSlot : ""}  [${w?.name ?? t.worldId}${p ? " › " + p.name : ""}]  prepared by: ${a.who}\n   ${a.browser ? `Done in Chrome; full instruction: pg brief ${t.id}` : `instruction: ${a.action || "(none)"}`}\n`;
     }
-    if (!list.length) out = "Bugün hazırlanacak iş yok.";
+    if (!list.length) out = "Nothing to prepare today.";
   } else if (cmd === "pdf") {
-    // pg pdf <html> <pdf>: HTML'den A4 PDF (sistemdeki Chrome, geçici ayrı profil; açık Chrome'a dokunmaz).
+    // pg pdf <html> <pdf>: an A4 PDF from HTML (the system Chrome with a temporary profile; an open Chrome is not touched).
     const [src, dst] = args._.map((x) => path.resolve(String(x)));
-    if (!src || !dst || !fs.existsSync(src)) throw new Error("Kullanım: pg pdf <html dosyası> <pdf dosyası>");
+    if (!src || !dst || !fs.existsSync(src)) throw new Error("Usage: pg pdf <html file> <pdf file>");
     const prof = fs.mkdtempSync(path.join(os.tmpdir(), "pg-pdf-"));
     spawnSync(HEADLESS, ["--headless=new", "--disable-gpu", "--no-first-run", `--user-data-dir=${prof}`, "--no-pdf-header-footer", `--print-to-pdf=${dst}`, pathToFileURL(src).href], { stdio: "ignore", timeout: 60000 });
     fs.rmSync(prof, { recursive: true, force: true });
-    if (!fs.existsSync(dst)) throw new Error("PDF üretilemedi");
+    if (!fs.existsSync(dst)) throw new Error("Could not make the PDF");
     out = `PDF: ${dst}`;
   } else if (cmd === "propose") {
-    // Dış araçlar (Claude Code, MCP, başka bir ajan) veriyi doğrudan değiştirmek yerine öneri bırakır.
-    // Öneri Rou sohbetinde kart olarak çıkar; kimlikler uygulamada doğrulanır, yalnız Onayla ile uygulanır.
+    // Outside tools (Claude Code, MCP, another agent) leave a proposal instead of changing data directly.
+    // It shows as a card in the Rou chat; ids are checked in the app and it applies only on Approve.
     let action;
-    try { action = JSON.parse(args._[0] ?? ""); } catch { throw new Error("Öneri JSON değil. Örnek: pg propose '{\"type\":\"done\",\"taskId\":\"abc123\"}'"); }
+    try { action = JSON.parse(args._[0] ?? ""); } catch { throw new Error("The proposal is not JSON. Example: pg propose '{\"type\":\"done\",\"taskId\":\"abc123\"}'"); }
     if (Array.isArray(action)) action = { type: "plan", title: typeof args.title === "string" ? args.title : "", steps: action };
-    if (!action || typeof action.type !== "string") throw new Error("Önerinin type alanı yok");
-    if (["change", "undo_change"].includes(action.type)) throw new Error("Bu öneri tipi dışarıdan bırakılamaz");
+    if (!action || typeof action.type !== "string") throw new Error("The proposal has no type field");
+    if (["change", "undo_change"].includes(action.type)) throw new Error("This proposal type cannot be left from outside");
     const name = typeof args.from === "string" ? args.from.slice(0, 40) : "Claude Code";
-    const text = typeof args.text === "string" ? args.text.slice(0, 2000) : "Bir öneri bıraktım.";
+    const text = typeof args.text === "string" ? args.text.slice(0, 2000) : "I left a proposal.";
     update((s) => {
       (s.talk ??= []).push({ id: id(), from: "agent", name, text, at: now(), action });
       s.talk = s.talk.slice(-60);
     });
-    out = "Öneri Rou'ya bırakıldı. Kullanıcı uygulamada onaylarsa uygulanır.";
+    out = "Proposal left for Rou. It applies if the user approves it in the app.";
   } else if (cmd === "notes") {
     const { state: s } = read();
     const w = args.pg ? world(s, args.pg) : null;
     const list = s.inbox.filter((i) => i.state === "new" && (!w || i.worldId === w.id));
     const wn = (x) => s.worlds.find((y) => y.id === x)?.name;
     const pn = (x) => s.projects.find((y) => y.id === x)?.name;
-    out = list.length ? list.map((i) => `${i.id}  ${i.title}${i.worldId ? `  [${[wn(i.worldId), pn(i.projectId)].filter(Boolean).join(" › ")}]` : ""}${i.body ? `\n    ${i.body.replace(/\n/g, "\n    ")}` : ""}`).join("\n") : "Defter boş.";
+    out = list.length ? list.map((i) => `${i.id}  ${i.title}${i.worldId ? `  [${[wn(i.worldId), pn(i.projectId)].filter(Boolean).join(" › ")}]` : ""}${i.body ? `\n    ${i.body.replace(/\n/g, "\n    ")}` : ""}`).join("\n") : "The Notebook is empty.";
   } else if (cmd === "prepare") {
     const { prepare } = await import("../server/prepare.mjs");
-    // --revise "not" [--world <id>] [--project <id>] [--account <id>]: revize; hedef verilirse gönderi oraya taşınır.
+    // --revise "note" [--world <id>] [--project <id>] [--account <id>]: a revision; with a target the post moves there.
     const str = (v) => (v && v !== true ? String(v) : undefined);
     const move = args.world || args.project || args.account ? { worldId: str(args.world), projectId: str(args.project), accountId: str(args.account) } : undefined;
-    // --img "a.png;b.png": revizeye eklenen görseller (Rou ekleri gibi data/media/rou-*), çıktıya bunlar girer, ayrıca görsel üretilmez.
+    // --img "a.png;b.png": images added to the revision (like Rou attachments, data/media/rou-*); the output uses these and no image is generated.
     const files = (str(args.img) ?? "").split(";").map((f) => f.trim()).filter(Boolean).map((f) => {
-      if (!fs.existsSync(f) || !/\.(png|jpe?g|webp)$/i.test(f)) throw new Error(`Görsel yok: ${f}`);
+      if (!fs.existsSync(f) || !/\.(png|jpe?g|webp)$/i.test(f)) throw new Error(`No such image: ${f}`);
       const file = `rou-${id()}${path.extname(f).toLowerCase()}`;
       fs.mkdirSync(MEDIA_DIR, { recursive: true });
       fs.copyFileSync(f, path.join(MEDIA_DIR, file));
@@ -526,15 +545,15 @@ try {
     if (!r.ok) throw new Error(r.error);
     await r.done;
     const run = read().state.runs.find((x) => x.id === r.runId);
-    out = run?.status === "ready" ? `Hazır: ${run.title}. Uygulamada onay bekliyor.` : `Hazırlanamadı: ${run?.body?.slice(0, 200) ?? "?"}`;
+    out = run?.status === "ready" ? `Ready: ${run.title}. Waiting for approval in the app.` : `Could not prepare: ${run?.body?.slice(0, 200) ?? "?"}`;
   } else if (cmd === "image") {
-    // LinkedIn çıktısına eksik görseli üretir; metin aynı kalır, onaylıysa onay geri alınır (görselle yeniden onaylanır).
+    // Makes the missing image for a LinkedIn output; the text stays, and an approved output returns to waiting (approved again with the image).
     const { makeImage } = await import("../server/prepare.mjs");
     const r = makeImage(args._[0]);
     if (!r.ok) throw new Error(r.error);
     await r.done;
     const run = read().state.runs.find((x) => x.id === r.runId);
-    out = run?.images?.length ? `Görsel hazır: ${run.title}. Uygulamada onay bekliyor.` : `Görsel üretilemedi: ${run?.renderError ?? "?"}`;
+    out = run?.images?.length ? `Image ready: ${run.title}. Waiting for approval in the app.` : `Could not make the image: ${run?.renderError ?? "?"}`;
   } else if (cmd === "start") {
     update((s) => {
       const t = find(s, args._[0]);
@@ -549,80 +568,80 @@ try {
   } else if (cmd === "now") {
     const { state: s } = read();
     const t = s.timer, task = t && s.tasks.find((x) => x.id === t.taskId);
-    out = task ? `${t.phase === "break" ? "Mola" : t.mode === "pomo" ? "Pomodoro" : "Odak"}: ${task.title} · ${Math.floor((Date.now() - new Date(t.startedAt)) / 60000)} dk` : "Çalışan zamanlayıcı yok.";
+    out = task ? `${t.phase === "break" ? "Break" : t.mode === "pomo" ? "Pomodoro" : "Focus"}: ${task.title} · ${Math.floor((Date.now() - new Date(t.startedAt)) / 60000)} min` : "No timer running.";
   } else if (cmd === "done" || cmd === "status") {
     const STATUSES = ["todo", "doing", "waiting", "done"];
     const st = cmd === "done" ? "done" : args._[1];
-    if (!STATUSES.includes(st)) throw new Error(`Durum şunlardan biri olmalı: ${STATUSES.join(", ")}`);
+    if (!STATUSES.includes(st)) throw new Error(`Status must be one of: ${STATUSES.join(", ")}`);
     update((s) => {
       const t = find(s, args._[0]);
-      // Sayılan iş bitiyorsa odak süresi kaydedilir.
+      // If the timed task is finishing, its focus time is saved.
       if (st === "done" && s.timer?.taskId === t.id) { commit(s); s.timer = null; }
       setStatus(t, st);
       out = `${t.title} → ${t.status}`;
     });
   } else if (cmd === "tnote") {
-    // İşin notuna (talimat alanı) satır ekler; eskisi korunur.
+    // Appends a line to the task's note (the instruction field); the old text stays.
     const text = args._.slice(1).join(" ").trim();
-    if (!text) throw new Error("Not metni gerekli");
+    if (!text) throw new Error("Note text is required");
     update((s) => {
       const t = find(s, args._[0]);
       t.notes = [t.notes, text].filter(Boolean).join("\n\n");
-      out = `${t.title} · not eklendi`;
+      out = `${t.title} · note added`;
     });
   } else if (cmd === "topic") {
-    // pg topic <işId> yok | pg topic <otomasyonId> "YYYY-MM-DD HH:MM" yok: gönderinin konusunu boşaltır (Rou yenisini yazar).
+    // pg topic <taskId> none | pg topic <automationId> "YYYY-MM-DD HH:MM" none: clears a post's topic (Rou writes a new one).
     const [id, a1, a2] = args._;
-    if ((a2 ?? a1) !== "yok") throw new Error('Kullanım: pg topic <işId> yok | pg topic <otomasyonId> "gün saat" yok');
+    if (!isNone(a2 ?? a1)) throw new Error('Usage: pg topic <taskId> none | pg topic <automationId> "day time" none');
     update((s) => {
       const a = a2 !== undefined && s.automations.find((x) => x.id === id);
       if (a) {
-        if (!a.topics?.[a1]) throw new Error(`Konu yok: ${id} ${a1}`);
+        if (!a.topics?.[a1]) throw new Error(`No topic: ${id} ${a1}`);
         delete a.topics[a1];
-        out = `~ otomasyon ${a.id} ${a1} konu boşaltıldı`;
+        out = `~ automation ${a.id} ${a1} topic cleared`;
       } else {
         const t = find(s, id);
         delete t.topic;
-        out = `${t.title} · konu boşaltıldı`;
+        out = `${t.title} · topic cleared`;
       }
     });
   } else if (cmd === "move") {
     update((s) => void setDay(s, find(s, args._[0]), parseDay(args._[1], null), iso(new Date())));
     out = "→";
   } else if (cmd === "src") {
-    // pg src <projeId> "Başlık" --body ".." [--url ..]: projenin Bilgi'sine not (adres verilirse bağlantı) ekler; hazırlıklarda kullanılır.
+    // pg src <projectId> "Title" --body ".." [--url ..]: adds a note (a link if an address is given) to the project's Notes; used in preparations.
     update((s) => {
       const p = s.projects.find((x) => x.id === args._[0]);
-      if (!p) throw new Error(`Proje yok: ${args._[0]}`);
+      if (!p) throw new Error(`No project: ${args._[0]}`);
       const title = args._.slice(1).join(" ").trim();
       const body = args.body && args.body !== true ? String(args.body) : "";
-      if (!title || !body) throw new Error('Kullanım: pg src <projeId> "Başlık" --body ".." [--url ..]');
+      if (!title || !body) throw new Error('Usage: pg src <projectId> "Title" --body ".." [--url ..]');
       const url = args.url && args.url !== true ? String(args.url) : undefined;
-      if (url && !/^https?:\/\//.test(url)) throw new Error(`Adres http(s) olmalı: ${url}`);
+      if (url && !/^https?:\/\//.test(url)) throw new Error(`The address must be http(s): ${url}`);
       const src = { id: id(), kind: url ? "link" : "note", title, body, ...(url ? { url } : {}), use: true, addedAt: now() };
       (p.sources ??= []).push(src);
-      out = `+ Bilgi ${src.id}  ${p.name} · ${title}`;
+      out = `+ Notes ${src.id}  ${p.name} · ${title}`;
     });
   } else if (cmd === "srcrm") {
-    // pg srcrm <projeId> <kaynakId>: projenin Bilgi kaynağını Çöp Kutusu'na atar (30 gün, geri alınabilir).
+    // pg srcrm <projectId> <sourceId>: moves the project's Notes source to the Trash (30 days, can be restored).
     update((s) => {
       const p = s.projects.find((x) => x.id === args._[0]);
-      if (!p) throw new Error(`Proje yok: ${args._[0]}`);
+      if (!p) throw new Error(`No project: ${args._[0]}`);
       const src = (p.sources ?? []).find((x) => x.id === String(args._[1] ?? ""));
-      if (!src) throw new Error(`Kaynak yok: ${args._[1]}`);
+      if (!src) throw new Error(`No source: ${args._[1]}`);
       toTrash(s, id(), "source", src.title, { source: { projectId: p.id, src } });
       p.sources = p.sources.filter((x) => x.id !== src.id);
-      out = `− ${src.title} (Çöp Kutusu'nda, 30 gün)`;
+      out = `− ${src.title} (in the Trash, 30 days)`;
     });
   } else if (cmd === "rm") {
     update((s) => {
-      // Çıktı kimliği verilirse yalnız o çıktı (ör. beğenilmeyen bir video) çöpe gider, iş kalır.
+      // With an output id only that output (e.g. a rejected video) is trashed; the task stays.
       const r = s.runs.find((x) => x.id === String(args._[0] ?? ""));
       if (r) { toTrash(s, id(), "run", r.title, { runs: [r] }); s.runs = s.runs.filter((x) => x.id !== r.id); return; }
-      // Boş bir proje kimliği verilirse (işi, otomasyonu, notu yok) proje çöpe gider.
+      // With an empty project's id (no tasks, automations or notes) the project is trashed.
       const p = s.projects.find((x) => x.id === String(args._[0] ?? ""));
       if (p) {
-        if (s.tasks.some((t) => t.projectId === p.id) || (s.automations ?? []).some((a) => a.projectId === p.id) || s.inbox.some((n) => n.projectId === p.id)) throw new Error(`Proje boş değil: ${p.name}`);
+        if (s.tasks.some((t) => t.projectId === p.id) || (s.automations ?? []).some((a) => a.projectId === p.id) || s.inbox.some((n) => n.projectId === p.id)) throw new Error(`The project is not empty: ${p.name}`);
         toTrash(s, id(), "project", p.name, { projects: [p] }); s.projects = s.projects.filter((x) => x.id !== p.id); return;
       }
       const t = find(s, args._[0]);
@@ -630,20 +649,20 @@ try {
       for (const n of s.inbox) if (n.taskId === t.id) delete n.taskId;
       toTrash(s, id(), "task", t.title, { tasks: [t], blocks: s.blocks.filter((b) => b.taskId === t.id), sessions: s.sessions.filter((x) => x.taskId === t.id), runs: s.runs.filter((x) => x.taskId === t.id) });
       s.tasks = s.tasks.filter((x) => x.id !== t.id); s.blocks = s.blocks.filter((b) => b.taskId !== t.id); s.sessions = s.sessions.filter((x) => x.taskId !== t.id); s.runs = s.runs.filter((x) => x.taskId !== t.id); });
-    out = "− (Çöp Kutusu'nda, 30 gün)";
+    out = "− (in the Trash, 30 days)";
   } else if (cmd === "worlds") {
     const { state: s } = read();
-    for (const w of s.worlds) out += `${w.id.padEnd(10)} ${w.name.padEnd(12)} ${s.tasks.filter((t) => t.worldId === w.id && t.status !== "done").length} açık · ${s.projects.filter((p) => p.worldId === w.id).length} proje\n`;
+    for (const w of s.worlds) out += `${w.id.padEnd(10)} ${w.name.padEnd(12)} ${s.tasks.filter((t) => t.worldId === w.id && t.status !== "done").length} open · ${s.projects.filter((p) => p.worldId === w.id).length} projects\n`;
   } else if (cmd === "json") {
     out = JSON.stringify(read().state, null, 2);
   } else if (cmd && cmd !== "list" && !cmd.startsWith("--")) {
-    // Yanlış yazılan komut listeyi basıp 0 ile çıkıyordu; çağıran (Rou, bir araç) işin yapıldığını sanıyordu.
-    throw new Error(`Bilinmeyen komut: ${cmd}`);
+    // A mistyped command used to print the list and exit 0; the caller (Rou, a tool) thought the job was done.
+    throw new Error(`Unknown command: ${cmd}`);
   } else {
     if (needsMaterialize(read().state)) update((s) => void materialize(s));
     const { state: s } = read();
     const today = iso(new Date());
-    // --week: bu haftanın (pazartesi-pazar) işleri ve gecikmiş açık işler.
+    // --week: this week's tasks (Monday to Sunday) and late open tasks.
     const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
     const inWeek = (t) => (t.day && t.day >= iso(mon) && t.day <= iso(sun)) || t.status === "doing" || (t.day && t.day < today && t.status !== "done");
@@ -651,8 +670,8 @@ try {
       .filter((t) => !args.pg || t.worldId === args.pg)
       .filter((t) => (args.week || cmd === "--week" ? inWeek(t) : t.day === today || t.status === "doing" || (t.day && t.day < today && t.status !== "done")))
       .sort((a, b) => String(a.day).localeCompare(String(b.day)));
-    for (const t of list) out += `${t.status === "done" ? "✓" : t.status === "doing" ? "▶" : "·"} ${t.id}  ${t.day ?? "tarihsiz  "}  [${t.worldId}] ${t.title}\n`;
-    if (!list.length) out = "Liste boş.";
+    for (const t of list) out += `${t.status === "done" ? "✓" : t.status === "doing" ? "▶" : "·"} ${t.id}  ${t.day ?? "someday   "}  [${t.worldId}] ${t.title}\n`;
+    if (!list.length) out = "The list is empty.";
   }
   console.log(out.trimEnd());
 } catch (e) {

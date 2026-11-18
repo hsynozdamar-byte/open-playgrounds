@@ -1,4 +1,4 @@
-// Ortak görünüm: yazı tipi, renk ve zemin. Slayt ve Reels aynı dili konuşur.
+// Shared look: typeface, colour and ground. Slides and Reels speak the same language.
 import { loadFont as display } from "@remotion/google-fonts/InterTight";
 import { loadFont as mono } from "@remotion/google-fonts/GeistMono";
 import type { CSSProperties, ReactElement } from "react";
@@ -11,7 +11,7 @@ export type Account = { name: string; handle: string; color: string };
 export const INK = "#f4f2ee";
 export const BASE = "#0c0d10";
 
-// Hesap rengi koyu zeminde okunsun diye açılır (vurgu yazısı için).
+// The account colour is lightened so it reads on a dark ground (for the accent text).
 export function readable(hex: string) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return "#7fb0ff";
@@ -25,7 +25,7 @@ export function readable(hex: string) {
   return `rgb(${r} ${g} ${b})`;
 }
 
-// Zemin: koyu taban, hesap renginde yumuşak ışık, ince gren.
+// Ground: a dark base, a soft light in the account colour, fine grain.
 const GRAIN = `url("data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>')}")`;
 export function Backdrop({ color, x = 18, y = 12, strength = 1 }: { color: string; x?: number; y?: number; strength?: number }) {
   const glow: CSSProperties = {
@@ -45,20 +45,20 @@ export function Backdrop({ color, x = 18, y = 12, strength = 1 }: { color: strin
   );
 }
 
-// Uzun metinde yazı küçülür: karakter sayısına göre basamaklı boyut.
+// Long text is set smaller: stepped sizes by character count.
 export const fit = (text: string, steps: [number, number][]) => {
   const n = text.length;
   for (const [max, size] of steps) if (n <= max) return size;
   return steps[steps.length - 1][1];
 };
 
-// Başlık satırları anlamdan kırılır (BİR ÇATI, / ÜÇ ŞİRKET): balance yalnız uzunluğa bakıp ifadeyi ortadan bölüyordu.
-// Virgül, nokta, iki nokta ya da yazarın \n'si satır sonu olur; kısa kelimeler (≤3 harf) sonraki kelimeye yapışır, satır sonunda kalmaz.
+// Headline lines break at the meaning (ONE ROOF, / THREE COMPANIES): balance looked only at length and split a phrase in the middle.
+// A comma, period, colon or the author's \n ends a line; short words (up to 3 letters) stick to the next word and do not end a line.
 export const phrase = (t: string) =>
   t.replace(/([,.:;!?])\s+(?=\S)/g, "$1\n").replace(/(^|[\s\u00a0])(\S{1,3}) (?=\S)/gu, "$1$2\u00a0");
 export const phraseStyle = { whiteSpace: "pre-line" as const };
 
-// Açık zeminde okunsun diye koyulaştırılmış hesap rengi.
+// The account colour darkened so it reads on a light ground.
 export function deep(hex: string) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return "#1f5fbf";
@@ -69,7 +69,7 @@ export function deep(hex: string) {
   return `rgb(${r} ${g} ${b})`;
 }
 
-// Şablonlar: slayt ve Reels aynı şablonu kullanır. Uygulamadaki seçici de bu adları kullanır (src/ui/PostEditor.tsx).
+// Templates: slides and Reels use the same template. The app's picker uses these names too (src/ui/PostEditor.tsx).
 export type Template = "night" | "paper" | "bold";
 export type Look = { ink: string; muted: string; accent: string; dot: string; bg: (p: { color: string; x?: number; y?: number; strength?: number }) => ReactElement };
 

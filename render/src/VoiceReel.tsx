@@ -2,9 +2,9 @@ import { AbsoluteFill, Sequence, interpolate, spring, useCurrentFrame, useVideoC
 import { type Account, DISPLAY, MONO, look, type Look } from "./look";
 import { Scene, type Visual } from "./Scenes";
 
-// Kişinin kendi sesiyle Reels (1080x1920). Ses ayrı eklenir (server/voice.mjs); burada görüntü.
-// Bantlar: üstte hesap + ilerleme, sonra sahnenin ekran yazısı, ortada sahnenin görüntüsü, altta sözcük sözcük altyazı.
-// Sahneler sesteki cümleye oturur (beat.start, ms): görüntü o cümle söylendiği anda keser.
+// Reels in the person's own voice (1080x1920). The audio is added separately (server/voice.mjs); this is the picture.
+// Bands: account + progress on top, then the scene's on-screen text, the scene's visual in the middle, a word-by-word caption at the bottom.
+// Scenes sit on the sentence in the audio (beat.start, ms): the picture cuts the moment that sentence is spoken.
 export type Word = { t: string; from: number; to: number }; // ms
 export type Chunk = { words: Word[]; from: number; to: number };
 export type Beat = { start: number; text: string; visual: Visual };
@@ -19,7 +19,7 @@ const CAP_TOP = 1352;
 
 export const voiceFrames = (p: VoiceReelProps, fps: number) => Math.max(fps, Math.ceil((p.durationMs / 1000) * fps) + Math.round(fps * 0.6));
 
-// Altyazı: küçük, altta, en çok iki satır; söylenen kelime yanar, söylenmemiş olanlar soluk.
+// Caption: small, at the bottom, two lines at most; the spoken word lights up and the unspoken ones are faded.
 function Caption({ c, fps, L }: { c: Chunk; fps: number; L: Look }) {
   const frame = useCurrentFrame();
   const ms = (frame / fps) * 1000 + c.from;
@@ -33,7 +33,7 @@ function Caption({ c, fps, L }: { c: Chunk; fps: number; L: Look }) {
   );
 }
 
-// Bir sahne: ekran yazısı hızlı gelir ve durur; görüntü yerine oturur, sahne boyunca kamera yavaşça yaklaşır.
+// A scene: the on-screen text comes in fast and stays; the visual settles in place and the camera slowly pushes in over the scene.
 function BeatView({ b, frames, L, color }: { b: Beat; frames: number; L: Look; color: string }) {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();

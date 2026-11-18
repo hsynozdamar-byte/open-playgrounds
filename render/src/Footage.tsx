@@ -3,11 +3,11 @@ import { AbsoluteFill, Img, OffthreadVideo, Sequence, continueRender, delayRende
 import { END_SEC, HOOK_SEC } from "../../shared/social.mjs";
 import { type Account, DISPLAY, deep, fit, phrase, phraseStyle, readable } from "./look";
 
-// Projenin gerçek görüntüsüyle Reels ve gönderi.
-// Başlık ilk karede okunur ve video boyunca durur; her sahne kendi kaydını gösterir, altyazı o kayıtta görüneni söyler.
-// Görüntü yatayse eğik bir kartta, dikeyse tam ekran. Üstte küçük etiket yok; logo yalnız kapanışta.
+// Reels and posts made from the project's real footage.
+// The headline reads from the first frame and stays for the whole video; each scene shows its own clip and the caption says what is visible in it.
+// Landscape footage sits in a tilted card, portrait footage goes full screen. No small label on top; the logo only on the end card.
 
-// Projenin görünümü (project.kit): yazı tipleri, renkler, logo. Dosyalar render sırasında public/ altına bağlanır.
+// The project's look (project.kit): fonts, colours, logo. Files are linked under public/ during the render.
 export type Kit = {
   fonts?: { family: string; file: string; weight?: string; range?: string; style?: "normal" | "italic" }[];
   display?: string;
@@ -15,33 +15,33 @@ export type Kit = {
   text?: string;
   logo?: string;
   logoKind?: "wordmark" | "icon";
-  // Koyu zemin için logo (açık logo, koyulaştırılmış posterde).
+  // Logo for a dark ground (a light logo, on a darkened poster).
   logoDark?: string;
   bg?: [string, string, string];
   ink?: string;
   accent?: string;
   end?: string;
   accent2?: string;
-  // Seri rengi (otomasyonun automation.color'ı, prepare.mjs kitOf): bu seride vurgu rengi accent yerine bu.
+  // Series colour (the automation's automation.color, prepare.mjs kitOf): in this series it replaces the accent colour.
   seriesColor?: string;
-  // sticker: oyun dili (beyaz dolgu, kalın kontur). night: stüdyo dili (koyu sahne, büyük harf yazı, köşelerde iki renk boya lekesi).
-  // mono: siyah sahne, üstte bulanık beyaz ışık, beyaz büyük harf başlık, gri gövde, ince çizgi, altta logo.
+  // sticker: game look (white fill, thick outline). night: studio look (dark scene, uppercase text, two colour paint blobs in the corners).
+  // mono: black scene, a blurred white light on top, white uppercase headline, grey body, thin line, logo at the bottom.
   style?: "sticker" | "night" | "mono";
-  // mono: yazısız atmosfer fotoğrafı; logo ve yazı üstüne kodla basılır.
-  // night: renkli zemin görseli; lekeler çizilmez, yazı ink rengiyle basılır.
+  // mono: a textless atmosphere photo; the logo and text are drawn on top in code.
+  // night: a coloured ground image; no blobs are drawn and the text uses the ink colour.
   bgImage?: string;
   paint?: [string, string];
-  // night stilinde başlığın harfi (büyük ya da küçük) ve gövdenin italik olup olmadığı.
+  // In the night style: the headline's letter case (upper or lower) and whether the body is italic.
   case?: "upper" | "lower";
   italic?: boolean;
 };
 export type Media = { src: string; kind: "video" | "image"; w: number; h: number; from?: number };
-// Sahne kayıt (media) ya da projenin objesiyle (asset) vurucu kart; hiçbiri yoksa yalnız yazılı kart.
+// A scene is a punch card with a clip (media) or the project's object (asset); with neither, a text-only card.
 export type FootScene = { text: string; sec: number; accent?: string; media?: Media; asset?: Media };
 export type FootReelProps = { account: Account; hook: string; scenes: FootScene[]; kit?: Kit };
 export type FootSlideProps = { account: Account; slides: { title: string; text: string; media?: Media }[]; index: number; kit?: Kit };
 
-// brand: kitin kendi vurgu rengi; accent: seri rengi varsa o, yoksa brand.
+// brand: the kit's own accent colour; accent: the series colour if there is one, else brand.
 type K = Required<Pick<Kit, "display" | "text" | "bg" | "ink" | "accent">> & Kit & { brand: string };
 function resolve(kit: Kit | undefined, color: string): K {
   const c = color || "#3b86e8";
@@ -57,10 +57,10 @@ function resolve(kit: Kit | undefined, color: string): K {
   return { ...k, brand: k.accent, accent: kit?.seriesColor ?? k.accent };
 }
 
-// Seri rengi (kit.seriesColor, otomasyonun automation.color'ı): başlığın arkasında seri renginde levha (kitin mürekkebiyle kontur
-// ve alt gölge); night/mono gibi düz stillerde başlığın solunda seri renginde dikey çizgi. Izgarada seriler bu renkten ayrılır.
-// Seri yoksa (tek seferlik gönderi) hiçbir şey çizilmez, başlık kitin kendi hâlinde kalır. Başlık kutusu relative + isolate olmalı.
-// night stilinde sağ üstteki büyük boya lekesi de seri renginde (ızgarada en çok görünen renk o).
+// Series colour (kit.seriesColor, the automation's automation.color): a plate in the series colour behind the headline (outlined in the kit's ink
+// with a bottom shadow); in flat styles like night/mono, a vertical line in the series colour left of the headline. In the feed grid the series are told apart by this colour.
+// With no series (a one-off post) nothing is drawn and the headline keeps the kit's own look. The headline box must be relative + isolate.
+// In the night style the big paint blob top right is in the series colour too (the most visible colour in the grid).
 const plated = (k: K): React.CSSProperties => (k.seriesColor ? { position: "relative", isolation: "isolate", ...(flat(k) ? {} : { maxWidth: 820 }) } : {});
 function SeriesPlate({ k }: { k: K }) {
   if (!k.seriesColor) return null;
@@ -68,7 +68,7 @@ function SeriesPlate({ k }: { k: K }) {
   return <div style={{ position: "absolute", zIndex: -1, inset: "-0.2em -0.34em", borderRadius: 34, background: k.seriesColor, border: `7px solid ${k.ink}`, boxShadow: `0 14px 0 ${k.ink}`, transform: "rotate(1.4deg)" }} />;
 }
 
-// Projenin yazı tiplerini yükler; yüklenene kadar kare çekilmez.
+// Loads the project's fonts; no frame is captured until they are loaded.
 function useFonts(kit?: Kit) {
   const [h] = useState(() => (kit?.fonts?.length ? delayRender("kit fonts") : null));
   useEffect(() => {
@@ -79,14 +79,14 @@ function useFonts(kit?: Kit) {
   }, [h, kit]);
 }
 
-// Oyunun arayüzündeki gibi: beyaz dolgu, kalın kontur, alt gölge. night stilinde düz beyaz, büyük harf, sıkı satır.
+// As in the game's UI: white fill, thick outline, bottom shadow. In the night style plain white, uppercase, tight lines.
 const flat = (k: K) => k.style === "night" || k.style === "mono";
-// night stilinde renkli zemin görseli ya da açık zemin: yazı kitin mürekkebiyle.
+// In the night style, on a coloured ground image or a light ground: the text uses the kit's ink.
 const lit = (k: K) => k.style === "night" && (!!k.bgImage || !dark(k.bg[0]));
 const sticker = (k: K, size: number): React.CSSProperties => flat(k) ? ({
   fontFamily: k.display,
   fontWeight: k.displayWeight,
-  // Küçük harfli geniş yazılar sıkı aralıkla daha küçük basılır.
+  // Wide lowercase text is set smaller with tight spacing.
   fontSize: Math.round(size * (k.style === "mono" ? 1.7 : k.case === "lower" ? 0.78 : 1.18)),
   lineHeight: k.case === "lower" ? 1 : k.style === "mono" ? 0.88 : 0.92,
   letterSpacing: k.case === "lower" ? "-0.04em" : "0.01em",
@@ -106,7 +106,7 @@ const sticker = (k: K, size: number): React.CSSProperties => flat(k) ? ({
   textWrap: "balance",
 });
 
-// Boya lekesi: ana daire + etrafında sıçramış damlalar (sabit, tohumla).
+// Paint blob: a main circle with splashed drops around it (fixed, from a seed).
 function Splat({ x, y, r: rad, color, seed }: { x: number; y: number; r: number; color: string; seed: number }) {
   const rnd = (i: number) => { const v = Math.sin(seed * 97.13 + i * 12.9898) * 43758.5453; return v - Math.floor(v); };
   const drops = Array.from({ length: 9 }, (_, i) => {
@@ -127,7 +127,7 @@ function Bg({ k }: { k: K }) {
   if (k.style === "mono") return (
     <AbsoluteFill style={{ background: k.bg[0] }}>
       {k.bgImage ? <Img src={staticFile(k.bgImage)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} /> : <AbsoluteFill style={{ background: `radial-gradient(60% 34% at 30% -4%, rgb(255 255 255 / 0.42), transparent 70%), radial-gradient(40% 26% at 82% 2%, rgb(255 255 255 / 0.16), transparent 72%)`, filter: "blur(30px)" }} />}
-      {/* Yazının oturduğu alt bölge her fotoğrafta okunur kalsın. */}
+      {/* The bottom area where the text sits must stay readable on every photo. */}
       {k.bgImage && <AbsoluteFill style={{ background: "linear-gradient(180deg, transparent 30%, rgb(5 5 5 / 0.82) 72%, #050505 100%)" }} />}
     </AbsoluteFill>
   );
@@ -139,7 +139,7 @@ function Bg({ k }: { k: K }) {
         <Img src={staticFile(k.bgImage)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
       </AbsoluteFill>
     );
-    // Açık zemin: düz zemin, boya lekesi yok; logo ve yazı mürekkep renginde.
+    // Light ground: a plain ground, no paint blobs; the logo and text are in the ink colour.
     if (lit(k)) return <AbsoluteFill style={{ background: k.bg[0] }} />;
     return (
       <AbsoluteFill style={{ background: k.bg[0] }}>
@@ -151,18 +151,18 @@ function Bg({ k }: { k: K }) {
     );
   }
   return (
-    // Varsayılan zemin: projenin üç tonu, yumuşak ışıkla.
+    // Default ground: the project's three tones with a soft light.
     <AbsoluteFill style={{ background: `linear-gradient(170deg, ${k.bg[0]} 0%, ${k.bg[1]} 55%, ${k.bg[2]} 100%)` }}>
       <AbsoluteFill style={{ background: "radial-gradient(70% 45% at 50% 45%, rgb(255 255 255 / 0.22), transparent 70%)" }} />
     </AbsoluteFill>
   );
 }
 
-// Kayıt: kutuyu doldurur (cover), sahne boyunca hafifçe yaklaşır.
+// Clip: fills the box (cover) and zooms in slightly over the scene.
 function Shot({ m, frames, style }: { m: Media; frames: number; style?: React.CSSProperties }) {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  // Hafif yaklaşma yalnız videoda; ekran görüntüsü kenarı kesilmesin diye sabit durur.
+  // The slight zoom is for video only; a screenshot stays fixed so its edge is not cropped.
   const z = m.kind === "video" ? interpolate(f, [0, frames], [1, 1.06], { extrapolateRight: "clamp" }) : 1;
   const s: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: `scale(${z})`, ...style };
   return m.kind === "video"
@@ -170,13 +170,13 @@ function Shot({ m, frames, style }: { m: Media; frames: number; style?: React.CS
     : <Img src={staticFile(m.src)} style={s} />;
 }
 
-// Zemin koyuysa gövde yazısı beyaz.
+// If the ground is dark the body text is white.
 function dark(hex: string) {
   const n = parseInt(hex.replace("#", "").slice(0, 6), 16);
   return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 < 0.45;
 }
 const tall = (m?: Media) => !!m && m.h > m.w * 1.1;
-// Gerçek ekran/kayıt kırpılmaz: kart görüntünün kendi oranında, verilen kutuya sığacak en büyük boyutta (border dahil değil).
+// A real screen or clip is not cropped: the card takes the image's own aspect ratio at the largest size that fits the given box (border not included).
 const fitCard = (m: Media, maxW: number, maxH: number) => {
   const r = m.w && m.h ? m.w / m.h : 16 / 9;
   return maxW / r <= maxH ? { w: maxW, h: Math.round(maxW / r) } : { w: Math.round(maxH * r), h: maxH };
@@ -201,7 +201,7 @@ function Caption({ text, accent, k, at }: { text: string; accent?: string; k: K;
   );
 }
 
-// Bir sahne: kayıt (kartta ya da tam ekran) + altyazı. at: altyazının çıktığı kare (ilk sahnede başlık önce okunur).
+// A scene: a clip (in a card or full screen) plus a caption. at: the frame where the caption appears (in the first scene the headline reads first).
 function SceneView({ s, frames, k, at }: { s: FootScene; frames: number; k: K; at: number }) {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -252,7 +252,7 @@ function End({ k, account }: { k: K; account: Account }) {
   );
 }
 
-// Vurucu kart: dönen ışın zemin, büyük yazı, altta obje zıplayarak girer.
+// Punch card: a turning ray ground, big text, and an object that bounces in at the bottom.
 function Punch({ s, k, lead, at }: { s: FootScene; k: K; lead?: string; at: number }) {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -288,7 +288,7 @@ export function FootReel(p: FootReelProps) {
   const ls = lens(p, fps);
   const endAt = ls.reduce((n, x) => n + x, 0);
   const hookIn = spring({ frame: f, fps, config: { damping: 9, stiffness: 180 } });
-  // Başlık yalnız kayıtlı sahnelerde üstte durur; vurucu kart kendi büyük yazısını taşır.
+  // The headline stays on top only in scenes with a clip; a punch card carries its own big text.
   let acc = 0;
   const cur = p.scenes.find((_, i) => (acc += ls[i]) > f);
   let from = 0;
@@ -306,7 +306,7 @@ export function FootReel(p: FootReelProps) {
           </Sequence>
         );
       })}
-      {/* Başlık: 0. karede tam görünür (kapak), kapanışa kadar durur. */}
+      {/* Headline: fully visible at frame 0 (the cover) and stays until the end card. */}
       {p.hook && f < endAt && cur && !isPunch(cur) && (
         <div style={{ position: "absolute", top: 170, left: 70, right: 70, textAlign: "center", transform: `scale(${interpolate(hookIn, [0, 1], [1.12, 1])}) rotate(-1.4deg)`, ...sticker(k, fit(p.hook, [[22, 104], [38, 92], [999, 80]])), ...plated(k) }}><SeriesPlate k={k} />{p.hook}</div>
       )}
@@ -315,7 +315,7 @@ export function FootReel(p: FootReelProps) {
   );
 }
 
-// Gönderi slaytı (1080x1350): başlık üstte, kayıt ortada kartta, kısa metin altta.
+// Post slide (1080x1350): headline on top, the clip in a card in the middle, short text at the bottom.
 export function FootSlide({ account, slides, index, kit }: FootSlideProps) {
   useFonts(kit);
   const k = resolve(kit, account.color);
@@ -325,7 +325,7 @@ export function FootSlide({ account, slides, index, kit }: FootSlideProps) {
   const title = sticker(k, m ? fit(s.title, [[24, 96], [44, 82], [999, 70]]) : fit(s.title, [[24, 128], [48, 104], [999, 86]]));
   if (flat(k)) Object.assign(title, { textAlign: "left" });
   const body: React.CSSProperties = { fontFamily: k.text, fontWeight: 700, fontSize: fit(s.text, [[80, 44], [150, 38], [999, 34]]), lineHeight: 1.28, color: dark(k.bg[1]) ? "#fff" : k.ink, textAlign: "center", textWrap: "pretty", maxWidth: 900 };
-  // Ekran görüntüsü kendi oranında: hiçbir kenarı kesilmez (yatay geniş, dikey dar kart).
+  // A screenshot keeps its own aspect ratio: no edge is cropped (a wide card for landscape, a narrow one for portrait).
   const card = m ? fitCard(m, 940, tall(m) ? 780 : 640) : { w: 0, h: 0 };
   return (
     <AbsoluteFill>
@@ -351,8 +351,8 @@ export function FootSlide({ account, slides, index, kit }: FootSlideProps) {
   );
 }
 
-// Site kapağı (16:9, 1920x1080): solda logo, başlık ve kısa yazı; sağda projenin gerçek karesi
-// kendi oranında (kırpılmaz). Site kapağı küçük kartta da kırptığı için her şey güvenli alanda.
+// Site cover (16:9, 1920x1080): logo, headline and short text on the left; the project's real frame on the right
+// at its own aspect ratio (not cropped). A site cover is cropped in a small card too, so everything stays in the safe area.
 export function FootCover({ account, slides, index, kit }: FootSlideProps) {
   useFonts(kit);
   const k = resolve(kit, account.color);

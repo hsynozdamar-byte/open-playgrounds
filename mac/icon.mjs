@@ -1,4 +1,4 @@
-// mac/icon.html → mac/icon-1024.png (Chrome headless). Sonra browser/build.sh ikonu .icns yapar.
+// mac/icon.html → mac/icon-1024.png (headless Chrome). browser/build.sh then turns it into an .icns.
 import puppeteer from "puppeteer-core";
 import { HEADLESS } from "../shared/headless.mjs";
 const dir = new URL(".", import.meta.url).pathname;

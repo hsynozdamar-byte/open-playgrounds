@@ -7,20 +7,20 @@ import { VoiceReel, voiceFrames, type VoiceReelProps } from "./VoiceReel";
 export const FPS = 30;
 
 const slide: SlideProps = {
-  account: { name: "Hesap", handle: "@hesap", color: "#3b86e8" },
+  account: { name: "Account", handle: "@account", color: "#3b86e8" },
   index: 0,
-  slides: [{ title: "Kapak cümlesi burada", text: "" }, { title: "İkinci slayt", text: "Kısa açıklama." }],
+  slides: [{ title: "The cover sentence goes here", text: "" }, { title: "Second slide", text: "A short explanation." }],
 };
 const reel: ReelProps = {
-  account: { name: "Hesap", handle: "@hesap", color: "#3b86e8" },
-  hook: "Bunu kimse söylemiyor",
-  scenes: [{ text: "Birinci sahne metni", sec: 3 }, { text: "İkinci sahne, vurgulu kelime", sec: 3, accent: "vurgulu" }],
+  account: { name: "Account", handle: "@account", color: "#3b86e8" },
+  hook: "Nobody says this",
+  scenes: [{ text: "First scene text", sec: 3 }, { text: "Second scene, accented word", sec: 3, accent: "accented" }],
 };
 
 const voice: VoiceReelProps = {
-  account: { name: "Hesap", handle: "@hesap", color: "#3b86e8" },
+  account: { name: "Account", handle: "@account", color: "#3b86e8" },
   durationMs: 2400,
-  chunks: [{ from: 0, to: 1100, words: [{ t: "Kartların", from: 0, to: 500 }, { t: "neden", from: 500, to: 800 }, { t: "yamuk?", from: 800, to: 1100 }] }, { from: 1200, to: 2300, words: [{ t: "Sebebi", from: 1200, to: 1700 }, { t: "köşeler.", from: 1700, to: 2300 }] }],
+  chunks: [{ from: 0, to: 1100, words: [{ t: "Why", from: 0, to: 500 }, { t: "are", from: 500, to: 800 }, { t: "cards", from: 800, to: 1100 }] }, { from: 1200, to: 2300, words: [{ t: "It's", from: 1200, to: 1700 }, { t: "corners.", from: 1700, to: 2300 }] }],
 };
 
 const foot: FootReelProps = { account: reel.account, hook: "Ship small, ship often.", scenes: [{ text: "One change a day", sec: 3 }] };

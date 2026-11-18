@@ -14,14 +14,14 @@ function segments(p: ReelProps, fps: number): Seg[] {
 }
 export const reelFrames = (p: ReelProps, fps: number) => segments(p, fps).reduce((n, s) => n + s.frames, 0);
 
-// Instagram arayüzü altta ~420 px ve sağda ~150 px kaplar; yazı bu alanın dışında kalır.
+// The Instagram UI covers ~420 px at the bottom and ~150 px on the right; the text stays outside that area.
 const LEFT = 92;
 const RIGHT = 168;
 const BOTTOM_SAFE = 470;
 const TOP_SAFE = 340;
 
 const clean = (w: string) => w.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}]/gu, "");
-// Vurgu ifadesinin cümledeki kelimeleri.
+// The words of the accent phrase within the sentence.
 function accentSet(words: string[], accent?: string) {
   const hit = new Set<number>();
   if (!accent) return hit;
@@ -35,7 +35,7 @@ function accentSet(words: string[], accent?: string) {
   return hit;
 }
 
-// Bir sahne: kelimeler sırayla yükselir, sahne biterken yukarı kayarak çıkar.
+// A scene: words rise in turn and slide up and out as the scene ends.
 function Words({ seg, L }: { seg: Seg; L: Look }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -87,7 +87,7 @@ function End({ account, L }: { account: Account; L: Look }) {
   );
 }
 
-// Dikey Reels (1080x1920): hook, sahneler, kapanış kartı. Ses yok; müzik Instagram'da eklenir.
+// Vertical Reels (1080x1920): hook, scenes, end card. No sound; music is added in Instagram.
 export function Reel(p: ReelProps) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// HTML ya da SVG dosyasını PNG'ye çevirir (Chrome headless). Rou marka görseli (logo, kapak, profil) üretirken kullanır:
-//   node scripts/shot.mjs <girdi.html|svg> <çıktı.png> <genişlik>x<yükseklik> [--transparent] [--scale 3]
-// --scale: piksel yoğunluğu (telefon ekranı 390x844 --scale 3 = 1170x2532).
-// Fontlar girdide @font-face ile dosya yolundan (file://) yüklenir; ayrı bir profil kullanılır, açık Chrome'a dokunmaz.
+// Turns an HTML or SVG file into a PNG (headless Chrome). Rou uses it to make brand images (logo, cover, profile):
+//   node scripts/shot.mjs <input.html|svg> <out.png> <width>x<height> [--transparent] [--scale 3]
+// --scale: pixel density (a phone screen 390x844 with --scale 3 = 1170x2532).
+// Fonts load in the input with @font-face from a file path (file://); a separate profile is used, an open Chrome is not touched.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -13,11 +13,11 @@ import { HEADLESS } from "../shared/headless.mjs";
 const [input, output, size, ...flags] = process.argv.slice(2);
 const m = /^(\d{2,5})x(\d{2,5})$/.exec(size ?? "");
 if (!input || !output || !m) {
-  console.error("Kullanım: node scripts/shot.mjs <girdi.html|svg> <çıktı.png> <genişlik>x<yükseklik> [--transparent]");
+  console.error("Usage: node scripts/shot.mjs <input.html|svg> <out.png> <width>x<height> [--transparent]");
   process.exit(2);
 }
 const src = path.resolve(input);
-if (!fs.existsSync(src)) { console.error(`Dosya yok: ${src}`); process.exit(2); }
+if (!fs.existsSync(src)) { console.error(`No such file: ${src}`); process.exit(2); }
 const out = path.resolve(output.endsWith(".png") ? output : `${output}.png`);
 const CHROME = HEADLESS;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "pg-shot-"));
@@ -30,5 +30,5 @@ const args = [
 ];
 const r = spawnSync(CHROME, args, { encoding: "utf8", timeout: 60000 });
 fs.rmSync(profile, { recursive: true, force: true });
-if (!fs.existsSync(out)) { console.error(`Görsel çıkmadı: ${(r.stderr || r.error?.message || "").slice(-400)}`); process.exit(1); }
+if (!fs.existsSync(out)) { console.error(`No image was made: ${(r.stderr || r.error?.message || "").slice(-400)}`); process.exit(1); }
 console.log(out);

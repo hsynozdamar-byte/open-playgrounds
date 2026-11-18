@@ -1,5 +1,5 @@
-// Playground Browser arayüzü (ana süreçten durum gelir, eylemler gider). Sayfaların kendisi ana süreçteki görünümlerde;
-// her bölmenin sayfa alanı (.pbody) ölçülüp ana sürece bildirilir, sayfa tam oraya oturur.
+// Browser UI (state comes from the main process, actions go back). The pages themselves are views in the main process;
+// each pane's page area (.pbody) is measured and reported to the main process, and the page sits exactly there.
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const ICON = {
@@ -9,7 +9,7 @@ const ICON = {
 const svg = (k, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
 const PLAT = { x: ["X", "#111"], instagram: ["IG", "#d6336c"], linkedin: ["in", "#0a66c2"], threads: ["@", "#111"], tiktok: ["TT", "#111"], youtube: ["YT", "#e62117"], gmail: ["M", "#d93025"], gcal: ["31", "#1a73e8"], slack: ["S", "#4a154b"], clickup: ["C", "#7b68ee"] };
 const PLAT_NAME = { x: "X", instagram: "Instagram", linkedin: "LinkedIn", threads: "Threads", tiktok: "TikTok", youtube: "YouTube", gmail: "Gmail", gcal: "Google Calendar", slack: "Slack", clickup: "ClickUp" };
-// Hesabın görünen adı: @kullanıcı adı varsa o, yoksa adı (sayfa adresi değil).
+// The account's display name: the @handle if there is one, else its name (not the page address).
 const accName = (a) => (a.handle?.startsWith("@") ? a.handle : a.name || a.handle);
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
@@ -18,11 +18,11 @@ const worldOf = (id) => S.worlds.find((w) => w.id === id);
 const tabsOf = (id) => S.tabs.filter((t) => t.worldId === id);
 const activeOf = (id) => S.tabs.find((t) => t.worldId === id && t.active);
 const act = (a) => window.pb.act(a);
-// Dünya küreleri Playgrounds'un motoruyla (orbs.js).
+// World spheres use the app's engine (orbs.js).
 const orbs = window.pbOrbs;
 const colorVars = (w) => `--c:${w.color || "#5b3df0"};${w.color2 ? `--c2:${w.color2};` : ""}`;
 
-// Dünyanın hesabı bu adrese mi ait: bölme çubuğunda oturum durumu.
+// Does the world's account belong to this address: the login state in the pane bar.
 function accountAt(w, url) {
   const h = host(url);
   return h && w.accounts.find((a) => S.sites[a.platform]?.hosts.some((x) => h === x || h.endsWith(`.${x}`)));
@@ -59,7 +59,7 @@ $("#worlds").addEventListener("click", (e) => {
   act({ type: "show", worlds: [row.dataset.w], focus: row.dataset.w });
 });
 
-// ---- bölmeler: dünya başına bir kez kurulur, sonra parçaları güncellenir (adres yazılırken bozulmasın) ----
+// ---- panes: built once per world, then their parts are updated (so typing in the address bar is not disturbed) ----
 const panes = new Map();
 function pane(w) {
   let el = panes.get(w.id);
@@ -157,7 +157,7 @@ function renderStage() {
   queueRects();
 }
 
-// Sayfa alanları: her değişimde ve pencere boyu değişince ölçülüp gönderilir.
+// Page areas: measured and sent on every change and when the window resizes.
 let rq = 0;
 function queueRects() {
   cancelAnimationFrame(rq);
@@ -169,7 +169,7 @@ function queueRects() {
 }
 new ResizeObserver(queueRects).observe($("#stage"));
 
-// Kenar çubuğu daraltılabilir: yalnız küreler kalır (tercih bu bilgisayarda saklanır).
+// The sidebar can collapse to the spheres only (the choice is kept on this computer).
 function setMini(on) {
   document.body.classList.toggle("is-mini", on);
   const b = $("#sidetog"); const t = on ? "Expand sidebar (⌘\\)" : "Collapse sidebar (⌘\\)";
