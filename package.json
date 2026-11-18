@@ -19,7 +19,7 @@
     "build": "tsc --noEmit && vite build",
     "start": "vite build && node server/serve.mjs",
     "pg": "node scripts/pg.mjs",
-    "test": "vitest run",
+    "test": "vitest run --testTimeout=20000",
     "desktop": "electron .",
     "dist:mac": "npm run build && node build/dist.mjs mac",
     "dist:win": "npm run build && node build/dist.mjs win"

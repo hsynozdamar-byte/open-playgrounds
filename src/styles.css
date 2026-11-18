@@ -2487,7 +2487,7 @@ button.torb:hover { background: var(--hover); }
   .prostats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
   .prostat:nth-child(odd) { border-left: 0; padding-left: 8px; }
   .procols { grid-template-columns: minmax(0, 1fr); }
-  .prorow { grid-template-columns: 22px minmax(0, 1fr) 80px 90px; }
+  .prorow, .prorow.noBar { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
   .prorow .prbar { display: none; }
   .owngrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
