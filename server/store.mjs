@@ -19,6 +19,7 @@ import { migrate } from "../shared/social.mjs";
 import { migrateRous } from "../shared/rou.mjs";
 import { pruneNotices } from "../shared/notices.mjs";
 import { trusted } from "./guard.mjs";
+import { llmFrom } from "./claude.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const DATA_DIR = process.env.PG_DATA || path.join(ROOT, "data");
@@ -89,6 +90,9 @@ export function restore(name) {
   fs.copyFileSync(DATA_FILE, path.join(BACKUP_DIR, `once-${stamp}.json`));
   return { ok: true, rev: write(state) };
 }
+
+// Rou'nun komutu Ayarlar › Asistan'dan (state.settings.llm); her çağrıda güncel veri okunur.
+llmFrom(() => read().state.settings?.llm);
 
 export const id = () => Math.random().toString(36).slice(2, 8);
 

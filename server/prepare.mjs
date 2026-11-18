@@ -792,7 +792,7 @@ async function revisionMissed(runId, task, out, prev, format, signal) {
       const abs = path.join(DATA_DIR, f), motion = /\.(mp4|mov|webm|gif)$/i.test(f);
       return { name: path.basename(f), motion, path: motion ? motionSheet(abs, path.join(tmp, `m${i}.jpg`)) : abs };
     }).filter((f) => f.path && fs.existsSync(f.path));
-    const r = await runClaude(missedPrompt(task, out, prev, files, format), 4 * 60 * 1000, signal, { args: ["--model", "sonnet", "--allowedTools", "Read", "--add-dir", MEDIA_DIR, "--add-dir", tmp] });
+    const r = await runClaude(missedPrompt(task, out, prev, files, format), 4 * 60 * 1000, signal, { tier: "mid", args: ["--allowedTools", "Read", "--add-dir", MEDIA_DIR, "--add-dir", tmp] });
     return r.ok ? parseMissed(r.out) : [];
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 }

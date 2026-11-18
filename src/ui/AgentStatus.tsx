@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import type { Ctx } from "../lib";
 
 // Hazırlayanların durumu (server/status.mjs). Tek istek paylaşılır, 5 dakikada bir yenilenir.
-type Status = { claude: { state: "ok" | "off" | "missing" | "unknown" } };
+// claude: seçili asistanın (Claude Code, Codex, Gemini CLI) durumu; llm: hangisi seçili.
+export type Status = { claude: { state: "ok" | "off" | "missing" | "unknown" }; llm?: { id: string; name: string; cmd: string; fromEnv: boolean; install: string; caps: Record<string, boolean> } };
 let last: Status | null = null;
 let inflight: Promise<Status | null> | null = null;
 const subs = new Set<(s: Status | null) => void>();
 
-function load(fresh = false) {
+export function load(fresh = false) {
   inflight ??= fetch(`/api/status${fresh ? "?fresh=1" : ""}`)
     .then((r) => r.json() as Promise<Status>)
     .catch(() => null)
@@ -20,7 +21,7 @@ function load(fresh = false) {
   return inflight;
 }
 
-function useStatus() {
+export function useStatus() {
   const [s, set] = useState(last);
   useEffect(() => {
     subs.add(set);
@@ -53,8 +54,8 @@ export function lights(ctx: Ctx, s: Status | null): Light[] {
     const c = s?.claude.state;
     out.push(!s ? { id: "claude", name: "Rou", tone: "idle", text: "Bakılıyor" }
       : c === "ok" ? { id: "claude", name: "Rou", tone: "ok", text: "Hazır" }
-      : c === "missing" ? { id: "claude", name: "Rou", tone: "off", text: "Bu bilgisayarda kurulu değil", fix: "Claude Code'u kur, sonra terminalde `claude` yazıp giriş yap." }
-      : { id: "claude", name: "Rou", tone: "off", text: "Oturum kapalı", fix: "Terminalde `claude` yazıp giriş yap. Kapalıyken hazırlatma çalışmaz." });
+      : c === "missing" ? { id: "claude", name: "Rou", tone: "off", text: `${s.llm?.name ?? "Claude Code"} bulunamadı: ${s.llm?.cmd ?? "claude"} PATH'te yok`, fix: `Kur: ${s.llm?.install ?? "Claude Code"}. Ya da Ayarlar › Asistan'dan başka bir komut seç.` }
+      : { id: "claude", name: "Rou", tone: "off", text: "Oturum kapalı", fix: `Terminalde \`${s.llm?.cmd ?? "claude"}\` yazıp giriş yap. Kapalıyken hazırlatma çalışmaz.` });
   }
   return out;
 }

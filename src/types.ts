@@ -213,7 +213,7 @@ export type State = {
   trash?: Bin[]; // Çöp Kutusu, 30 gün (shared/trash.mjs)
   change?: { id: string; text: string; phase: string; at: string; rouId?: string; done?: boolean; error?: string; restart?: boolean; code?: boolean; waiting?: boolean }; // Rou'nun yaptığı kod değişikliğinin durumu (server/change.mjs)
   changes?: { id: string; text: string; sha?: string; at: string; undone?: boolean; error?: string }[]; // sha yoksa yalnız veri işi; error: olmadı
-  settings?: { userName?: string; workHints?: string; workDirs?: string[] }; // Ayarlar: kullanıcının adı (Rou istemleri), işlerinin nerede durduğu ve Rou'nun okuyabileceği klasörler
+  settings?: { userName?: string; workHints?: string; workDirs?: string[]; llm?: "claude" | "codex" | "gemini" }; // Ayarlar: kullanıcının adı (Rou istemleri), işlerinin nerede durduğu ve Rou'nun okuyabileceği klasörler
   changeQueue?: { id: string; text: string; rouId: string; at: string; tries?: number }[]; // onaylanıp sırasını bekleyen değişiklikler
 };
 

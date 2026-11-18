@@ -87,6 +87,24 @@ PG_DATA=/tmp/pg-try npm run dev
 
 There is no login. The server answers only this computer and refuses requests from other websites. To open it from your phone over Tailscale, start it with `PG_LISTEN=0.0.0.0 PG_ALLOW_TAILSCALE=1 npm start`; anyone on that network can then read and change your data.
 
+## The in-app assistant (Rou)
+
+Rou, the assistant inside the app, runs your own LLM command line tool with your own subscription; no API key is stored. Pick it in **Profile › Settings › Asistan**: Claude Code (`claude`, the default), Codex (`codex exec`) or Gemini CLI (`gemini`). The status light says when the chosen command is not on your PATH or not signed in.
+
+Only Claude Code can use tools, so reading images and files, web search, work in Chrome or in the app's browser, live steps and Rou's code changes need it. With another CLI those jobs stop with a message that says so; chat, drafts, topic planning and post writing work.
+
+Environment variables override the setting:
+
+| Variable | Meaning |
+|---|---|
+| `PG_LLM_CMD` | the command, e.g. `codex`, `npx @anthropic-ai/claude-code`, `ollama run llama3` |
+| `PG_LLM_KIND` | `claude`, `codex`, `gemini` or `text` (any command that reads a prompt on stdin and prints text); guessed from the command |
+| `PG_LLM_ARGS` | extra flags for every call, as a JSON array |
+| `PG_LLM_PROMPT` | `stdin` (default) or `arg` |
+| `PG_MODEL`, `PG_MODEL_MID`, `PG_MODEL_FAST` | models for the strong, middle and fast tier (Claude: `opus`, `sonnet`, `haiku`) |
+
+Everything Rou answers from (your tasks, notes, sources) is sent to the provider of the command you chose.
+
 ## Develop
 
 ```bash

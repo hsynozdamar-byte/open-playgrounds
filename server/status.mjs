@@ -1,33 +1,36 @@
-// Hazırlayanın durumu: Claude girişi açık mı. Rou'nun kod değişikliği açık mı (PG_CHANGE=1).
+// Hazırlayanın durumu: seçili asistan komutu (Claude Code, Codex, Gemini CLI ...) bu bilgisayarda var mı, girişi açık mı.
+// Rou'nun kod değişikliği açık mı (PG_CHANGE=1).
 import { execFile } from "node:child_process";
 import { changeOn } from "./change.mjs";
+import { caps, CLIS, llmConfig } from "../shared/llm.mjs";
+import { which } from "../shared/platform.mjs";
 
-const CLAUDE = process.env.PG_CLAUDE || "claude";
-
-// `claude auth status` birkaç saniye sürebilir; sonuç 5 dakika saklanır.
+// Giriş denetimi birkaç saniye sürebilir; sonuç 5 dakika saklanır (komut değişince yeniden bakılır).
 let cache = null;
-function claude() {
-  if (cache && Date.now() - cache.at < 5 * 60 * 1000) return Promise.resolve(cache.v);
-  return new Promise((resolve) => {
-    execFile(CLAUDE, ["auth", "status"], { timeout: 10000 }, (err, out) => {
-      let v;
-      if (err && err.code === "ENOENT") v = { state: "missing" };
-      else {
-        try {
-          const j = JSON.parse(out);
-          v = j.loggedIn ? { state: "ok" } : { state: "off" };
-        } catch {
-          v = { state: err ? "off" : "unknown" };
-        }
-      }
-      cache = { at: Date.now(), v };
-      resolve(v);
-    });
-  });
+const run = (file, args) => new Promise((resolve) => execFile(file, args, { timeout: 10000, windowsHide: true, shell: /\.(cmd|bat)$/i.test(file) }, (err, out) => resolve({ err, out: String(out ?? "") })));
+
+async function check(cfg) {
+  const path = which(cfg.file);
+  if (!path) return { state: "missing" };
+  if (cfg.kind === "claude") {
+    const { err, out } = await run(path, [...cfg.pre, "auth", "status"]);
+    if (err?.code === "ENOENT") return { state: "missing" };
+    try { return JSON.parse(out).loggedIn ? { state: "ok" } : { state: "off" }; } catch { return { state: err ? "off" : "unknown" }; }
+  }
+  // Codex: `codex login status` girişliyse 0 ile çıkar. Gemini ve diğer komutların giriş denetimi yok: varsa hazır sayılır.
+  if (cfg.kind === "codex") return (await run(path, [...cfg.pre, "login", "status"])).err ? { state: "off" } : { state: "ok" };
+  return { state: "ok" };
 }
 
-export async function status() {
-  return { claude: await claude(), change: changeOn() };
+export async function status(_dir, state) {
+  const cfg = llmConfig(process.env, state?.settings?.llm);
+  if (!cache || cache.cmd !== cfg.cmd || Date.now() - cache.at > 5 * 60 * 1000) cache = { at: Date.now(), cmd: cfg.cmd, v: await check(cfg) };
+  return {
+    // `claude` anahtarı eski istemciler için: seçili asistanın durumu.
+    claude: cache.v,
+    llm: { id: cfg.id, name: cfg.name, cmd: cfg.cmd, fromEnv: cfg.fromEnv, caps: caps(cfg), install: CLIS[cfg.kind]?.install ?? "" },
+    change: changeOn(),
+  };
 }
 
 export const forget = () => (cache = null);

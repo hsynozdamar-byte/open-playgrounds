@@ -262,7 +262,7 @@ export async function summarize(rouId) {
       prev?.text ? `Şimdiye kadarki özet:\n${prev.text}` : "",
       `Özete eklenecek mesajlar:\n${old.map((m) => `${m.role === "rou" ? "Rou" : userName(s)} (${m.at.slice(0, 10)}): ${m.text.slice(0, 800)}`).join("\n")}`,
       "Kurallar: Türkçe, en fazla 1200 karakter, kısa maddeler. Yalnız sonra işe yarayacakları tut: verilen kararlar, istekler, açık kalan işler, kullanıcının tercihleri. Selamlaşma ve tekrar edilen şeyleri at. Uydurma. Uzun tire kullanma. SADECE özeti yaz.",
-    ].filter(Boolean).join("\n\n"), 90000, undefined, { args: ["--model", "haiku"] });
+    ].filter(Boolean).join("\n\n"), 90000, undefined, { tier: "fast" });
     if (r.ok && r.out.trim()) update((st) => { st.chatSummary = { ...(st.chatSummary ?? {}), [rouId]: { text: r.out.trim().replace(/^```\w*\n?|\n?```$/g, "").trim().slice(0, 1500), upTo: old[old.length - 1].at, at: new Date().toISOString() } }; });
   } finally { summarizing.delete(rouId); }
 }

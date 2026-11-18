@@ -6,6 +6,7 @@ import { setStill } from "../ui/fluid/engine";
 import { openTrash } from "../ui/Trash";
 import { openBackups } from "../ui/Backups";
 import { readMe, saveMe } from "./Profile";
+import { AssistantSetting } from "../ui/AssistantSetting";
 
 // Profilin altındaki hesap ve ayarlar: yalnız uygulamada gerçekten olan tercihler. Her şey bu bilgisayarda saklanır.
 const STILL = "pg-still";
@@ -57,6 +58,7 @@ export function Settings({ ctx, onRename }: { ctx: Ctx; onRename: () => void }) 
           </label>
         </div>
         <p className="setfoot">Süreler dakika. Çalışan bir pomodoro hemen güncellenir.</p>
+        <AssistantSetting ctx={ctx} />
       </div>
 
       <div className="setcol">
