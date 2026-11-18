@@ -1,5 +1,5 @@
-// Sunucuyu (app.mjs) çalıştırır ve gözetir: npm start, masaüstü uygulaması. Rou sunucu kodunu değiştirince app.mjs 75 koduyla çıkar,
-// burada yeni koduyla yeniden başlar. Başka bir çıkışta bu süreç de aynı kodla çıkar; SIGTERM/SIGINT çocuğa iletilir.
+// Runs and supervises the server (app.mjs): npm start, the desktop app. When Rou changes server code, app.mjs exits with code 75
+// and is restarted here with the new code. On any other exit this process exits with the same code; SIGTERM/SIGINT go to the child.
 import { spawn } from "node:child_process";
 import path from "node:path";
 

@@ -1,6 +1,6 @@
-// Projenin medya kütüphanesi: diskteki bir klasördeki videolar ve görseller (project.mediaDir).
-// Kullanıcı her birini "İyi" ya da "Kötü" diye işaretler (project.media[rel]); otomasyonlar yalnız iyileri kullanır.
-// Dosyalar yerinde kalır, kopyalanmaz. Yol her istekte klasörün içinde mi diye denetlenir.
+// A project's media library: the videos and images in a folder on disk (project.mediaDir).
+// The user marks each one "Good" or "Bad" (project.media[rel]); automations use only the good ones.
+// Files stay where they are and are not copied. On every request the path is checked to be inside the folder.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -13,7 +13,7 @@ export const VIDEO = /\.(mp4|mov|m4v|webm)$/i;
 export const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
 const SKIP = /^(node_modules|frames|probe|\..*)$/;
 const MAX = 600;
-// store.mjs ile döngüsel içe aktarma var (store → prepare → library): yol ilk kullanımda hesaplanır.
+// Circular import with store.mjs (store → prepare → library): the path is computed on first use.
 const thumbsDir = () => path.join(DATA_DIR, "thumbs");
 
 export const expand = (p) => path.resolve(expandHome(p || "", os.homedir()));
@@ -21,12 +21,12 @@ export const dirOf = (projectId) => {
   const p = read().state.projects.find((x) => x.id === projectId);
   return p?.mediaDir ? expand(p.mediaDir) : null;
 };
-// Projenin bütün medya klasörleri: ilki mediaDir, sonrakiler mediaDirs. Ham yazımla (~/...) döner.
+// All of a project's media folders: the first is mediaDir, the rest mediaDirs. Returned as written (~/...).
 export const dirsOf = (projectId) => {
   const p = read().state.projects.find((x) => x.id === projectId);
   return [...new Set([p?.mediaDir, ...(p?.mediaDirs ?? [])].filter(Boolean))];
 };
-// Dosya anahtarı: ilk klasördeki dosya için klasöre göre yol (eski işaretler bozulmasın), diğerleri için "klasör::yol".
+// File key: for a file in the first folder, the path inside the folder (so old marks keep working); for others "folder::path".
 export const keyOf = (dirs, i, rel) => (i === 0 ? rel : `${dirs[i]}::${rel}`);
 export function fileOfKey(projectId, key) {
   const dirs = dirsOf(projectId);
@@ -36,10 +36,10 @@ export function fileOfKey(projectId, key) {
   const d = key.slice(0, k);
   return dirs.includes(d) ? fileOf(expand(d), key.slice(k + 2)) : null;
 }
-// Bütün klasörlerin medyası tek listede, en yeni önce. Okunamayan klasör hata listesine düşer, diğerleri gelir.
+// The media of all folders in one list, newest first. A folder that cannot be read goes to the missing list; the others still come.
 export function listAll(projectId) {
   const dirs = dirsOf(projectId);
-  if (!dirs.length) return { ok: false, error: "Klasör yok" };
+  if (!dirs.length) return { ok: false, error: "No such folder" };
   const items = [];
   const missing = [];
   dirs.forEach((d, i) => {
@@ -50,9 +50,9 @@ export function listAll(projectId) {
   return { ok: true, items: items.sort((a, b) => b.at.localeCompare(a.at)), missing };
 }
 
-// Klasördeki medya, en yeni önce. Derinlik sınırlı; render ara dosyaları (frames, probe) atlanır.
+// The media in a folder, newest first. Depth is limited; render scratch files (frames, probe) are skipped.
 export function list(dir) {
-  if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return { ok: false, error: "Klasör yok" };
+  if (!dir || !fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return { ok: false, error: "No such folder" };
   const out = [];
   const walk = (d, depth) => {
     if (out.length >= MAX) return;
@@ -71,18 +71,18 @@ export function list(dir) {
   return { ok: true, items: out.sort((a, b) => b.at.localeCompare(a.at)) };
 }
 
-// rel klasörün içinde kalmalı ve medya olmalı. mediaDir istemcinin yazabildiği veridir (PUT /api/state):
-// klasör ev dizinine çevrilse bile buradan yalnız görsel ve video okunur, bağlantı (symlink) klasörün dışına çıkaramaz.
+// rel must stay inside the folder and be media. mediaDir is data the client can write (PUT /api/state):
+// even if the folder is pointed at the home directory, only images and videos are read from here, and a symlink cannot lead outside the folder.
 export function fileOf(dir, rel) {
   if (!dir || typeof rel !== "string") return null;
-  // Sitenin adresiyle yazılmış anahtar ("/landing/x.webp") klasörün içinden okunur.
+  // A key written as a site address ("/landing/x.webp") is read from inside the folder.
   const f = path.resolve(dir, rel.replace(/^\/+/, ""));
   if (!f.startsWith(dir + path.sep) || !(VIDEO.test(f) || IMAGE.test(f))) return null;
   if (!fs.existsSync(f) || !fs.statSync(f).isFile()) return null;
   try { return fs.realpathSync(f).startsWith(fs.realpathSync(dir) + path.sep) ? f : null; } catch { return null; }
 }
 
-// Küçük resim: videonun 1. saniyesi (kısa videoda ilk kare), 360 px. data/thumbs'ta saklanır.
+// Thumbnail: second 1 of the video (the first frame of a short one), 360 px. Kept in data/thumbs.
 export function thumb(file) {
   fs.mkdirSync(thumbsDir(), { recursive: true });
   const st = fs.statSync(file);
@@ -93,7 +93,7 @@ export function thumb(file) {
   return run(args(VIDEO.test(file) ? "1" : null)).then((ok) => (ok || !VIDEO.test(file) ? ok : run(args(null)))).then((ok) => (ok ? out : null));
 }
 
-// Ölçü ve süre (ffprobe), dosya + değişme zamanına göre bellekte tutulur. Görselde süre 0.
+// Size and duration (ffprobe), cached in memory by file + modified time. Duration is 0 for an image.
 const probes = new Map();
 export function probe(file) {
   const st = fs.statSync(file);
@@ -105,12 +105,12 @@ export function probe(file) {
     const j = JSON.parse(r.stdout);
     const s = j.streams?.[0];
     if (s?.width) out = { w: s.width, h: s.height, dur: VIDEO.test(file) ? Number(j.format?.duration) || 0 : 0, kind: VIDEO.test(file) ? "video" : "image" };
-  } catch { /* okunamadı */ }
+  } catch { /* could not be read */ }
   probes.set(k, out);
   return out;
 }
 
-// Videonun bir karesi (gönderi slaytı için), data/thumbs'ta tam boy png.
+// One frame of a video (for a post slide), a full-size png in data/thumbs.
 export function frameAt(file, sec) {
   fs.mkdirSync(thumbsDir(), { recursive: true });
   const st = fs.statSync(file);
@@ -119,10 +119,10 @@ export function frameAt(file, sec) {
   return fs.existsSync(out) ? out : null;
 }
 
-// Gönderinin seçtiği kayıtları (scene.clip / slide.image = medya adı) dosyaya çevirir: render'a { file, kind, w, h, from } gider.
-// Bilinmeyen ad atlanır; başlangıç sahne kayıttan taşmasın diye kısılır.
-// Sahnede kayıt yerine kaynağın kendi görseli (ör. haberin sitedeki kapağı) adresle verilebilir: bir kez indirilir, data/media/web-* olarak saklanır.
-// Görselde haber kaynağının logosu/filigranı varsa adresin sonuna #crop=sol,üst,sağ,alt (0-0.6 oran) yazılır: o kenarlar kırpılır. Yatay kapakta yalnız ürünün durduğu yarıyı almak için sol ya da sağ 0.6ya kadar çıkabilir.
+// Turns the recordings a post chose (scene.clip / slide.image = media name) into files: { file, kind, w, h, from } goes to the render.
+// An unknown name is skipped; the start is trimmed so a scene does not run past the recording.
+// Instead of a recording, a scene can be given the source's own image (e.g. a news item's cover on its site) by address: it is downloaded once and kept as data/media/web-*.
+// If the image has the news source's logo/watermark, #crop=left,top,right,bottom (ratios 0-0.6) is added to the address: those edges are cropped. On a wide cover, left or right can go up to 0.6 to keep only the half where the product sits.
 function webFile(ref) {
   const [url, frag = ""] = ref.split("#");
   const ext = (url.match(/\.(png|jpe?g|webp|gif)(?:\?|$)/i)?.[1] ?? "jpg").toLowerCase();
@@ -149,7 +149,7 @@ export function attachMedia(projectId, post) {
     return a && fs.existsSync(a.file) ? { file: a.file, kind: "image", w: 1, h: 1, from: 0 } : undefined;
   };
   const one = (key, from, need) => {
-    // Revize eki (kullanıcının yüklediği ya da Rou'nun eklediği data/media/rou-* dosyası) adıyla verilir.
+    // A revision attachment (a data/media/rou-* file the user uploaded or Rou added) is given by its name.
     const upload = typeof key === "string" && /^rou-[a-z0-9]+\.[a-z0-9]+$/i.test(key) && path.join(DATA_DIR, "media", key);
     const file = key && (upload && fs.existsSync(upload) ? upload : /^https?:\/\//.test(key) ? webFile(key) : fileOfKey(projectId, key));
     const m = file && probe(file);
@@ -157,7 +157,7 @@ export function attachMedia(projectId, post) {
     const f = m.kind === "video" ? Math.max(0, Math.min(Number(from) || 0, m.dur - need - 0.2)) : 0;
     return { file, kind: m.kind, w: m.w, h: m.h, from: Math.round(f * 10) / 10 };
   };
-  // Kayıt yoksa sahne vurucu karttır: obje (asset).
+  // Without a recording the scene is a punch card: an object (asset).
   if (post.scenes) return { ...post, scenes: post.scenes.map((x, i) => {
     const media = one(x.clip, x.from, x.sec + (i === 0 && post.hook ? 2.2 : 0));
     if (media) return { ...x, media, asset: undefined };
@@ -172,8 +172,8 @@ export function attachMedia(projectId, post) {
   return post;
 }
 
-// Kaydın zaman çizelgesi: eşit aralıklı kareler tek görselde (8 sütun, 240 px), soldan sağa, yukarıdan aşağı.
-// İnceleme geçişi bir sahnenin hangi saniyeden başlaması gerektiğini buna bakarak seçer. Sonuç: { file, step } ya da null.
+// A recording's timeline: evenly spaced frames in one image (8 columns, 240 px), left to right, top to bottom.
+// The review pass uses it to choose the second a scene should start from. Result: { file, step } or null.
 export function timeline(file) {
   const m = probe(file);
   if (!m || m.kind !== "video" || !m.dur) return null;

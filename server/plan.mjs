@@ -1,24 +1,24 @@
-// Gönderi konuları: Rou otomasyonların ileri tarihli saatlerine konu önerir (planTopics) ya da haftayı doldurur (fillTopics).
+// Post topics: Rou proposes topics for an automation's upcoming slots (planTopics) or fills the week (fillTopics).
 import { read, update } from "./store.mjs";
 import { runClaude } from "./claude.mjs";
-import { platformName, accountOf } from "../shared/social.mjs";
+import { platformName, accountOf, langRule } from "../shared/social.mjs";
 import { brandBlock, sourcesText } from "./prepare.mjs";
 import { alwaysMedia, pastLessons, visualRules } from "../shared/revise.mjs";
 import { addDirs, workDirs, workHints } from "./findmedia.mjs";
 import { nextRun, occurrenceOf, topicKey } from "../shared/repeat.mjs";
 
-const DAYS = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const addDays = (day, n) => { const [y, m, d] = day.split("-").map(Number); return iso(new Date(y, m - 1, d + n)); };
 const dayName = (day) => { const [y, m, d] = day.split("-").map(Number); return DAYS[new Date(y, m - 1, d).getDay()]; };
 
-// Otomasyonun önümüzdeki çalışmaları için konu önerisi: her saat için kısa başlık + ne anlatacağı.
-// Talimat, marka sesi, Bilgi ve son paylaşılanlar okunur; tekrar etmez. Sunucu veriye yazmaz, uygulama uygular.
-// from/until (YYYY-MM-DD) verilirse yalnız o aralıktaki saatler; empty ise yalnız konusu boş olanlar.
+// Topic proposals for an automation's upcoming runs: for each slot a short title + what it will cover.
+// It reads the instruction, brand voice, Notes and what was recently posted; it does not repeat. The server does not write data, the app applies it.
+// With from/until (YYYY-MM-DD) only the slots in that range; with empty only those without a topic.
 export async function planTopics({ autoId, count, from: since, until, empty, note }, signal) {
   const { state: s } = read();
   const a = s.automations.find((x) => x.id === autoId);
-  if (!a) return { ok: false, error: "Otomasyon yok" };
+  if (!a) return { ok: false, error: "No such automation" };
   const n = Math.max(1, Math.min(14, Number(count) || 6));
   const slots = [];
   const now = new Date();
@@ -29,63 +29,64 @@ export async function planTopics({ autoId, count, from: since, until, empty, not
     if (!r || (until && r.day >= until)) break;
     const task = occurrenceOf(s, a, r.day, r.slot);
     const topic = task?.topic ?? a.topics?.[topicKey(r.day, r.slot)];
-    // Çıktısı olan çalışma zaten yazıldı; ona konu önerilmez.
+    // A run that has an output is already written; no topic is proposed for it.
     if ((!task || !s.runs.some((x) => x.taskId === task.id)) && !(empty && topic)) slots.push(r);
     const [h, m] = (r.slot || "23:59").split(":").map(Number);
     const [y, mo, d] = r.day.split("-").map(Number);
     from = new Date(y, mo - 1, d, h, m + 1);
   }
-  if (!slots.length) return { ok: false, error: "Planlı saat yok" };
+  if (!slots.length) return { ok: false, error: "No scheduled slots" };
   const p = s.projects.find((x) => x.id === a.projectId);
   const acc = accountOf(s, a);
   const ids = new Set(s.tasks.filter((t) => t.autoId === a.id).map((t) => t.id));
   const recent = s.runs.filter((r) => r.taskId && ids.has(r.taskId) && r.body).slice(0, 10).map((r) => r.body.split("\n").find((x) => x.trim())?.slice(0, 140)).filter(Boolean);
   const planned = Object.values(a.topics ?? {}).map((t) => t.title);
-  // Her gönderisinde gerçek görsel şart olan hesapta konu, diskte ya da yayında gerçekten duran bir işe dayanır (source).
+  // On an account that needs real media in every post, a topic rests on work that really exists on disk or live (source).
   const real = alwaysMedia(visualRules(s, { autoId: a.id, worldId: a.worldId }));
   const dirs = real ? workDirs(s, p) : [];
   const used = real ? [...new Set(s.tasks.filter((t) => t.autoId === a.id).map((t) => t.topic?.source).concat(Object.values(a.topics ?? {}).map((t) => t.source)).filter(Boolean))].slice(-30) : [];
   const prompt = [
-    "Kullanıcının bir sosyal medya otomasyonu için önümüzdeki gönderilerin konularını planlıyorsun. Şimdi yalnız konu: her gönderi sonra ayrıca yazılacak.",
-    // Hafta özetinden gelen talimat: o dönemin planı buna göre kurulur, diğer kurallardan önce gelir.
-    note ? `Kullanıcının bu dönem için talimatı (en önemli; konuları buna göre seç ve sırala, istemediği konuyu koyma): ${note}` : "",
-    `Otomasyon: ${a.title}`,
-    acc ? `Hesap: ${platformName(acc)} ${acc.handle || acc.name}${acc.voice ? ` · Tarz: ${acc.voice}` : ""}` : "",
-    p ? `Proje: ${p.name}${p.description ? `: ${p.description}` : ""}` : "",
+    "You are planning the topics of upcoming posts for one of the user's social media automations. For now only the topic: each post will be written separately later.",
+    // An instruction from the weekly review: the plan for that period is built by it, and it comes before the other rules.
+    note ? `The user's instruction for this period (most important; choose and order the topics by it, do not include a topic they do not want): ${note}` : "",
+    `Automation: ${a.title}`,
+    acc ? `Account: ${platformName(acc)} ${acc.handle || acc.name}${acc.voice ? ` · Style: ${acc.voice}` : ""}` : "",
+    acc ? `Write the topic titles and briefs in the account's language. ${langRule(acc)}` : "",
+    p ? `Project: ${p.name}${p.description ? `: ${p.description}` : ""}` : "",
     brandBlock(p),
     sourcesText(p),
-    `Talimat (genel yön): ${a.action || a.title}`,
-    recent.length ? `Son paylaşılanların ilk satırları (tekrar etme):\n${recent.map((x) => `- ${x}`).join("\n")}` : "",
-    (() => { const l = pastLessons(s, { id: "", autoId: a.id }, 10); return l.length ? `Kullanıcı bu otomasyonun gönderilerine şu revizeleri verdi; konu seçerken aynı hataya düşme (ör. istemediği konu, yanlış odak):\n${l.map((x) => `- ${x}`).join("\n")}` : ""; })(),
-    planned.length ? `Zaten planlı konular (tekrar etme):\n${planned.map((x) => `- ${x}`).join("\n")}` : "",
-    `Konu istenen saatler:\n${slots.map((x) => `- ${x.day} ${dayName(x.day)}${x.slot ? ` ${x.slot}` : ""}`).join("\n")}`,
+    `Instruction (general direction): ${a.action || a.title}`,
+    recent.length ? `First lines of what was posted recently (do not repeat):\n${recent.map((x) => `- ${x}`).join("\n")}` : "",
+    (() => { const l = pastLessons(s, { id: "", autoId: a.id }, 10); return l.length ? `The user gave these revisions on this automation's posts; do not repeat the same mistake when choosing topics (e.g. a topic they did not want, the wrong focus):\n${l.map((x) => `- ${x}`).join("\n")}` : ""; })(),
+    planned.length ? `Topics already planned (do not repeat):\n${planned.map((x) => `- ${x}`).join("\n")}` : "",
+    `Slots that need a topic:\n${slots.map((x) => `- ${x.day} ${dayName(x.day)}${x.slot ? ` ${x.slot}` : ""}`).join("\n")}`,
     real ? [
-      "Bu hesabın her gönderisinde gerçek bir görsel ya da video olacak. Bu yüzden her konu kullanıcının GERÇEKTEN var olan ve gösterilebilen bir işine dayanmalı. Konu seçmeden önce Read, Glob ve Grep ile şuralara bak:",
+      "Every post on this account will have a real image or video. So every topic must rest on a piece of the user's work that REALLY exists and can be shown. Before choosing topics, look at these with Read, Glob and Grep:",
       workHints(s),
-      dirs.length ? `Okuyabildiğin klasörler: ${dirs.join(", ")}` : "",
-      "Her konu için source yaz: gönderide gösterilecek şeyin adresi ya da dosya yolu (ör. https://example.com/work/proje ya da bir video dosyası). Hareketli işleri (launch ve logo animasyonu, açılış, geçiş) öne al. brief yalnız o kaynakta gerçekten görüneni anlatsın; kanıtı olmayan olay, deneme ya da karar hikâyesi (ör. 'üç versiyon denedim') yazma. Aynı kaynağı iki konuda kullanma.",
-      used.length ? `Daha önce kullanılan kaynaklar (yeniden kullanma):\n${used.map((x) => `- ${x}`).join("\n")}` : "",
+      dirs.length ? `Folders you can read: ${dirs.join(", ")}` : "",
+      "For every topic write a source: the address or file path of what the post will show (e.g. https://example.com/work/project or a video file). Put moving work (launch and logo animations, openings, transitions) first. The brief must describe only what is really visible in that source; do not write an event, attempt or decision story that has no evidence (e.g. 'I tried three versions'). Do not use the same source in two topics.",
+      used.length ? `Sources used before (do not reuse):\n${used.map((x) => `- ${x}`).join("\n")}` : "",
     ].filter(Boolean).join("\n") : "",
-    "Kurallar: Her saat için bir konu. Konu hesabı takip eden biri için ilginç ve açık olsun: kullanıcının yaptığı bir iş, ürün ya da karar; iç araç adlarına (Rou, otomasyon akışı) dayanan, yalnız onu ilgilendiren altyapı konuları değil. Konular somut ve birbirinden farklı; marka içerik başlıkları varsa dağıt. Bilmediğin rakam, olay, müşteri, ürün özelliği uydurma; Bilgi'de ve talimatta olandan çık. Uzun tire (—) kullanma.",
-    `SADECE şu JSON'u yaz: {"items":[{"day":"YYYY-MM-DD","slot":"HH:MM ya da boş","title":"konu, en fazla 8 kelime","brief":"ne anlatacak, 1-2 cümle"${real ? ',"source":"gösterilecek gerçek işin adresi ya da dosya yolu"' : ""}}]}`,
+    "Rules: one topic per slot. A topic should be interesting and clear to someone who follows the account: a piece of work, a product or a decision of the user; not infrastructure topics that concern only them and rest on internal tool names (Rou, the automation flow). Topics are concrete and different from each other; spread them across the brand's content pillars if there are any. Do not invent numbers, events, customers or product features you do not know; start from what is in the Notes and the instruction. Do not use em dashes (—).",
+    `Write ONLY this JSON: {"items":[{"day":"YYYY-MM-DD","slot":"HH:MM or empty","title":"topic, at most 8 words","brief":"what it will cover, 1-2 sentences"${real ? ',"source":"address or file path of the real work to show"' : ""}}]}`,
   ].filter(Boolean).join("\n\n");
   const r = await runClaude(prompt, (real ? 8 : 3) * 60 * 1000, signal, real ? { args: ["--allowedTools", "Read,Glob,Grep", ...addDirs(dirs)] } : {});
   if (!r.ok) return r;
   let j;
-  try { j = JSON.parse(r.out.match(/\{[\s\S]*\}/)?.[0] ?? ""); } catch { return { ok: false, error: "Konular okunamadı" }; }
+  try { j = JSON.parse(r.out.match(/\{[\s\S]*\}/)?.[0] ?? ""); } catch { return { ok: false, error: "Could not read the topics" }; }
   const clean = (x, n) => String(x || "").replace(/—/g, ",").trim().slice(0, n);
   const items = (Array.isArray(j?.items) ? j.items : []).map((x) => {
     const at = slots.find((y) => y.day === x?.day && (y.slot || "") === (x?.slot || ""));
     return at && x.title ? { day: at.day, slot: at.slot || "", title: clean(x.title, 90), brief: clean(x.brief, 400), ...(real && x.source ? { source: clean(x.source, 300) } : {}) } : null;
   }).filter(Boolean);
-  return items.length ? { ok: true, items } : { ok: false, error: "Konu çıkmadı" };
+  return items.length ? { ok: true, items } : { ok: false, error: "No topics came out" };
 }
 
-// Haftanın konuları: aralıktaki her otomasyonun (Rou yazar) konusu boş saatlerini Rou doldurur ve veriye yazar.
-// Elle yazılmış konuya dokunmaz. Uygulamadaki "Haftayı planla" ve zamanlayıcı (her gün önümüzdeki 7 gün) bunu çağırır.
+// The week's topics: Rou fills the empty-topic slots of every automation (written by Rou) in the range and writes them to the data.
+// Hand-written topics are not touched. "Plan the week" in the app and the scheduler (every day, the next 7 days) call this.
 let filling = false;
 export async function fillTopics(opts, signal) {
-  if (filling) return { ok: false, error: "Rou zaten konu planlıyor" };
+  if (filling) return { ok: false, error: "Rou is already planning topics" };
   filling = true;
   try { return await fill(opts, signal); } finally { filling = false; }
 }
@@ -96,9 +97,9 @@ async function fill({ from, until, autoIds, note }, signal) {
   const errors = [];
   for (const a of autos) {
     if (signal?.aborted) break;
-    // Talimat varsa henüz hazırlanmamış bütün saatler yeniden planlanır; yoksa yalnız boş konular doldurulur.
+    // With an instruction, all slots not yet prepared are planned again; without one, only empty topics are filled.
     const r = await planTopics({ autoId: a.id, count: 14, from, until, empty: !note, note }, signal);
-    if (!r.ok) { if (r.error !== "Planlı saat yok") errors.push(`${a.title}: ${r.error}`); continue; }
+    if (!r.ok) { if (r.error !== "No scheduled slots") errors.push(`${a.title}: ${r.error}`); continue; }
     update((st) => {
       const x = st.automations.find((y) => y.id === a.id);
       if (!x) return;

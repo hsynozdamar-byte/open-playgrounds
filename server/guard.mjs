@@ -1,11 +1,12 @@
-// İstek gerçekten uygulamanın kendi sayfasından (ya da pg, Electron kabuğu gibi yerel bir araçtan) mı geliyor?
-// Tarayıcıda açık başka bir site de 127.0.0.1:5340'a istek atabilir (IP süzgeci onu durdurmaz: bağlantı bu bilgisayardan gelir).
-// O istek /api/change'e ulaşırsa Rou'nun kod değiştiren ajanı başlar. Üç kural bunu keser:
-// - Host yalnız localhost, bir IP adresi, noktasız yerel ad ya da (PG_ALLOW_TAILSCALE=1 ise) Tailscale adı (*.ts.net) olabilir.
-//   Böylece 127.0.0.1'e çevrilen yabancı bir alan adı (DNS rebinding) kendini uygulamanın sayfası gibi gösteremez.
-// - Origin başlığı varsa Host ile aynı olmalı. Başka bir siteden gelen POST'un Origin'i o sitedir.
-// - Tarayıcı isteği "başka siteden" diye işaretlediyse (Sec-Fetch-Site: cross-site) yalnız sayfa açılışı geçer.
-// Node'dan gelen istekler (pg, kabuk, testler) Origin göndermez; onlar Host kuralından geçer.
+// Does a request really come from the app's own page (or a local tool such as `pg` or the Electron shell)?
+// Any other site open in your browser can send requests to 127.0.0.1:5340; the connection comes from this computer,
+// so an address filter would not stop it. If such a request reached /api/change, Rou's code-changing agent would start.
+// Three rules stop that:
+// - Host may only be localhost, an IP address, a dotless local name or (with PG_ALLOW_TAILSCALE=1) a Tailscale name (*.ts.net).
+//   A foreign domain pointed at 127.0.0.1 (DNS rebinding) cannot pass itself off as the app's page.
+// - If there is an Origin header, it must equal Host. A POST from another site carries that site as Origin.
+// - If the browser marks the request as cross-site (Sec-Fetch-Site: cross-site), only a page load passes.
+// Requests from Node (pg, the shell, tests) send no Origin; they pass the Host rule.
 import net from "node:net";
 
 export const hostName = (h = "") => {

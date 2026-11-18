@@ -1,14 +1,14 @@
-// Yeni dünya: adından kimlik ve kullanılmayan ilk renk. Uygulama (Rail, Rou) ve pg aynı kuralı kullanır.
-// Logonun küresiyle aynı aile. Sıra, art arda gelen dünyalar birbirinden en çok ayrılacak şekilde: kırmızı, mavi, camgöbeği, mor,
-// amber, pembe, turkuaz, mercan, çivit, şeftali, lacivert, gece.
+// A new world: an id from its name and the first unused colour. The app (Rail, Rou) and pg use the same rule.
+// Same family as the logo's sphere. The order makes neighbouring worlds differ most: red, blue, cyan, purple,
+// amber, pink, teal, coral, indigo, peach, navy, night.
 export const SWATCHES = ["#ff2a2a", "#3d5afe", "#22c8e6", "#9a2fe0", "#ffb020", "#e0218a", "#14b8a6", "#ff6b5b", "#5b3df0", "#ff9e80", "#2a2052", "#475569"];
 const rnd = () => Math.random().toString(36).slice(2, 8);
 
 export function worldId(s, name) {
-  // Kimlik ASCII: "ACME IT" Türkçe küçültmede "acme ıt" olmasın, "Çalışma" "calisma" olsun.
+  // The id is ASCII: Turkish folding keeps "ACME IT" from becoming "acme ıt" and turns "Çalışma" into "calisma".
   const ascii = { ğ: "g", ü: "u", ş: "s", ı: "i", ö: "o", ç: "c" };
   let id = String(name).toLocaleLowerCase("tr").replace(/[ğüşıöç]/g, (c) => ascii[c]).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || rnd();
-  // "all" tüm dünyalar görünümünün adı; bir dünya bu kimliği alamaz.
+  // "all" is the name of the all-worlds view; a world cannot take this id.
   if (id === "all" || s.worlds.some((w) => w.id === id)) id = `${id}-${rnd().slice(0, 3)}`;
   return id;
 }
@@ -18,8 +18,8 @@ export function newWorld(s, name, description = "", color) {
   return { id: worldId(s, name), name: String(name).trim(), color: color || SWATCHES.find((c) => !used.includes(c)) || SWATCHES[0], description };
 }
 
-// Projeyi başka dünyaya taşır: işleri, takvim blokları, otomasyonları ve Defter notları onunla gider (Bilgi projenin içinde).
-// Projenin kullandığı hesap hedef dünyada yoksa ve eski dünyada başka proje kullanmıyorsa hesap da taşınır.
+// Moves a project to another world: its tasks, calendar blocks, automations and Notebook notes go with it (its Notes live inside the project).
+// If an account the project uses is not in the target world and no other project in the old world uses it, the account moves too.
 export function moveProjectTo(s, projectId, worldId) {
   const p = s.projects.find((x) => x.id === projectId);
   const to = s.worlds.find((w) => w.id === worldId);

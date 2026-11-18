@@ -1,7 +1,7 @@
-// Playground Browser (PB): Playgrounds'un kendi tarayıcısı (browser/, Electron). Saf kurallar; tarayıcı, sunucu ve testler kullanır.
-// Her dünya PB'de ayrı bir oturum bölmesi (persist:pg-<dünya>). Dünyanın hesapları orada açık durur; Rou DevTools portundan çalışır.
+// Playgrounds browser (PB): Playgrounds' own browser (browser/, Electron). Pure rules; used by the browser, the server and tests.
+// Each world is a separate session pane in PB (persist:pg-<world>). The world's accounts stay logged in there; Rou works through the DevTools port.
 
-// Platformların giriş sayfası ve oturum çerezi (yalnız adı ve süresi okunur, değeri asla).
+// Login page and session cookie of each platform (only the name and expiry are read, never the value).
 export const SITES = {
   x: { home: "https://x.com/home", login: "https://x.com/i/flow/login", hosts: ["x.com", "twitter.com"], cookie: [".x.com", "auth_token"] },
   instagram: { home: "https://www.instagram.com/", login: "https://www.instagram.com/accounts/login/", hosts: ["instagram.com"], cookie: [".instagram.com", "sessionid"] },
@@ -16,7 +16,7 @@ export const SITES = {
 };
 export const siteOfPlatform = (p) => SITES[p] ?? null;
 
-// Adres bu platformun alanında mı (şifre yalnız oraya girilir).
+// Whether the address is on this platform's domain (a password is only typed there).
 export function onPlatform(platform, url) {
   const site = SITES[platform];
   let host = "";
@@ -25,16 +25,16 @@ export function onPlatform(platform, url) {
   return site.hosts.some((h) => host === h || host.endsWith(`.${h}`));
 }
 
-// Chrome çerez zamanı: 1601'den beri mikrosaniye. 0 = oturum çerezi (tarayıcı açıkken geçerli).
+// Chrome cookie time: microseconds since 1601. 0 = session cookie (valid while the browser is open).
 const chromeNow = (now = Date.now()) => (now + 11644473600000) * 1000;
-// rows: [{ host_key, name, expires_utc, has_expires }] → platform → true | false | null (bilinmiyor).
+// rows: [{ host_key, name, expires_utc, has_expires }] → platform → true | false | null (unknown).
 export function loginsFromCookies(rows, platforms, now = Date.now()) {
   const out = {};
   for (const p of platforms) {
     const c = SITES[p]?.cookie;
     if (!c) { out[p] = null; continue; }
     const [host, name] = c;
-    // Çerez alt alan adında da olabilir (LinkedIn li_at: .www.linkedin.com).
+    // The cookie can be on a subdomain too (LinkedIn li_at: .www.linkedin.com).
     const base = host.replace(/^\./, "");
     const onHost = (h) => { h = String(h).replace(/^\./, ""); return h === base || h.endsWith(`.${base}`); };
     out[p] = rows.some((r) => r.name === name && onHost(r.host_key) && (!Number(r.has_expires) || Number(r.expires_utc) > chromeNow(now)));

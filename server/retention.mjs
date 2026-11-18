@@ -1,9 +1,9 @@
-// Saklama (günde bir, zamanlayıcıdan). Metin ve kayıtlar hep kalır; yer kaplayan medya kademeli azalır:
-// - Hiçbir kayda (çıktı, sürüm, çöp) bağlı olmayan medya 7 gün sonra media/.trash'e taşınır, orada 30 gün durur, sonra silinir.
-// - Paylaşılmış gönderinin videosu 30 gün sonra kayıttan düşer (dosya yukarıdaki yoldan çöpe gider).
-// - Paylaşılmış gönderi 90 günü geçince görseli tek küçük önizlemeye iner, sürüm geçmişi boşaltılır (run.slim).
-// - Paylaşılmış gönderinin teslim klasörü (paylaşım klasöründe, server/paths.mjs) Çöp Kutusu'na gider.
-// - Başarısız ve yerini yenisine bırakmış eski çıktılar 30 gün sonra Çöp Kutusu'na gider (30 gün geri alınabilir).
+// Retention (once a day, from the scheduler). Text and records always stay; media that takes space shrinks in steps:
+// - Media not linked to any record (output, version, trash) moves to media/.trash after 7 days, stays there 30 days, then is deleted.
+// - A shared post's video is dropped from the record after 30 days (the file goes to the trash by the path above).
+// - A shared post older than 90 days shrinks its images to one small preview and its version history is emptied (run.slim).
+// - A shared post's handoff folder (in the share folder, server/paths.mjs) goes to the Trash.
+// - Failed outputs and old ones replaced by a newer one go to the Trash after 30 days (recoverable for 30 days).
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -20,7 +20,7 @@ const age = (iso, now) => (iso ? (now - Date.parse(iso)) / DAY : 0);
 export function retention(now = Date.now()) {
   const out = { binned: 0, deleted: 0, videos: 0, slimmed: 0, runs: 0 };
   update((s) => {
-    // Eski çıktılar: başarısız ya da aynı işin daha yenisi olan, onaylanmamış/paylaşılmamış çıktılar.
+    // Old outputs: failed ones, or unapproved/unshared ones with a newer output for the same task.
     const latest = new Map();
     for (const r of s.runs) if (r.taskId && !latest.has(r.taskId)) latest.set(r.taskId, r.id);
     const old = s.runs.filter((r) => age(r.at, now) > KEEP.oldRuns && (r.status === "failed" || ((r.status === "ready" || r.status === "working") && r.taskId && latest.get(r.taskId) !== r.id)));
@@ -35,7 +35,7 @@ export function retention(now = Date.now()) {
         if (first) {
           const src = path.join(MEDIA_DIR, path.basename(first));
           const small = first.replace(/(\.\w+)$/, "-thumb.jpg");
-          try { execFileSync(FFMPEG, ["-y", "-loglevel", "error", "-i", src, "-vf", "scale='min(640,iw)':-2", "-q:v", "4", path.join(MEDIA_DIR, path.basename(small))], { stdio: "ignore" }); r.images = [small]; } catch { /* küçültülemezse dokunma */ }
+          try { execFileSync(FFMPEG, ["-y", "-loglevel", "error", "-i", src, "-vf", "scale='min(640,iw)':-2", "-q:v", "4", path.join(MEDIA_DIR, path.basename(small))], { stdio: "ignore" }); r.images = [small]; } catch { /* leave it alone if it cannot be shrunk */ }
         }
         delete r.versions;
         r.slim = true;
@@ -43,9 +43,9 @@ export function retention(now = Date.now()) {
       }
     }
   });
-  // Teslim klasörleri: paylaşılmış ya da kaydı silinmiş çıktılarınki Çöp Kutusu'na (server/share.mjs).
+  // Handoff folders: those of shared or deleted outputs go to the Trash (server/share.mjs).
   out.handoffs = sweepHandoffs(read().state);
-  // Bağsız medya: kayıtların hiçbirinde adı geçmeyen dosyalar.
+  // Unlinked media: files whose name appears in no record.
   const refs = JSON.stringify(read().state);
   fs.mkdirSync(BIN, { recursive: true });
   for (const f of fs.readdirSync(MEDIA_DIR)) {

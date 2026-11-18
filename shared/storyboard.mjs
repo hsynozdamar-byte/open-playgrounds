@@ -1,21 +1,21 @@
-// Sesli video senaryosu: sahne sahne ne söylenir, ekranda hangi yazı, hangi görüntü.
-// Rou yazar (server/prepare.mjs videoPrompt), kullanıcı okur ve kaydeder, render/src/VoiceReel.tsx her sahneyi
-// söylendiği anda gösterir. Görüntüler gerçek: arayüz kodla çizilir, sayfa gerçekten açılıp çekilir; uydurma rakam yok.
+// Voiced video storyboard: scene by scene, what is said, which text is on screen, which visual.
+// Rou writes it (server/prepare.mjs videoPrompt), the user reads and records it, render/src/VoiceReel.tsx shows each scene
+// at the moment it is spoken. Visuals are real: the UI is drawn in code, pages are really opened and shot; no invented numbers.
 
 const num = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.round(+v))) : d);
 const str = (v, max) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 const color = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v ?? "").trim()) ? String(v).trim() : d);
 
-// Görüntü türleri. Rou yalnız bunlardan seçer; her biri anlatılan şeyi gösterir.
+// Visual kinds. Rou picks only from these; each one shows what is being said.
 export const KINDS = {
-  title: "Büyük tek cümle (kanca ya da çıkarım). { text }",
-  card: "Gerçek bir arayüz kartı; ölçüleri önce→sonra değişir, ölçü işaretleri üstünde. { from: { radius, padding, inner, gap }, to: {...aynı alanlar}, marks: [\"radius\"|\"padding\"|\"inner\"|\"gap\"], title, body } (px, 0-64)",
-  type: "Yazı örneği; tipografi önce→sonra. { sample, from: { size, line, tracking, weight }, to: {...} , marks: [\"size\"|\"line\"|\"tracking\"|\"weight\"] } (size px 12-64, line 1.0-2.0, tracking em -0.08..0.1, weight 300-900)",
-  color: "Zemin ve yazı rengi önce→sonra; kontrast oranı hesaplanıp gösterilir. { from: { bg, fg }, to: { bg, fg }, sample } (#rrggbb)",
-  motion: "Aynı hareket iki eğriyle yan yana; eğri çizilir. { from: { ease: \"linear\"|\"ease-in\"|\"ease-out\"|\"spring\", ms }, to: {...} }",
-  rule: "Kuralı formül ya da kısa ifade olarak gösterir. { text } (ör. \"dış radius = iç radius + padding\")",
-  code: "Kısa kod; vurgulanan satır. { lang, code, highlight: [satır no] } (en çok 8 satır)",
-  screen: "Gerçek web sayfası açılıp çekilir, yavaşça kaydırılır. { url } (ör. GitHub repo adresi)",
+  title: "One big sentence (hook or takeaway). { text }",
+  card: "A real UI card; its measures change before→after, with measure marks on top. { from: { radius, padding, inner, gap }, to: {...same fields}, marks: [\"radius\"|\"padding\"|\"inner\"|\"gap\"], title, body } (px, 0-64)",
+  type: "A text sample; typography before→after. { sample, from: { size, line, tracking, weight }, to: {...} , marks: [\"size\"|\"line\"|\"tracking\"|\"weight\"] } (size px 12-64, line 1.0-2.0, tracking em -0.08..0.1, weight 300-900)",
+  color: "Background and text color before→after; the contrast ratio is computed and shown. { from: { bg, fg }, to: { bg, fg }, sample } (#rrggbb)",
+  motion: "The same motion with two curves side by side; the curve is drawn. { from: { ease: \"linear\"|\"ease-in\"|\"ease-out\"|\"spring\", ms }, to: {...} }",
+  rule: "Shows the rule as a formula or short phrase. { text } (e.g. \"outer radius = inner radius + padding\")",
+  code: "Short code; the highlighted line. { lang, code, highlight: [line no] } (at most 8 lines)",
+  screen: "A real web page is opened and shot, scrolled slowly. { url } (e.g. a GitHub repo address)",
 };
 const MARKS = { card: ["radius", "padding", "inner", "gap"], type: ["size", "line", "tracking", "weight"] };
 const EASES = ["linear", "ease-in", "ease-out", "spring"];
@@ -36,7 +36,7 @@ export function normalizeVisual(v) {
   }
   if (kind === "type") {
     const from = typeState(v.from);
-    return { kind, from, to: typeState(v.to, from), marks: (v.marks ?? []).filter((m) => MARKS.type.includes(m)).slice(0, 3), sample: str(v.sample, 120) || "Okunması kolay bir paragraf böyle görünür." };
+    return { kind, from, to: typeState(v.to, from), marks: (v.marks ?? []).filter((m) => MARKS.type.includes(m)).slice(0, 3), sample: str(v.sample, 120) || "A paragraph that is easy to read looks like this." };
   }
   if (kind === "color") {
     const from = { bg: color(v.from?.bg, "#ffffff"), fg: color(v.from?.fg, "#9a9a9a") };
@@ -61,7 +61,7 @@ export function normalizeVisual(v) {
   return null;
 }
 
-// beats: [{ say, text, visual }]. say: söylenecek cümle(ler); text: ekranda en çok 8 kelime.
+// beats: [{ say, text, visual }]. say: the sentence(s) to speak; text: at most 8 words on screen.
 export function normalizeStoryboard(raw) {
   const beats = (Array.isArray(raw?.beats) ? raw.beats : []).map((b) => {
     const say = str(b?.say, 400);
@@ -72,13 +72,13 @@ export function normalizeStoryboard(raw) {
   return beats.length >= 2 ? { beats } : null;
 }
 
-// Okunacak metin: her sahnenin cümlesi ayrı paragraf, başında sahne numarası ve ekran yazısı.
-export const scriptOf = (sb) => sb.beats.map((b, i) => `**${i + 1}. ${b.text || "Sahne"}**\n${b.say}`).join("\n\n");
+// The text to read: each scene's sentence is its own paragraph, headed by the scene number and the on-screen text.
+export const scriptOf = (sb) => sb.beats.map((b, i) => `**${i + 1}. ${b.text || "Scene"}**\n${b.say}`).join("\n\n");
 
-export const STORYBOARD_SCHEMA = `{"beats":[{"say":"söylenecek cümle","text":"ekranda en çok 8 kelime","visual":{"kind":"...", ...}}]}`;
+export const STORYBOARD_SCHEMA = `{"beats":[{"say":"the sentence to speak","text":"at most 8 words on screen","visual":{"kind":"...", ...}}]}`;
 export const kindsText = () => Object.entries(KINDS).map(([k, v]) => `- ${k}: ${v}`).join("\n");
 
-// WCAG kontrast oranı (gösterilen sayı uydurma olmasın diye hesaplanır).
+// WCAG contrast ratio (computed so the number shown is never invented).
 export function contrast(a, b) {
   const lum = (hex) => {
     const n = parseInt(hex.slice(1), 16);
@@ -89,8 +89,8 @@ export function contrast(a, b) {
   return (x + 0.05) / (y + 0.05);
 }
 
-// Sahneleri sesteki kelimelere oturtur: her sahnenin ilk kelimeleri dökümde sırayla aranır.
-// Bulunamayan sahne, kelime sayısına göre araya yerleştirilir. Dönüş: her sahnenin başladığı ms.
+// Aligns scenes to the spoken words: each scene's first words are searched in the transcript in order.
+// A scene not found is placed by word count. Returns the ms each scene starts at.
 const norm = (w) => w.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}]/gu, "");
 export function alignBeats(beats, words) {
   const toks = words.map((w) => norm(w.t));
@@ -106,7 +106,7 @@ export function alignBeats(beats, words) {
     starts.push(hit);
     if (hit >= 0) pos = hit + 1;
   }
-  // Boşlukları doldur: önceki ve sonraki bulunan sahne arasında kelime sayısına göre pay.
+  // Fill the gaps: a share by word count between the previous and next found scene.
   const total = beats.reduce((n, b) => n + b.say.split(/\s+/).length, 0) || 1;
   let acc = 0;
   const share = beats.map((b) => { const at = acc / total; acc += b.say.split(/\s+/).length; return at; });

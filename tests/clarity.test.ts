@@ -15,7 +15,7 @@ describe("revize netleştirme", () => {
     expect(bansOf(task)).toEqual(["Raiden Space"]);
     expect(banHits(task, { body: "raiden space yatırım aldı" })).toEqual(["Raiden Space"]);
     expect(banHits(task, { body: "runway", post: { quote: { text: "Raiden Space" } } })).toEqual([]);
-    expect(reviseBlock(task as never)).toMatch(/ASLA GEÇMEYECEK.*Raiden Space/);
+    expect(reviseBlock(task as never)).toMatch(/MUST NEVER APPEAR.*Raiden Space/);
   });
   it("medya kararı netleşmiş isteği okur", () => {
     const c = (media: string) => ({ revisions: [rev("x", { ask: "a", keep: [], ban: [], media, text: true, visual: false })] });

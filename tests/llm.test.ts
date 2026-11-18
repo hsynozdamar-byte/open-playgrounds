@@ -58,9 +58,9 @@ describe("buildCall", () => {
   it("Claude Code'a özgü işler başka komutta açıklamalı hata", () => {
     const codex = llmConfig({}, "codex");
     for (const args of [["--chrome"], ["--mcp-config", "{}"], ["--permission-mode", "bypassPermissions"], ["--allowedTools", "Read,Bash"]])
-      expect(buildCall(codex, "x", { args }).error).toMatch(/Claude Code gerektirir/);
-    expect(buildCall(codex, "x", { stream: true }).error).toMatch(/canlı/);
-    expect(claudeOnly(["--allowedTools", "Bash(node scripts/pg.mjs:*),Read"])).toBe("Bash aracı");
+      expect(buildCall(codex, "x", { args }).error).toMatch(/needs Claude Code/);
+    expect(buildCall(codex, "x", { stream: true }).error).toMatch(/live/);
+    expect(claudeOnly(["--allowedTools", "Bash(node scripts/pg.mjs:*),Read"])).toBe("the Bash tool");
     expect(claudeOnly(["--allowedTools", "Read,Glob,Grep,WebFetch"])).toBe("");
   });
 });

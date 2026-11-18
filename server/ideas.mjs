@@ -1,14 +1,14 @@
-// İçerik önerileri: bir otomasyon için güncel gündemden gönderi fikirleri (trend, neden şimdi, kaynak).
-// Rou web aramasıyla çıkarır.
-// Sonuç automation.ideas = { at, items: [{ title, brief, why, trend?, url? }], error? }; sürerken { phase }. Hiçbir şey paylaşılmaz.
+// Content ideas: post ideas for an automation drawn from current events (trend, why now, source).
+// Rou produces them with web search.
+// Result automation.ideas = { at, items: [{ title, brief, why, trend?, url? }], error? }; while running { phase }. Nothing is shared.
 import { read, update } from "./store.mjs";
 import { runClaude } from "./claude.mjs";
 
 const busy = new Set();
 const json = (out) => { const m = String(out ?? "").match(/\{[\s\S]*\}/); try { return m ? JSON.parse(m[0]) : null; } catch { return null; } };
-const FORMAT = '{"title": "konu, en çok 70 karakter", "brief": "ne anlatacak, 1-2 cümle", "why": "neden şimdi / neden işe yarar, 1 cümle", "trend": "dayandığı gündem ya da boş", "url": "kaynak ya da boş"}';
+const FORMAT = '{"title": "topic, at most 70 characters", "brief": "what it will cover, 1-2 sentences", "why": "why now / why it works, 1 sentence", "trend": "the current event it rests on, or empty", "url": "source, or empty"}';
 
-// Rou'nun çıktısından gelen fikirler: yalnız bilinen alanlar, sınırlı uzunluk, http(s) kaynak, en çok 8.
+// Ideas from Rou's output: only known fields, limited length, http(s) source, at most 8.
 export const cleanIdeas = (items) => (Array.isArray(items) ? items : [])
   .filter((x) => x && typeof x === "object" && String(x.title ?? "").trim())
   .slice(0, 8)
@@ -16,42 +16,42 @@ export const cleanIdeas = (items) => (Array.isArray(items) ? items : [])
 
 const set = (autoId, v) => update((st) => { const x = st.automations.find((y) => y.id === autoId); if (x) x.ideas = v; });
 
-// Fikirlerin neye göre aranacağı: Rou'nun prompt'unun başı.
+// What the ideas are searched for: the start of Rou's prompt.
 export function ideasBrief(s, a) {
   const p = s.projects.find((x) => x.id === a.projectId);
   const recent = s.runs.filter((r) => s.tasks.find((t) => t.id === r.taskId)?.autoId === a.id).slice(0, 10).map((r) => `- ${r.title}: ${(r.body ?? "").split("\n").find((l) => l.trim())?.slice(0, 120) ?? ""}`);
   const planned = Object.values(a.topics ?? {}).map((t) => `- ${t.title}`).slice(0, 14);
   return [
-    `Kullanıcının "${a.title}" otomasyonu için içerik önerileri${p ? ` (proje: ${p.name}${p.description ? `, ${p.description}` : ""})` : ""}.`,
-    `Otomasyonun talimatı: ${a.action || "(yok)"}`,
-    p?.brand?.audience ? `Kitle: ${p.brand.audience}` : "",
-    recent.length ? `Son gönderiler (tekrarlama):\n${recent.join("\n")}` : "",
-    planned.length ? `Zaten planlı konular (tekrarlama):\n${planned.join("\n")}` : "",
-    "Bu hesaba uyan 6 gönderi fikri çıkar. Her fikir somut olsun: neyi anlatacağı ve neden şimdi işe yarayacağı. Trend ya da haber varsa kaynağını ver; yoksa uydurma, url'yi boş bırak. Türkçe yaz, kısa.",
+    `Content ideas for the user's "${a.title}" automation${p ? ` (project: ${p.name}${p.description ? `, ${p.description}` : ""})` : ""}.`,
+    `The automation's instruction: ${a.action || "(none)"}`,
+    p?.brand?.audience ? `Audience: ${p.brand.audience}` : "",
+    recent.length ? `Recent posts (do not repeat):\n${recent.join("\n")}` : "",
+    planned.length ? `Topics already planned (do not repeat):\n${planned.join("\n")}` : "",
+    "Come up with 6 post ideas that fit this account. Make each idea concrete: what it will cover and why it works now. If there is a trend or news item, give its source; if not, do not invent one, leave url empty. Write briefly, in the language of the account's posts.",
   ].filter(Boolean).join("\n\n");
 }
 
 export function postIdeas(autoId) {
   const { state: s } = read();
   const a = s.automations.find((x) => x.id === autoId);
-  if (!a) return { ok: false, error: "Otomasyon yok" };
-  if (busy.has(autoId)) return { ok: false, error: "Öneriler zaten hazırlanıyor" };
+  if (!a) return { ok: false, error: "No such automation" };
+  if (busy.has(autoId)) return { ok: false, error: "Ideas are already being prepared" };
   const prev = a.ideas;
   const started = new Date().toISOString();
   const brief = ideasBrief(s, a);
 
   busy.add(autoId);
-  set(autoId, { ...(prev ?? {}), at: prev?.at ?? started, error: undefined, phase: "Rou gündemi tarıyor" });
+  set(autoId, { ...(prev ?? {}), at: prev?.at ?? started, error: undefined, phase: "Rou is scanning the news" });
   const prompt = [
     brief,
-    "WebSearch ile bu alanda son günlerin gündemini, tartışılan konuları ve trend formatları ara.",
-    `SADECE şu JSON'u yaz: {"items": [${FORMAT}]}`,
+    "Use WebSearch to look for the latest news in this field, the topics being discussed and trending formats.",
+    `Write ONLY this JSON: {"items": [${FORMAT}]}`,
   ].join("\n\n");
   const done = runClaude(prompt, 6 * 60 * 1000, undefined, { args: ["--allowedTools", "WebSearch,WebFetch"] }).then((r) => {
     busy.delete(autoId);
     const items = cleanIdeas(r.ok ? json(r.out)?.items : null);
     const at = new Date().toISOString();
-    if (!items.length) return set(autoId, { ...(prev ?? {}), at: prev?.at ?? at, phase: undefined, error: String(r.error || "Öneri çıkmadı").slice(0, 300) });
+    if (!items.length) return set(autoId, { ...(prev ?? {}), at: prev?.at ?? at, phase: undefined, error: String(r.error || "No ideas came out").slice(0, 300) });
     set(autoId, { at, items });
   });
   return { ok: true, by: "claude", done };

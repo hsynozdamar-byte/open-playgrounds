@@ -1,5 +1,5 @@
-// Rou: Playgrounds'un içindeki asistan. Bağlı model (`claude -p`) Rou kişiliğiyle ve verinin özetiyle konuşur.
-// Rou veriyi kendisi değiştirmez: bir iş önerir (action), kullanıcı uygulamada onaylarsa istemci uygular. Ücret: Claude aboneliği.
+// Rou: the assistant inside Playgrounds. The connected model (`claude -p`) speaks with Rou's persona and a summary of the data.
+// Rou does not change data itself: it proposes an action, and the client applies it when the user approves in the app.
 import { read, update, MEDIA_DIR } from "./store.mjs";
 import { describeFiles } from "./attach.mjs";
 import { runClaude } from "./claude.mjs";
@@ -10,35 +10,35 @@ import { changeOn } from "./change.mjs";
 
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const STATUS = { todo: "yapılacak", doing: "yapılıyor", waiting: "beklemede", done: "bitti" };
-const DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+const STATUS = { todo: "to do", doing: "in progress", waiting: "waiting", done: "done" };
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WHO = (s) => ({ claude: "Claude", me: userName(s) });
 
-// Hazırlat'a hazır otomasyon işleri: bugün ya da geçmiş, bitmemiş, hazırlayan bot, çıktısı yok.
+// Automation tasks ready to prepare: today or past, not done, prepared by the assistant, no output yet.
 function due(s, today, wname) {
   const list = s.tasks.filter((t) => {
     const a = s.automations.find((x) => x.id === t.autoId);
     return a && a.who !== "me" && t.status !== "done" && t.day && t.day <= today && !s.runs.some((r) => r.taskId === t.id && r.status !== "failed");
   }).slice(0, 12);
-  return list.length ? list.map((t) => `- (id:${t.id}) ${t.title} [${wname(t.worldId)}] gün ${t.day}, hazırlayan ${WHO(s)[s.automations.find((x) => x.id === t.autoId).who]}`).join("\n") : "(yok)";
+  return list.length ? list.map((t) => `- (id:${t.id}) ${t.title} [${wname(t.worldId)}] day ${t.day}, prepared by ${WHO(s)[s.automations.find((x) => x.id === t.autoId).who]}`).join("\n") : "(none)";
 }
 
-// Rou'nun hafızası (state.memory): ortak + o Rou'nun kendi kayıtları; rouId yoksa yalnız ortak. withIds: Rou forget için kimlikleri görür.
+// Rou's memory (state.memory): shared + that Rou's own entries; without rouId only the shared ones. withIds: Rou sees the ids for forget.
 export function memoryText(s, withIds = false, rouId) {
   const list = memoryOf(s, rouId);
-  return list.length ? list.map((m) => `- ${withIds ? `(memId:${m.id}) ` : ""}${rouId ? (m.rouId ? "[kendi] " : "[ortak] ") : ""}${m.text}`).join("\n") : "(henüz yok)";
+  return list.length ? list.map((m) => `- ${withIds ? `(memId:${m.id}) ` : ""}${rouId ? (m.rouId ? "[own] " : "[shared] ") : ""}${m.text}`).join("\n") : "(nothing yet)";
 }
 
-// Modelin göreceği veri: kısa, okunur metin. Seçili dünya varsa o dünya önce gelir.
+// The data the model sees: short, readable text.
 function snapshot(s, lens) {
   const now = new Date();
   const today = iso(now);
   const week = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7));
-  const wname = (id) => s.worlds.find((w) => w.id === id)?.name ?? "Dünyasız";
+  const wname = (id) => s.worlds.find((w) => w.id === id)?.name ?? "No world";
   const pname = (id) => s.projects.find((p) => p.id === id)?.name;
   const where = (t) => [wname(t.worldId), pname(t.projectId)].filter(Boolean).join(" › ");
   const at = (t) => s.blocks.filter((b) => b.taskId === t.id && b.start.slice(0, 10) >= today).sort((a, b) => a.start.localeCompare(b.start))[0];
-  const task = (t) => `- (id:${t.id}) ${t.title}${t.topic?.title ? `: ${t.topic.title}` : ""} [${where(t)}] ${STATUS[t.status]}${t.day ? `, gün ${dayOf(t.day)}` : ""}${currentRun(s, t.id) ? `, çıktısı runId:${currentRun(s, t.id).id}` : ""}${at(t) ? `, saat ${at(t).start.slice(11, 16)}-${at(t).end.slice(11, 16)}` : ""}${t.autoId ? ", otomasyon işi" : ""}${t.deadline ? `, deadline ${t.deadline}` : ""}${t.checklist?.length ? `, ${t.checklist.filter((c) => c.done).length}/${t.checklist.length} alt adım` : ""}`;
+  const task = (t) => `- (id:${t.id}) ${t.title}${t.topic?.title ? `: ${t.topic.title}` : ""} [${where(t)}] ${STATUS[t.status]}${t.day ? `, day ${dayOf(t.day)}` : ""}${currentRun(s, t.id) ? `, output runId:${currentRun(s, t.id).id}` : ""}${at(t) ? `, time ${at(t).start.slice(11, 16)}-${at(t).end.slice(11, 16)}` : ""}${t.autoId ? ", automation task" : ""}${t.deadline ? `, deadline ${t.deadline}` : ""}${t.checklist?.length ? `, ${t.checklist.filter((c) => c.done).length}/${t.checklist.length} subtasks` : ""}`;
   const open = s.tasks.filter((t) => t.status !== "done");
   const late = open.filter((t) => (t.deadline && t.deadline < today) || (t.day && t.day < today));
   const todays = open.filter((t) => t.day === today);
@@ -47,160 +47,159 @@ function snapshot(s, lens) {
   const doneWeek = s.tasks.filter((t) => t.doneAt && iso(new Date(t.doneAt)) > iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)));
   const mins = s.sessions.filter((x) => iso(new Date(x.start)) === today).reduce((n, x) => n + (new Date(x.end) - new Date(x.start)) / 60000, 0);
   const notes = s.inbox.filter((i) => i.state === "new");
-  const list = (arr, max = 25) => (arr.length ? arr.slice(0, max).map(task).join("\n") + (arr.length > max ? `\n(+${arr.length - max} daha)` : "") : "(yok)");
+  const list = (arr, max = 25) => (arr.length ? arr.slice(0, max).map(task).join("\n") + (arr.length > max ? `\n(+${arr.length - max} more)` : "") : "(none)");
   return [
-    `Bugün: ${dayOf(today)}, saat ${pad(now.getHours())}:${pad(now.getMinutes())}. Dün: ${dayOf(iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)))}. Yarın: ${dayOf(iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)))}.`,
-    `Paylaşım ya da gönderi görevi açarken gün: kullanıcı "bugün", "şimdi" ya da gün söylemeden "paylaş" dediyse ${today}; saat geç olsa da yarına erteleme. Yalnız açıkça başka gün dediyse o gün.`,
-    lens && lens !== "all" ? `Kullanıcı şu an "${wname(lens)}" dünyasına bakıyor.` : "Kullanıcı tüm dünyalara bakıyor.",
+    `Today: ${dayOf(today)}, time ${pad(now.getHours())}:${pad(now.getMinutes())}. Yesterday: ${dayOf(iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)))}. Tomorrow: ${dayOf(iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)))}.`,
+    `Day for a share or post task: if the user said "today", "now" (bugün, şimdi) or "share" without naming a day, use ${today}; even if it is late, do not push it to tomorrow. Only use another day when they clearly named one.`,
+    lens && lens !== "all" ? `The user is currently looking at the "${wname(lens)}" world.` : "The user is looking at all worlds.",
     timerLine(s),
-    `Dünyalar: ${s.worlds.map((w) => `${w.name} (id:${w.id})${w.description ? ` (${w.description})` : ""}`).join(", ") || "(yok)"}`,
-    `Hesaplar (paylaşım): ${s.worlds.flatMap((w) => (w.accounts ?? []).filter((a) => !isFeed(a.platform)).map((a) => `${platformName(a)} ${a.name || ""}${a.handle ? ` ${a.handle}` : ""} (accId:${a.id}) [${w.name}]${a.lang ? ` dil ${a.lang}` : ""}`)).join(", ") || "(yok)"}`,
-    `Projeler:\n${s.projects.filter((p) => p.status !== "done").map((p) => `- ${p.name} (id:${p.id}) [${wname(p.worldId)}]${p.status === "paused" ? " durdu" : ""}${p.deadline ? ` deadline ${p.deadline}` : p.ongoing ? " sürekli" : ""}${p.description ? `: ${p.description.replace(/\s+/g, " ").slice(0, 400)}` : ""}${brandLine(p.brand)}`).join("\n") || "(yok)"}`,
-    `Bugünün işleri:\n${list(todays)}`,
-    `Gecikenler:\n${list(late)}`,
-    `Önümüzdeki 7 gün:\n${list(upcoming)}`,
-    `Tarihsiz işler:\n${list(undated, 15)}`,
-    `Son 7 günde biten: ${doneWeek.length} iş. Bugün odakta çalışılan: ${Math.round(mins)} dk.`,
-    `Defter'de bekleyen notlar (en yeni önce):\n${noteList(notes, wname, pname)}`,
-    `Otomasyonlar:\n${s.automations.length ? s.automations.map((a) => `- (autoId:${a.id}) ${a.title} [${wname(a.worldId)}] ${a.status === "active" ? "çalışıyor" : "durdu"}, ${a.times?.join(", ") || "saatsiz"}, hazırlayan ${WHO(s)[a.who] ?? a.who}${a.days?.length ? `, günler ${a.days.map((d) => DAYS[d]).join(" ")}` : ""}${a.image ? ", görselli" : ""}${a.browser ? `, Chrome'da (${a.browser.name})` : ""}${a.action ? `\n  talimat: "${a.action.replace(/\s+/g, " ").slice(0, 500)}"` : ""}${a.visual?.trim() ? `\n  kalıcı görsel kuralları (Kullanıcının kararı; talimatla çelişirse bunlar geçerli): "${a.visual.replace(/\s+/g, " ").slice(0, 700)}"` : ""}`).join("\n") : "(yok)"}`,
-    `Hazırlanabilecek otomasyon işleri (bugün ve gecikmiş, çıktısı yok):\n${due(s, today, wname)}`,
-    `Otomasyon çıktıları (her görevin geçerli çıktısı, en yeni önce; "görev günü" gönderinin takvimdeki günüdür, "hazırlandı" yalnız çıktının üretildiği andır):\n${runLines(s, today, wname)}`,
+    `Worlds: ${s.worlds.map((w) => `${w.name} (id:${w.id})${w.description ? ` (${w.description})` : ""}`).join(", ") || "(none)"}`,
+    `Accounts (posting): ${s.worlds.flatMap((w) => (w.accounts ?? []).filter((a) => !isFeed(a.platform)).map((a) => `${platformName(a)} ${a.name || ""}${a.handle ? ` ${a.handle}` : ""} (accId:${a.id}) [${w.name}]${a.lang ? ` language ${a.lang}` : ""}`)).join(", ") || "(none)"}`,
+    `Projects:\n${s.projects.filter((p) => p.status !== "done").map((p) => `- ${p.name} (id:${p.id}) [${wname(p.worldId)}]${p.status === "paused" ? " paused" : ""}${p.deadline ? ` deadline ${p.deadline}` : p.ongoing ? " ongoing" : ""}${p.description ? `: ${p.description.replace(/\s+/g, " ").slice(0, 400)}` : ""}${brandLine(p.brand)}`).join("\n") || "(none)"}`,
+    `Today's tasks:\n${list(todays)}`,
+    `Late:\n${list(late)}`,
+    `Next 7 days:\n${list(upcoming)}`,
+    `Undated tasks:\n${list(undated, 15)}`,
+    `Done in the last 7 days: ${doneWeek.length} tasks. Focused today: ${Math.round(mins)} min.`,
+    `Notes waiting in the Notebook (newest first):\n${noteList(notes, wname, pname)}`,
+    `Automations:\n${s.automations.length ? s.automations.map((a) => `- (autoId:${a.id}) ${a.title} [${wname(a.worldId)}] ${a.status === "active" ? "running" : "paused"}, ${a.times?.join(", ") || "no time"}, prepared by ${WHO(s)[a.who] ?? a.who}${a.days?.length ? `, days ${a.days.map((d) => DAYS[d]).join(" ")}` : ""}${a.image ? ", with image" : ""}${a.browser ? `, in Chrome (${a.browser.name})` : ""}${a.action ? `\n  instruction: "${a.action.replace(/\s+/g, " ").slice(0, 500)}"` : ""}${a.visual?.trim() ? `\n  permanent visual rules (the user's decision; they win if they conflict with the instruction): "${a.visual.replace(/\s+/g, " ").slice(0, 700)}"` : ""}`).join("\n") : "(none)"}`,
+    `Automation tasks that can be prepared (today and late, no output):\n${due(s, today, wname)}`,
+    `Automation outputs (each task's current output, newest first; "task day" is the post's day on the calendar, "prepared" is only the moment the output was produced):\n${runLines(s, today, wname)}`,
   ].join("\n\n");
 }
 
-// Projenin marka çerçevesi tek satırda: Rou düzenlerken eski hâlini bilsin.
+// The project's brand frame on one line, so Rou knows the old state when editing.
 function brandLine(b) {
   if (!b) return "";
-  const x = [b.audience && `kitle: ${b.audience}`, b.pillars?.length && `başlıklar: ${b.pillars.join(", ")}`, b.use && `ton/kullan: ${b.use}`, b.avoid && `kaçın: ${b.avoid}`].filter(Boolean);
-  return x.length ? `\n  marka: ${x.join("; ")}` : "";
+  const x = [b.audience && `audience: ${b.audience}`, b.pillars?.length && `pillars: ${b.pillars.join(", ")}`, b.use && `tone/use: ${b.use}`, b.avoid && `avoid: ${b.avoid}`].filter(Boolean);
+  return x.length ? `\n  brand: ${x.join("; ")}` : "";
 }
 
-// Defter notları kimlikleri ve metinleriyle: Rou onları okuyup dünyaya, projeye, işe dağıtabilsin.
-const CAT = { note: "not", idea: "fikir", todo: "yapılacak", link: "link" };
+// Notebook notes with their ids and texts, so Rou can read them and sort them into worlds, projects and tasks.
+const CAT = { note: "note", idea: "idea", todo: "to do", link: "link" };
 function noteList(notes, wname, pname) {
-  if (!notes.length) return "(yok)";
+  if (!notes.length) return "(none)";
   const list = [...notes].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)).slice(0, 40);
   return list.map((i) => {
-    const where = i.worldId ? ` [${[wname(i.worldId), pname(i.projectId)].filter(Boolean).join(" › ")}]` : " [yeri yok]";
+    const where = i.worldId ? ` [${[wname(i.worldId), pname(i.projectId)].filter(Boolean).join(" › ")}]` : " [no place]";
     const body = (i.body || "").replace(/\s+/g, " ").trim();
     return `- (noteId:${i.id}) ${CAT[i.category ?? "note"]}: ${i.title}${where}${i.url ? ` ${i.url}` : ""}, ${i.receivedAt.slice(0, 10)}${body ? `\n  "${body.slice(0, 500)}${body.length > 500 ? "…" : ""}"` : ""}`;
-  }).join("\n") + (notes.length > list.length ? `\n(+${notes.length - list.length} daha)` : "");
+  }).join("\n") + (notes.length > list.length ? `\n(+${notes.length - list.length} more)` : "");
 }
 
-// Zamanlayıcının durumu: Rou başlatma/duraklatma önerirken bilmeli.
+// The timer's state: Rou must know it when proposing start/pause.
 function timerLine(s) {
   const t = s.timer;
-  if (!t) return "Zamanlayıcı: çalışmıyor.";
+  if (!t) return "Timer: not running.";
   const task = s.tasks.find((x) => x.id === t.taskId);
-  const state = t.pausedAt ? "duraklatıldı" : t.phase === "break" ? "molada" : "çalışıyor";
-  return `Zamanlayıcı: ${state}, iş "${task?.title ?? "?"}" (id:${t.taskId}), ${t.mode === "pomo" ? `pomodoro ${t.length} dk` : "serbest"}.`;
+  const state = t.pausedAt ? "paused" : t.phase === "break" ? "on break" : "running";
+  return `Timer: ${state}, task "${task?.title ?? "?"}" (id:${t.taskId}), ${t.mode === "pomo" ? `pomodoro ${t.length} min` : "free"}.`;
 }
 
-// "2026-11-10 (Sal)": Rou günü hem tarihle hem adıyla görür ("dünkü", "Salı günkü").
+// "2026-11-10 (Tue)": Rou sees a day by both date and name ("yesterday's", "Tuesday's").
 const dayOf = (day) => `${day} (${DAYS[new Date(`${day}T12:00:00`).getDay()]})`;
 
-// Bir görevin geçerli çıktısı (src/runs.ts runOfTask ile aynı): paylaşılmışsa o, yoksa hazırlanması bitmiş en yenisi.
+// A task's current output (same as runOfTask in src/runs.ts): the posted one if any, else the newest that finished preparing.
 const currentRun = (s, taskId) => s.runs.find((r) => r.taskId === taskId && r.status === "posted") ?? s.runs.find((r) => r.taskId === taskId && !["working", "failed"].includes(r.status)) ?? s.runs.find((r) => r.taskId === taskId && r.status !== "working");
 
-// Otomasyon çıktıları: görev başına TEK satır (geçerli çıktı) ve görevin kendi kimliği, günü, konusu.
-// İki görev aynı başlığı taşıyabilir: liste her görevin gününü ve konusunu gösterir, Rou gün ve konuya göre seçer.
+// Automation outputs: ONE line per task (the current output) with the task's own id, day and topic.
+// Two tasks can share a title: the list shows each task's day and topic, and Rou picks by day and topic.
 export function runLines(s, today, wname = () => "") {
-  const RUN = { working: "hazırlanıyor", failed: "hazırlanamadı", ready: "onay bekliyor", approved: "onaylandı", posted: "paylaşıldı" };
+  const RUN = { working: "preparing", failed: "failed", ready: "awaiting approval", approved: "approved", posted: "posted" };
   const ids = [...new Set(s.runs.map((r) => r.taskId))].slice(0, 14);
   const list = ids.map((id) => currentRun(s, id)).filter(Boolean);
-  if (!list.length) return "(yok)";
+  if (!list.length) return "(none)";
   return list.map((r) => {
     const t = s.tasks.find((x) => x.id === r.taskId);
     const body = (r.body || "").replace(/\s+/g, " ").slice(0, 400);
     const acc = t && accountOf(s, taskRef(s, t));
     const late = t?.day && t.day < today && t.status !== "done" && r.status !== "posted";
     const again = s.runs.some((x) => x.taskId === r.taskId && x.status === "working");
-    return `- (runId:${r.id}) ${t?.title ?? r.title}${t?.topic?.title ? `: ${t.topic.title}` : ""} [${wname(t?.worldId)}]${t ? ` görev id:${t.id}${t.day ? `, görev günü ${dayOf(t.day)}${t.autoSlot ? ` ${t.autoSlot}` : ""}${late ? ", GECİKMİŞ" : ""}` : ""},` : ""}${r.post ? ` ${FORMATS[r.post.format]?.label ?? "gönderi"}${acc ? `, hesap ${platformName(acc)} ${acc.name || ""}${acc.handle ? ` ${acc.handle}` : ""}` : ""}${r.video ? ", videolu" : ""},` : ""} ${RUN[r.status] ?? r.status}${again ? " (yenisi şu an hazırlanıyor)" : ""}, ${r.by ?? "claude"} hazırladı ${(() => { const d = new Date(r.at); return `${iso(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; })()}${r.images?.length ? `, ${r.images.length} görsel` : ""}${body ? `\n  "${body}"` : ""}`;
+    return `- (runId:${r.id}) ${t?.title ?? r.title}${t?.topic?.title ? `: ${t.topic.title}` : ""} [${wname(t?.worldId)}]${t ? ` task id:${t.id}${t.day ? `, task day ${dayOf(t.day)}${t.autoSlot ? ` ${t.autoSlot}` : ""}${late ? ", LATE" : ""}` : ""},` : ""}${r.post ? ` ${FORMATS[r.post.format]?.label ?? "post"}${acc ? `, account ${platformName(acc)} ${acc.name || ""}${acc.handle ? ` ${acc.handle}` : ""}` : ""}${r.video ? ", with video" : ""},` : ""} ${RUN[r.status] ?? r.status}${again ? " (a new one is being prepared now)" : ""}, prepared by ${r.by ?? "claude"} ${(() => { const d = new Date(r.at); return `${iso(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; })()}${r.images?.length ? `, ${r.images.length} images` : ""}${body ? `\n  "${body}"` : ""}`;
   }).join("\n");
 }
 
-// Rou'nun önerebileceği işler. Kimlikler sadece verideki (id:...) değerlerinden gelir.
-const ACTIONS_ALL = `Yapabileceğin işler (action). Tek iş için tek nesne; birden çok iş için plan (aşağıda):
-{"type":"start","taskId":"…","minutes":30}   işin zamanlayıcısını başlat; minutes verilirse o kadar dakikalık pomodoro, verilmezse serbest
-{"type":"pause"}  {"type":"resume"}  {"type":"stop"}   çalışan zamanlayıcıyı duraklat / devam ettir / bitir ve kaydet
-{"type":"add_task","title":"…","worldId":"…","projectId":"…"|null,"day":"YYYY-MM-DD"|null,"at":"HH:MM"|null,"minutes":60|null}   yeni iş ekle (at verilirse takvime o saatte minutes kadar blok). Bir hesapta paylaşılacak gönderi için kullanma: var olan çıktının kopyası copy_post, yeni gönderi change
-{"type":"move","taskId":"…","day":"YYYY-MM-DD"|null}   işi başka güne taşı (null = tarihsiz)
-{"type":"schedule","taskId":"…","day":"YYYY-MM-DD","at":"HH:MM","minutes":60|null}   işi takvime o gün o saate koy (blok)
-{"type":"edit_task","taskId":"…","title":"…","deadline":"YYYY-MM-DD"|null,"projectId":"…"|null,"minutes":45,"notes":"…","steps":["…"]}   işi düzenle; yalnız değişecek alanları yaz. notes işin notunun sonuna eklenir, steps alt adım olarak eklenir, projectId başka dünyanın projesiyse iş o dünyaya geçer
-{"type":"add_project","name":"…","worldId":"…","deadline":"YYYY-MM-DD"|null,"description":"…","ref":"p1"}   yeni proje aç (aynı dünyada aynı adla proje varsa önerme)
-{"type":"edit_project","projectId":"…","name":"…","description":"…","deadline":"YYYY-MM-DD"|null,"ongoing":true|false,"status":"active"|"paused"|"done","brand":{"audience":"…","pillars":["…"],"use":"…","avoid":"…"}}   projeyi güncelle; yalnız değişecek alanları yaz. description ve brand alanları tam yeni hâliyle yazılır (eskisini koru, yalnız değişeni değiştir ya da ekle). brand.use = anlatım tonu ve kullanılacak ifadeler, brand.avoid = kaçınılacaklar; projenin gönderileri bunlara göre hazırlanır
-{"type":"edit_auto","autoId":"…","title":"…","action":"…","days":[0-6],"times":["HH:MM"],"who":"me"|"claude","status":"active"|"paused","visual":"…"}   otomasyonu güncelle; yalnız değişecek alanları yaz. visual = otomasyonun kalıcı görsel/kapak kuralları (her satır bir kural; eskileri koru, yenisini sona ekle), kullanıcı bir görsel revizesini "hep böyle olsun" diye istediğinde ya da bir grup gönderi için genel görsel kuralı koyduğunda ("bu dünyanın oyun gönderilerinde ..."). Kural birden çok otomasyona uyuyorsa (ör. bir dünyanın bütün oyun gönderileri) her biri için edit_auto içeren bir plan öner; tek otomasyonla yetinme. action = Claude'a talimatın tam yeni hâli (eskisini koru, değişeni işle). days 0=Paz … 6=Cmt
-{"type":"done","taskId":"…"}   işi bitti yap
-{"type":"note","title":"…","body":"…","worldId":"…"|null}   Defter'e not ekle
-Defter işleri (noteId'ler "Defter'de bekleyen notlar" listesinden):
-{"type":"note_place","noteId":"…","worldId":"…"|null,"projectId":"…"|null}   notu bir dünyaya ya da projeye koy (projectId verilirse dünya projenin dünyası); not Defter'de kalır
-{"type":"note_task","noteId":"…","title":"…","projectId":"…"|null,"worldId":"…"|null,"day":"YYYY-MM-DD"|null,"at":"HH:MM"|null,"minutes":60|null,"ref":"t1"}   notu işe çevir: iş açılır, notun metni işin notuna geçer, not arşive gider. title notun başlığından daha net bir iş adıysa ver, yoksa boş bırak
-{"type":"note_attach","noteId":"…","taskId":"…","as":"notes"|"steps"}   notu var olan bir işe ekle: notes = işin notuna, steps = notun satırları işin alt adımları olur. Not arşive gider
-{"type":"note_edit","noteId":"…","title":"…","body":"…","category":"note"|"idea"|"todo"|"link"}   notu düzenle: dağınık notu toparla (başlık net, gövde markdown: "- " liste, "- [ ] " yapılacak, "## " ara başlık), kategorisini düzelt. Notun anlamını değiştirme, bilgi ekleme ya da çıkarma
-{"type":"note_archive","noteId":"…"}   notu arşivle (işi bitmiş, artık gerekmeyen not)
-{"type":"approve","runId":"…"}   onay bekleyen otomasyon çıktısını onayla
-{"type":"share","runId":"…"}   onay bekleyen ya da onaylı bir gönderiyi ŞİMDİ hesabında paylaştır (kullanıcı "paylaş", "at", "gönder" derse). X'te metinde bir tweet adresi varsa ve iş "yanıt" ya da "alıntı" diyorsa o tweete yanıt/alıntı olarak atılır; kullanıcı bir tweete yanıt istiyorsa önce revise ile metne tweet adresini ve "yanıt olarak paylaş" notunu yazdır, sonra share. "Yapamam" deme
-{"type":"auto","text":"…","worldId":"…"|null}   yeni otomasyon kur: otomasyon formu Claude'un taslağıyla dolu açılır, kullanıcı bakıp kaydeder. text = isteğin tamamı tek cümlede (ne, hangi hesap ya da platform, hangi günler ve saatler, kim hazırlar, ton); worldId istekte geçen dünya, belli değilse null
-{"type":"revise","runId":"…","note":"…","worldId":"…"|null,"projectId":"…"|null,"accountId":"…"|null}   kullanıcı sohbette bir çıktıyı beğenmediyse ya da değişiklik istediyse HEMEN bunu öner (ona "Revize iste'ye bas" deme): note = isteğinin tamamı, onun sözleriyle ve eksiksiz (ne değişecek, ne eklenecek, neyi koruyacak). Not işin revize geçmişine kalıcı yazılır, Rou çıktıyı baştan hazırlar. Talimatın da kalıcı değişmesi gerekiyorsa edit_auto'yu ayrıca öner, ama revize'yi bekletme. worldId, projectId, accountId yalnız kullanıcı gönderinin BAŞKA bir dünyada, projede ya da hesapta paylaşılmasını isterse dolar (ör. "bunu öbür dünyanın LinkedIn hesabında paylaş"): accountId Hesaplar listesindeki (accId:…), projectId Projeler'deki (id:…), worldId Dünyalar'daki (id:…); hesap o dünyanın olmalı, proje de. Gönderi oraya taşınır; otomasyon işiyse otomasyondan ayrılıp o hesabın tek seferlik gönderisi olur (otomasyon değişmez) ve yeni hesabın sesi, dili ve proje Bilgi'siyle baştan yazılır. İstenen hesap listede yoksa alanı uydurma, bunu söyle. Taşıma istenmiyorsa üçü de null
-{"type":"copy_post","runId":"…","accountId":"…","day":"YYYY-MM-DD"|null,"at":"HH:MM"|null}   bir çıktıyı BAŞKA bir hesapta da paylaştır (kullanıcı "bunu Threads'te de, LinkedIn'de de paylaş" derse): her hesap için bir copy_post (iki hesapsa iki adımlı plan). Kopya o hesabın tek seferlik GÖNDERİ işi olarak açılır, metin ve video/görseller aynen geçer, Gönderiler'de onayını bekler. accountId Hesaplar listesindeki (accId:…); day/at verilmezse kaynağın günü ve saati. Asla add_task ile düz iş açma (düz iş Gönderiler'de görünmez). Yalnız LinkedIn, X ve Threads hesaplarına; Instagram için revise ile taşı. Gönderi bu hesaptan değil de yalnız başka hesapta paylaşılacaksa revise (accountId ile taşıma)
-{"type":"set_text","runId":"…","text":"…"}   kullanıcı bir gönderinin son metnini kendisi verdiyse (yapıştırdı, "bu metni kullan", "elle düzenledim") bunu öner, revise DEĞİL: text = onun metni kelimesi kelimesine, tek harfini değiştirme, kısaltma, düzeltme. Görseller ve video aynen kalır, paylaşım klasöründeki metin.txt de güncellenir
-{"type":"set_example","projectId":"…","text":"…"}   kullanıcı bir metni bir projenin örneği, referansı, "böyle yazılsın" diye verirse: projenin onaylı örneği olur, o projenin bütün taslakları bu sesi hedefler. text kelimesi kelimesine. Aynı mesajda bir gönderinin metniyse set_text ile birlikte planda öner
-{"type":"set_guide","text":"…","mode":"prepend"|"replace"}   kullanıcı bir yazım rehberi, yazı kuralları ya da "genel yazım dili" metni verirse: text = rehberin tamamı kelimesi kelimesine. mode prepend (varsayılan): yeni rehber başa geçer, eskisi altta "Ayrıntılı rehber" olarak kalır, çelişirse yeni geçerli; replace: yalnız "eskisini at, bunu kullan" derse. Rou bütün taslakları bununla yazar ve bununla düzeltir
-{"type":"prepare","taskId":"…"}   hazırlayanı Claude olan bir otomasyon işini şimdi hazırlat (Chrome işleri de; yalnız okur ve öneri çıkarır, hiçbir şey göndermez). taskId "Hazırlanabilecek otomasyon işleri" listesinden
-{"type":"remember","text":"…","shared":true|false}   kullanıcı hakkında kalıcı bir bilgiyi hafızana ekle (tek kısa cümle, üçüncü tekil: "Maaş beklentisi net 90.000 TL."). shared true: kullanıcı hakkında genel bilgi, tüm Rou'lar bilsin; false: yalnız senin görevinle ilgili
-{"type":"forget","memId":"…"}   hafızandan bir bilgiyi sil (memId hafıza listesinden)
-{"type":"add_world","name":"…","description":"…"}   yeni dünya aç (aynı adla dünya varsa önerme; description yalnız kullanıcı söylediyse, yoksa boş)
-{"type":"change","text":"…","files":["rou-….png"]|null}   yukarıdakilerin yetmediği her şeyi kendin yap: sen Claude'sun ve istenince bu bilgisayarda kodla ve komutlarla çalışırsın. Uygulamaya yeni özellik ya da ekran eklemek, görünüşü değiştirmek (renk, yazı, yerleşim), sunucuyu değiştirmek, birden çok adımlı veri işleri (ör. dünya + proje + otomasyon birlikte), sistem işleri. text = isteğin tamamı, net ve tek başına anlaşılır: ne, nerede, nasıl olacak. Kod değişirse kontrol edilir, bozulursa kendiliğinden geri alınır; sonra Geri al da mümkün. Uzun sürebilir (bir iki dakika). Paylaşılacak tek seferlik bir gönderi (metin, görsel, video) istenirse text içinde bunu GÖNDERİ olarak iste: hangi hesaptan paylaşılacağı (hesap id ya da @kullanıcı) ve dili yazılsın, görev \`pg add ... --post <hesap>\` ile açılsın (düz görev Gönderiler'de görünmez); videoysa CLAUDE.md'deki video kuralları geçerli
+// The actions Rou can propose. Ids come only from the (id:...) values in the data.
+const ACTIONS_ALL = `Actions you can take. One object for a single action; a plan (below) for several:
+{"type":"start","taskId":"…","minutes":30}   start the task's timer; with minutes it is a pomodoro of that length, without it a free timer
+{"type":"pause"}  {"type":"resume"}  {"type":"stop"}   pause / resume / finish and save the running timer
+{"type":"add_task","title":"…","worldId":"…","projectId":"…"|null,"day":"YYYY-MM-DD"|null,"at":"HH:MM"|null,"minutes":60|null}   add a new task (with at, a calendar block of that many minutes at that time). Do not use it for a post that will be shared on an account: copy_post for a copy of an existing output, change for a new post
+{"type":"move","taskId":"…","day":"YYYY-MM-DD"|null}   move the task to another day (null = undated)
+{"type":"schedule","taskId":"…","day":"YYYY-MM-DD","at":"HH:MM","minutes":60|null}   put the task on the calendar at that day and time (a block)
+{"type":"edit_task","taskId":"…","title":"…","deadline":"YYYY-MM-DD"|null,"projectId":"…"|null,"minutes":45,"notes":"…","steps":["…"]}   edit the task; write only the fields that change. notes is appended to the end of the task's notes, steps are added as subtasks, and if projectId is a project of another world the task moves to that world
+{"type":"add_project","name":"…","worldId":"…","deadline":"YYYY-MM-DD"|null,"description":"…","ref":"p1"}   create a new project (do not propose it if a project with the same name exists in that world)
+{"type":"edit_project","projectId":"…","name":"…","description":"…","deadline":"YYYY-MM-DD"|null,"ongoing":true|false,"status":"active"|"paused"|"done","brand":{"audience":"…","pillars":["…"],"use":"…","avoid":"…"}}   update the project; write only the fields that change. description and brand are written in their full new form (keep the old, change or add only what changed). brand.use = tone and phrasing to use, brand.avoid = what to avoid; the project's posts are prepared by them
+{"type":"edit_auto","autoId":"…","title":"…","action":"…","days":[0-6],"times":["HH:MM"],"who":"me"|"claude","status":"active"|"paused","visual":"…"}   update the automation; write only the fields that change. visual = the automation's permanent visual/cover rules (one rule per line; keep the old ones, append the new one), for when the user asks for a visual revision to be "always like this" or sets a general visual rule for a group of posts ("in this world's game posts ..."). If a rule fits several automations (e.g. all game posts of a world), propose a plan with an edit_auto for each; do not settle for one automation. action = the full new form of the instruction to Claude (keep the old, work in what changed). days 0=Sun … 6=Sat
+{"type":"done","taskId":"…"}   mark the task done
+{"type":"note","title":"…","body":"…","worldId":"…"|null}   add a note to the Notebook
+Notebook actions (noteIds come from the "Notes waiting in the Notebook" list):
+{"type":"note_place","noteId":"…","worldId":"…"|null,"projectId":"…"|null}   put the note in a world or project (with projectId the world is the project's world); the note stays in the Notebook
+{"type":"note_task","noteId":"…","title":"…","projectId":"…"|null,"worldId":"…"|null,"day":"YYYY-MM-DD"|null,"at":"HH:MM"|null,"minutes":60|null,"ref":"t1"}   turn the note into a task: a task is created, the note's text moves into the task's notes, the note goes to the archive. Give title if it is a clearer task name than the note's title, otherwise leave it empty
+{"type":"note_attach","noteId":"…","taskId":"…","as":"notes"|"steps"}   attach the note to an existing task: notes = into the task's notes, steps = the note's lines become the task's subtasks. The note goes to the archive
+{"type":"note_edit","noteId":"…","title":"…","body":"…","category":"note"|"idea"|"todo"|"link"}   edit the note: tidy a messy note (clear title, markdown body: "- " list, "- [ ] " to do, "## " subheading) and fix its category. Do not change the note's meaning, add or remove information
+{"type":"note_archive","noteId":"…"}   archive the note (finished, no longer needed)
+{"type":"approve","runId":"…"}   approve an automation output that is awaiting approval
+{"type":"share","runId":"…"}   share a post that is awaiting approval or approved on its account NOW (when the user says "share", "post it", "send it"). On X, if the text contains a tweet address and the task says "reply" or "quote", it is sent as a reply/quote to that tweet; if the user wants a reply to a tweet, first have revise put the tweet address and a "share as a reply" note into the text, then share. Never say "I can't"
+{"type":"auto","text":"…","worldId":"…"|null}   set up a new automation: the automation form opens filled with Claude's draft, and the user reviews and saves. text = the whole request in one sentence (what, which account or platform, which days and times, who prepares, tone); worldId = the world named in the request, null if unclear
+{"type":"revise","runId":"…","note":"…","worldId":"…"|null,"projectId":"…"|null,"accountId":"…"|null}   when the user in chat dislikes an output or asks for a change, propose this IMMEDIATELY (do not tell them to press Revise): note = their whole request, in their words and complete (what changes, what is added, what to keep). The note is written permanently to the task's revision history and Rou prepares the output again from scratch. If the instruction also has to change permanently, propose edit_auto separately, but do not hold the revision back. worldId, projectId, accountId are filled only when the user wants the post shared in ANOTHER world, project or account (e.g. "share this on the other world's LinkedIn account"): accountId from the Accounts list (accId:…), projectId from Projects (id:…), worldId from Worlds (id:…); the account must belong to that world, and so must the project. The post moves there; if it is an automation task it detaches from the automation and becomes a one-off post of that account (the automation does not change) and is written from scratch with the new account's voice, language and the project's notes. If the requested account is not in the list, do not invent the field, say so. If no move is wanted, all three are null
+{"type":"copy_post","runId":"…","accountId":"…","day":"YYYY-MM-DD"|null,"at":"HH:MM"|null}   have an output shared on ANOTHER account too (when the user says "share this on Threads too, and LinkedIn"): one copy_post per account (a two-step plan for two accounts). The copy opens as that account's one-off POST task, the text and video/images pass unchanged, and it waits for approval on Posts. accountId from the Accounts list (accId:…); without day/at the source's day and time are used. Never open a plain task with add_task (a plain task does not show on Posts). Only to LinkedIn, X and Threads accounts; for Instagram move it with revise. If the post will be shared only on another account and not on this one, use revise (move with accountId)
+{"type":"set_text","runId":"…","text":"…"}   when the user gave a post's final text themselves (pasted it, "use this text", "I edited it by hand"), propose this, NOT revise: text = their text word for word, do not change, shorten or correct a single character. Images and video stay as they are, and the metin.txt in the share folder is updated too
+{"type":"set_example","projectId":"…","text":"…"}   when the user gives a text as a project's example, reference, "write like this": it becomes the project's approved example, and all of that project's drafts aim at this voice. text word for word. If the same message also gives a post's text, propose it together with set_text in a plan
+{"type":"set_guide","text":"…","mode":"prepend"|"replace"}   when the user gives a writing guide, writing rules or a "general writing style" text: text = the whole guide word for word. mode prepend (default): the new guide goes first, the old one stays below as the "Detailed guide", and the new one wins on conflict; replace: only when they say "drop the old one, use this". Rou writes and corrects all drafts by it
+{"type":"prepare","taskId":"…"}   prepare an automation task whose preparer is Claude now (Chrome tasks too; it only reads and produces proposals, sends nothing). taskId from the "Automation tasks that can be prepared" list
+{"type":"remember","text":"…","shared":true|false}   add a lasting fact about the user to your memory (one short sentence, third person: "Salary expectation is 90,000 net."). shared true: general information about the user, all Rous should know; false: only about your own role
+{"type":"forget","memId":"…"}   delete a fact from your memory (memId from the memory list)
+{"type":"add_world","name":"…","description":"…"}   create a new world (do not propose it if a world with that name exists; description only if the user gave one, otherwise empty)
+{"type":"change","text":"…","files":["rou-….png"]|null}   do yourself everything the above cannot cover: you are Claude, and when asked you work on this computer with code and commands. Add a new feature or screen to the app, change the look (color, type, layout), change the server, multi-step data jobs (e.g. world + project + automation together), system jobs. text = the whole request, clear and self-contained: what, where, how it should be. If code changes it is checked and rolled back by itself if it breaks; Undo is possible afterwards too. It can take a while (a minute or two). If a one-off post (text, image, video) to be shared is asked for, ask for it in text as a POST: say which account it is shared from (account id or @handle) and the language, and have the task opened with \`pg add ... --post <account>\` (a plain task does not show on Posts); if it is a video, the video rules in CLAUDE.md apply
 
-Toplu iş (plan): birden çok iş gerekiyorsa tek bir plan öner. Kullanıcı her adımı tek tek açıp kapatabilir, Onayla seçilenleri birlikte yapar, tek Geri al hepsini geri alır.
-{"type":"plan","title":"Defteri düzenle","steps":[ {…}, {…} ]}
-Plana girebilenler: copy_post, set_example, set_guide, add_task, add_project, edit_task, edit_project, edit_auto, schedule, move, done, note, note_place, note_task, note_attach, note_edit, note_archive, add_world, approve, remember, forget (zamanlayıcı, auto, prepare, share, set_text, change plana girmez, onları tek başına öner). En fazla 40 adım.
-Aynı planda yeni açılan bir kayda sonraki adımda bağlanmak için açan adıma "ref" ver ve sonraki adımda kimlik yerine "@ref" yaz: {"type":"add_project","name":"Lansman","worldId":"…","ref":"p1"}, {"type":"note_task","noteId":"…","projectId":"@p1"}.`;
+Batch work (plan): when several actions are needed, propose a single plan. The user can switch each step on or off, Approve does the selected ones together, and a single Undo reverts them all.
+{"type":"plan","title":"Tidy the Notebook","steps":[ {…}, {…} ]}
+Allowed in a plan: copy_post, set_example, set_guide, add_task, add_project, edit_task, edit_project, edit_auto, schedule, move, done, note, note_place, note_task, note_attach, note_edit, note_archive, add_world, approve, remember, forget (timer, auto, prepare, share, set_text, change are not allowed in a plan, propose them alone). At most 40 steps.
+To refer in a later step to a record opened in the same plan, give the opening step a "ref" and write "@ref" instead of an id in the later step: {"type":"add_project","name":"Launch","worldId":"…","ref":"p1"}, {"type":"note_task","noteId":"…","projectId":"@p1"}.`;
 
-// Rou'nun kod değişikliği (change) kapalıysa model onu hiç görmez.
+// If Rou's code change (change) is off, the model never sees it.
 const actions = () => changeOn() ? ACTIONS_ALL : ACTIONS_ALL.split("\n").filter((l) => !l.startsWith('{"type":"change"')).join("\n")
-  + "\nKod değişikliği (change) bu kurulumda kapalı: hazır eylemlerin yetmediği bir isteği yapamayacağını kısaca söyle, change önerme.";
-const SHOW = `Gösterme: kullanıcı bir çıktıyı, gönderiyi, Reels'i ya da tweeti görmek isterse (ör. "bugünkü LinkedIn postunu göster", "son Reels nasıl olmuş") "show" alanına o çıktıların runId'lerini yaz (en fazla 3). Uygulama onları gerçek görünümleriyle (önizleme, video) sohbette gösterir; metinde içeriği tekrar yazma, kısa bir yorum yeter. Gösterme onay gerektirmez, action değildir.`;
+  + "\nCode change (change) is off in this setup: if a request cannot be done with the ready-made actions, briefly say you cannot do it, and do not propose change.";
+const SHOW = `Showing: if the user wants to see an output, post, Reel or tweet (e.g. "show today's LinkedIn post", "how did the last Reel turn out"), put those outputs' runIds in the "show" field (at most 3). The app shows them in the chat in their real form (preview, video); do not repeat the content in the text, a short comment is enough. Showing needs no approval and is not an action.`;
 
 const WHO_TALKS = (s) => ({ user: userName(s), rou: "Rou" });
 
-// rou: konuşan Rou (state.rous). Varsayılan Rou dışındakiler kendi adı ve kullanıcının verdiği görev talimatıyla konuşur.
+// rou: the speaking Rou (state.rous). Rous other than the default speak with their own name and the role instruction the user gave.
 function prompt(s, lens, messages, rou = rouOf(s)) {
   const me = userName(s);
-  // Önerdiği iş kartı onaylandı mı: onaylanmayan öneri yapılmış sayılmaz.
+  // Was the card of the action it proposed approved: an unapproved suggestion counts as not done.
   const saved = s.chat?.[rou.id] ?? [];
   const actTag = (m) => {
     const x = m.action ? m : saved.find((y) => y.role === "rou" && y.at === m.at && y.text === m.text);
     if (!x?.action || ["undo_change", "show"].includes(x.action.type)) return "";
-    return x.act ? " [önerdiği iş onaylandı ve yapıldı]" : " [önerdiği iş ONAYLANMADI, yapılmadı]";
+    return x.act ? " [the action it proposed was approved and done]" : " [the action it proposed was NOT approved, not done]";
   };
   const talk = messages.slice(-12).map((m) => `${m.role === "rou" ? rou.name : WHO_TALKS(s)[m.role] ?? me}${m.role === "rou" ? actTag(m) : ""}: ${m.text}`).join("\n\n");
   const others = s.rous?.filter((r) => r.id !== rou.id).map((r) => r.name) ?? [];
   return [
     rou.id === DEFAULT_ROU && rou.name === "Rou"
-      ? "Sen Rou'sun: Kullanıcının kişisel planlayıcısı Playgrounds'un içinde yaşayan asistan. Sıcak, kısa ve net konuşursun; arkadaş gibi ama işini bilen biri."
-      : `Adın ${rou.name}. Kullanıcının kişisel planlayıcısı Playgrounds'un içinde yaşayan asistanlardan (Rou'lar) birisin. Sıcak, kısa ve net konuşursun; arkadaş gibi ama işini bilen biri.`,
-    me !== "kullanıcı" ? `Kullanıcının adı: ${me}.` : "",
-    rou.persona?.trim() ? `Kullanıcının sana verdiği görev talimatı (buna göre davran):\n${rou.persona.trim()}` : "",
-    s.chatSummary?.[rou.id]?.text ? `Kullanıcıyla önceki konuşmalarınızın özeti (son mesajlar aşağıda ayrıca var):\n${s.chatSummary[rou.id].text}` : "",
-    others.length ? `Diğer Rou'lar: ${others.join(", ")}. Her birinin sohbeti ve kendi hafızası ayrıdır; ortak hafıza hepinizindir.` : "",
-    "Kurallar: Türkçe yaz (kullanıcı İngilizce yazarsa İngilizce). Kısa tut: çoğu cevap 1-3 cümle ya da kısa bir liste. Uzun tire (—) kullanma. Uygulamada yapılacaklara 'görev' denir: Kullanıcıya yazarken 'iş' değil 'görev' de (görev ekle, görevi aç, bugünün görevleri). Sadece aşağıdaki veriye dayan; veride olmayan iş, tarih, rakam ya da olay uydurma, bilmiyorsan söyle. Markdown başlığı kullanma; gerekirse kısa madde işareti kullan.",
-    "Hafıza: kullanıcı kalıcı bir bilgi ya da tercih söylerse (iş, maaş beklentisi, çalışma saatleri, sevdiği ve sevmediği şeyler, genel yazı tarzı) ya da 'bunu hatırla' derse remember öner; bir bilgi değiştiyse önce eskisini forget ile sil. Geçici şeyleri (bugünkü ruh hali, tek seferlik iş) hatırlama. Cevaplarında hafızandakileri kullan. [ortak] kayıtları tüm Rou'lar bilir, [kendi] kayıtlar yalnız senin.",
-    "Kalıcı kararlar kayda yazılır: kullanıcı bir proje ya da otomasyon için kalıcı bir karar verirse (anlatım tonu, kitle, kural, kaçınılacak şey, paylaşım günleri, kim yapar, görsel olsun olmasın, deadline) bunu hafızaya değil ilgili kayda yaz: proje için edit_project (ton ve kurallar brand'e, projenin ne olduğu description'a), otomasyon için edit_auto (talimat, günler, saatler). Karar o projenin otomasyonlarını da etkiliyorsa (ör. talimatta eski ton yazıyorsa) hepsini tek planda öner. Eski metni koru, yalnız değişeni işle; karar belirsizse ya da hangi proje olduğu belli değilse kısaca sor. remember yalnız kullanıcının kendisi hakkındaki bilgiler için.",
-    `Kullanıcı hakkında hatırladıkların:\n${memoryText(s, true, rou.id)}`,
-    "İş yapma: kullanıcı bir şey yapmanı isterse (başlat, ekle, taşı, bitir, not al, onayla, otomasyon kur, hazırlat, hatırla, unut, dünya aç; ya da uygulamayı, sunucuyu, bilgisayarda bir şeyi değiştirmek gibi başka her şey) action ile öner. Bir şeyi yapamam deme: hazır eylemler yetmiyorsa change ile kendin yaparsın. Kullanıcı bir şey istediyse iş cevabınla birlikte hemen uygulanır, onay beklemez: ne yaptığını tek cümleyle şimdiki zamanla söyle (ör. \"Yazıyı yeniden hazırlıyorum: ad tam yazılacak, yalnız kapak görseli olacak.\"). 'Onaylarsan', 'yapayım mı', 'ister misin' deme, izin isteme. Yalnız share, approve, forget ve set_guide replace kartta kullanıcının onayını bekler; bunlarda cümle onay beklediğini söylesin (ör. \"Onaylarsan şimdi paylaşırım.\"). Kullanıcı bir şey istemeden, kendi fikrinle bir iş önereceksen action verme, metinde sor. Geçmişte [önerdiği iş ONAYLANMADI] yazan bir öneri yapılmadı: kullanıcı aynı şeyi yeniden isterse bunu söyle ve kartı yeniden öner. Kullanıcı senden bir iş isterse (ör. Gmail'deki abonelikleri temizle, bir sitede bir şey yap) önce o işi ilgili dünyada (kişisel işler Kişisel dünyasında) Rou'ya atanmış bir görev olarak aç ki kartından takip edilsin; işi kendin yap. İş ve paylaşım her zaman sende. Hangi iş olduğu belirsizse action verme, kısaca sor. Kimlikleri sadece verideki (id:...) ve (runId:...) değerlerinden al, asla uydurma. Tarihleri bugüne göre YYYY-MM-DD yaz.",
-    "Hangi gönderi: kullanıcı bir gönderiyi günüyle ve konusuyla tarif ederse (\"dünkü lansman gönderisi\", \"Salı günkü\", \"geciken gönderi\") çıktıyı GÖREVİN GÜNÜNE ve metnin anlattığı konuya göre seç: \"görev günü\" o gün olan ve metni o konuyu anlatan çıktı. Aynı adlı birden çok görev olabilir; adla ya da en yeni çıktıyla seçme. \"Hazırlandı\" saati görevin günü değildir: dünkü gönderi bugün yeniden hazırlanmış olabilir. \"Geciken\" yalnız GECİKMİŞ yazan görevdir. Mesajda adı geçen marka ya da proje seçtiğin çıktının metninde ya da konusunda geçmiyorsa o çıktı yanlıştır. Gün ve konu aynı çıktıda buluşmuyorsa action verme, iki adayı günleriyle yazıp hangisi olduğunu sor. Cevabında hangi gönderiyi seçtiğini günü ve konusuyla söyle (ör. \"Salı günkü lansman carousel'ini yeniden hazırlıyorum\").",
-    "Verilmiş karar yeniden sorulmaz: Kullanıcının bir kararı veride yazıyorsa (otomasyonun kalıcı görsel kuralları, talimatı, projenin markası, hafıza) onu \"hep böyle olsun mu\" diye yeniden sorma; yazılı karara göre davran.",
-    "Defter: Kullanıcının hızlı notları. Defteri düzenlemeni, dağıtmanı, toparlamanı isterse (ya da 'Defteri düzenle' derse) bekleyen notların her birini oku ve en uygun yeri öner: bir dünyanın projesine ait ve yapılacak bir şeyse note_task (proje ve gün belliyse ver), var olan bir işin parçasıysa note_attach, yalnız bir yere aitse note_place, dağınıksa note_edit, bitmiş ya da gereksizse note_archive. Emin olmadığın notu plana koyma, metinde kısaca sor (hangi dünya?). Projesi olmayan bir konu birden çok notta geçiyorsa add_project + ref ile proje aç ve notları içine koy. Hepsini tek planda öner; metinde kısa özet ver (ör. \"7 not: 4'ü işe, 2'si bir projeye, 1'i arşive.\"), notları tek tek sayma, kart zaten gösteriyor.",
+      ? "You are Rou: the assistant that lives inside Playgrounds, the user's personal planner. You speak warmly, briefly and clearly; like a friend who knows the work."
+      : `Your name is ${rou.name}. You are one of the assistants (Rous) that live inside Playgrounds, the user's personal planner. You speak warmly, briefly and clearly; like a friend who knows the work.`,
+    me !== "user" ? `The user's name: ${me}.` : "",
+    rou.persona?.trim() ? `The role instruction the user gave you (act by it):\n${rou.persona.trim()}` : "",
+    s.chatSummary?.[rou.id]?.text ? `Summary of your earlier conversations with the user (the latest messages are given separately below):\n${s.chatSummary[rou.id].text}` : "",
+    others.length ? `Other Rous: ${others.join(", ")}. Each has its own chat and its own memory; the shared memory belongs to all of you.` : "",
+    "Rules: answer in the language the user writes in (if the user mixes languages, use the language of their last message). Keep it short: most answers are 1-3 sentences or a short list. Do not use em dashes (—). In the app, things to do are called 'tasks': say 'task' to the user (add a task, open the task, today's tasks). Rely only on the data below; do not invent tasks, dates, numbers or events that are not in the data, and say so when you do not know. Do not use Markdown headings; use short bullet points if needed.",
+    "Memory: if the user states a lasting fact or preference (job, salary expectation, working hours, likes and dislikes, general writing style) or says 'remember this', propose remember; if a fact changed, first delete the old one with forget. Do not remember temporary things (today's mood, a one-off task). Use what is in your memory in your answers. [shared] entries are known to all Rous, [own] entries only to you.",
+    "Lasting decisions go on the record: if the user makes a lasting decision for a project or an automation (tone, audience, a rule, something to avoid, posting days, who does it, visual or not, deadline), write it not to memory but to the relevant record: edit_project for a project (tone and rules into brand, what the project is into description), edit_auto for an automation (instruction, days, times). If the decision also affects that project's automations (e.g. the instruction names the old tone), propose all of them in one plan. Keep the old text, change only what changed; if the decision is unclear or it is not clear which project, ask briefly. remember is only for facts about the user themselves.",
+    "Taking action: if the user asks you to do something (start, add, move, finish, note, approve, set up an automation, prepare, remember, forget, create a world; or anything else such as changing the app, the server, something on the computer), propose it with action. Never say you cannot do something: if the ready-made actions are not enough, do it yourself with change. When the user asked for something, the action is applied immediately together with your answer, with no approval step: say in one sentence in the present tense what you are doing (e.g. \"I am preparing the post again: the name will be written in full, and it will have only the cover image.\"). Do not say 'if you approve', 'shall I', 'would you like', do not ask permission. Only share, approve, forget and set_guide replace wait for the user's approval on the card; for these, the sentence should say it is waiting for approval (e.g. \"If you approve, I will share it now.\"). If you are going to suggest an action on your own idea, without the user asking, do not give an action, ask in the text. A past suggestion marked [the action it proposed was NOT approved] was not done: if the user asks for the same thing again, say so and propose the card again. If the user asks you for a job (e.g. clean up the subscriptions in Gmail, do something on a site), first open that job as a task assigned to Rou in the relevant world (personal jobs in the Personal world) so it can be followed from its card; do the job yourself. Jobs and sharing are always yours. If it is unclear which job, give no action, ask briefly. Take ids only from the (id:...) and (runId:...) values in the data, never invent them. Write dates as YYYY-MM-DD relative to today.",
+    "Which post: if the user describes a post by its day and topic (\"yesterday's launch post\", \"Tuesday's\", \"the late post\"), pick the output by the TASK'S DAY and by the topic the text covers: the output whose \"task day\" is that day and whose text covers that topic. Several tasks can share a name; do not pick by name or by the newest output. The \"prepared\" time is not the task's day: yesterday's post may have been prepared again today. \"Late\" means only a task marked LATE. If the brand or project named in the message does not appear in the chosen output's text or topic, that output is wrong. If day and topic do not meet in one output, give no action, write the two candidates with their days and ask which. In your answer say which post you picked with its day and topic (e.g. \"I am preparing Tuesday's launch carousel again\").",
+    "A decision already made is not asked again: if the user's decision is written in the data (an automation's permanent visual rules, its instruction, the project's brand, memory), do not ask \"should it always be like this?\" again; act by what is written.",
+    "Notebook: the user's quick notes. If they ask you to tidy, distribute or sort the Notebook (or say 'Tidy the Notebook'), read each waiting note and propose the best place: if it belongs to a world's project and is something to do, note_task (give the project and day if known), if it is part of an existing task, note_attach, if it only belongs to a place, note_place, if it is messy, note_edit, if it is done or unnecessary, note_archive. Do not put a note you are unsure about into the plan, ask briefly in the text (which world?). If a topic with no project appears in several notes, open a project with add_project + ref and put the notes in it. Propose all of it in one plan; give a short summary in the text (e.g. \"7 notes: 4 to tasks, 2 to a project, 1 to the archive.\"), do not count the notes one by one, the card already shows them.",
     actions(),
     SHOW,
-    `Playgrounds verisi (şu an):\n${snapshot(s, lens)}`,
-    `Konuşma:\n${talk}`,
-    `${rou.name} olarak son mesaja cevap ver. Çıktın SADECE tek bir JSON nesnesi olsun, başka hiçbir şey yazma: {"text":"cevabın","action":null,"show":[]} (action ya da show dolu olabilir).`,
+    `Playgrounds data (now):\n${snapshot(s, lens)}`,
+    `Conversation:\n${talk}`,
+    `Answer the last message as ${rou.name}. Your output must be ONLY a single JSON object, write nothing else: {"text":"your answer","action":null,"show":[]} (action or show may be filled).`,
   ].filter(Boolean).join("\n\n");
 }
 
-// Öneri: tek nesne ya da plan. Model bir "actions" dizisi yazdıysa plana çevrilir; tek adımlı plan tek öneri olur.
+// A proposal: a single object or a plan. If the model wrote an "actions" array it becomes a plan; a one-step plan becomes a single proposal.
 const isAct = (a) => a && typeof a === "object" && typeof a.type === "string";
 function actionOf(j) {
   let a = isAct(j.action) ? j.action : Array.isArray(j.actions) && j.actions.length ? { type: "plan", title: "", steps: j.actions } : null;
@@ -211,30 +210,30 @@ function actionOf(j) {
   return a;
 }
 
-// Modelin çıktısından JSON'u çıkar; bozuksa düz metin olarak kabul et.
+// Extracts the JSON from the model's output; if it is broken, takes it as plain text.
 function parse(out) {
   const m = out.match(/\{[\s\S]*\}/);
   if (m) {
     try {
       const j = JSON.parse(m[0]);
       if (typeof j.text === "string") return { text: j.text.trim(), action: actionOf(j), show: Array.isArray(j.show) ? j.show.filter((x) => typeof x === "string").slice(0, 3) : [], ask: typeof j.ask === "string" && j.ask.trim() ? j.ask.trim().slice(0, 600) : "" };
-    } catch { /* düz metin */ }
+    } catch { /* plain text */ }
   }
   return { text: out.trim(), action: null, show: [], ask: "" };
 }
 
 export async function ask(messages, lens, rouId) {
   const { state } = read();
-  // Ekler: son 6 mesajdakiler satır olarak mesaja eklenir; görseller, video kareleri ve belgeler Read ile açılır (yalnız okuma).
+  // Attachments: those in the last 6 messages are added to the message as lines; images, video frames and documents are opened with Read (read-only).
   const read_ = [];
   const withFiles = [];
   for (const [i, m] of messages.entries()) {
     if (!m.files?.length || i < messages.length - 6) { withFiles.push(m); continue; }
     const d = await describeFiles(m.files);
     read_.push(...d.read);
-    withFiles.push({ ...m, text: `${m.text}${d.lines.length ? `\n[Ekler]\n${d.lines.join("\n")}` : ""}` });
+    withFiles.push({ ...m, text: `${m.text}${d.lines.length ? `\n[Attachments]\n${d.lines.join("\n")}` : ""}` });
   }
-  const look = read_.length ? "\n\nEkler: Kullanıcının eklediği görselleri, video karelerini ve belgeleri Read aracıyla açıp gerçekten bak; cevabını gördüğüne dayandır. Uygulamanın kodunu değiştirme önerisinde (change) ilgili eklerin dosya adlarını files alanına yaz." : "";
+  const look = read_.length ? "\n\nAttachments: open the images, video frames and documents the user attached with the Read tool and really look at them; base your answer on what you see. In a proposal to change the app's code (change), put the file names of the relevant attachments in the files field." : "";
   const r = await runClaude(prompt(state, lens, withFiles, rouOf(state, rouId)) + look, read_.length ? 240000 : 120000, undefined,
     read_.length ? { args: ["--allowedTools", "Read", "--add-dir", MEDIA_DIR] } : {});
   if (!r.ok) return { ok: false, error: r.error.slice(0, 300) };
@@ -243,9 +242,9 @@ export async function ask(messages, lens, rouId) {
   return { ok: true, ...out };
 }
 
-// Uzun sohbet: Rou her soruda son 12 mesajı görür. Bu pencereden düşen mesajlar arka planda kısa bir özete katlanır
-// (state.chatSummary[rouId] = { text, upTo }); özet her soruda verilir, böylece eski konuşma unutulmaz ama bağlam şişmez.
-// Kalıcı bilgi (tercih, karar) yine hafızaya (remember) yazılır.
+// Long chat: Rou sees the last 12 messages on every question. Messages that fall out of this window are folded into a short summary in the background
+// (state.chatSummary[rouId] = { text, upTo }); the summary is given on every question, so the old conversation is not forgotten but the context does not bloat.
+// Lasting facts (preferences, decisions) are still written to memory (remember).
 const KEEP = 12;
 const summarizing = new Set();
 export async function summarize(rouId) {
@@ -258,10 +257,10 @@ export async function summarize(rouId) {
   summarizing.add(rouId);
   try {
     const r = await runClaude([
-      "Kullanıcı ile asistanı Rou arasındaki eski sohbeti özetliyorsun. Özet, Rou'nun ileride bu konuşmayı hatırlaması için.",
-      prev?.text ? `Şimdiye kadarki özet:\n${prev.text}` : "",
-      `Özete eklenecek mesajlar:\n${old.map((m) => `${m.role === "rou" ? "Rou" : userName(s)} (${m.at.slice(0, 10)}): ${m.text.slice(0, 800)}`).join("\n")}`,
-      "Kurallar: Türkçe, en fazla 1200 karakter, kısa maddeler. Yalnız sonra işe yarayacakları tut: verilen kararlar, istekler, açık kalan işler, kullanıcının tercihleri. Selamlaşma ve tekrar edilen şeyleri at. Uydurma. Uzun tire kullanma. SADECE özeti yaz.",
+      "You are summarizing the old chat between the user and their assistant Rou. The summary is so Rou can remember this conversation later.",
+      prev?.text ? `Summary so far:\n${prev.text}` : "",
+      `Messages to add to the summary:\n${old.map((m) => `${m.role === "rou" ? "Rou" : userName(s)} (${m.at.slice(0, 10)}): ${m.text.slice(0, 800)}`).join("\n")}`,
+      "Rules: in the language the conversation is in, at most 1200 characters, short bullet points. Keep only what will be useful later: decisions made, requests, open tasks, the user's preferences. Drop greetings and repeated things. Do not invent. Do not use em dashes. Write ONLY the summary.",
     ].filter(Boolean).join("\n\n"), 90000, undefined, { tier: "fast" });
     if (r.ok && r.out.trim()) update((st) => { st.chatSummary = { ...(st.chatSummary ?? {}), [rouId]: { text: r.out.trim().replace(/^```\w*\n?|\n?```$/g, "").trim().slice(0, 1500), upTo: old[old.length - 1].at, at: new Date().toISOString() } }; });
   } finally { summarizing.delete(rouId); }

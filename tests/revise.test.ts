@@ -19,7 +19,7 @@ describe("revizeler", () => {
     const b = reviseBlock(t);
     expect(b).toContain("1. ");
     expect(b).toContain("daha kısa");
-    expect(b).toContain("(EN SON): bağlantı ekle");
+    expect(b).toContain("(LATEST): bağlantı ekle");
     expect(b).toContain('"""\nv2\n"""');
   });
   it("YAPILAMADI satırlarını çıktıdan ayırır", () => {
@@ -33,7 +33,7 @@ describe("revize ekleri", () => {
   it("dosyalar revizede saklanır, Rou'ya iletilir ve tekrarsız toplanır", async () => {
     const { addRevision, reviseBlock, revisionFiles } = await import("../shared/revise.mjs");
     const t: Record<string, unknown> = {};
-    expect(addRevision(t, { note: "", files: [{ file: "rou-a.png", kind: "image" }] })?.note).toContain("dosyaları kullan");
+    expect(addRevision(t, { note: "", files: [{ file: "rou-a.png", kind: "image" }] })?.note).toContain("files I attached");
     addRevision(t, { note: "video bu olsun", files: [{ file: "rou-v.mp4", kind: "video" }, { file: "rou-a.png", kind: "image" }] });
     expect(revisionFiles(t).map((f: { file: string }) => f.file)).toEqual(["rou-a.png", "rou-v.mp4"]);
     expect(reviseBlock(t)).toContain("video data/media/rou-v.mp4");
@@ -61,9 +61,9 @@ describe("revize denetimi", () => {
     expect(revisionsOf(t2)).toHaveLength(2);
     expect(revisionsOf(t2).at(-1)).toMatchObject({ note: "animasyonu ekle", runId: "r2", clear: { media: "new" } });
     expect(revisionsOf(t).at(-1)).not.toHaveProperty("redo");
-    expect(reviseBlock(t2)).toContain("İLK DENEMEDE EKSİK KALDI");
+    expect(reviseBlock(t2)).toContain("MISSING FROM THE FIRST ATTEMPT");
     expect(reviseBlock(t2)).toContain("- Logo animasyonu video olarak yok, durağan görsel var");
-    expect(reviseBlock(t)).not.toContain("İLK DENEMEDE EKSİK KALDI");
+    expect(reviseBlock(t)).not.toContain("MISSING FROM THE FIRST ATTEMPT");
     expect(redoScope(missed)).toEqual({ text: false, visual: true });
     expect(redoScope([{ what: "siteyi yaz", part: "text" }])).toEqual({ text: true, visual: false });
   });
@@ -80,7 +80,7 @@ describe("revize notunu anlama", () => {
     expect(p).toContain("Proje A, Proje B");
     expect(p).toContain("media new");
     expect(p).toContain('"need"');
-    expect(clarifyPrompt(task, {})).toContain("görselleri/videosu: yok");
+    expect(clarifyPrompt(task, {})).toContain("Images/video of the output the note was given on: none");
     const c = parseClarity('{"ask":"Siteyi baştan sona gezdiren video ekle.","keep":[],"ban":[],"media":"new","text":true,"visual":true,"need":["Proje A sitesinde hangi bölümler var?","x"]}');
     expect(c.need).toEqual(["Proje A sitesinde hangi bölümler var?"]);
     expect(parseClarity('{"ask":"Kısalt.","media":"any","text":true,"visual":false,"need":[]}')).not.toHaveProperty("need");
@@ -95,7 +95,7 @@ describe("revize talimatı düzeltir", () => {
     const task = { title: "Bölüm motoru", post: { brief: "Level 17 örneğini anlat." }, revisions: [{ at: "a", note: "motor hakkında ne yazmışsın, level 17 ne" }] };
     const p = clarifyPrompt(task, {});
     expect(p).toContain("Level 17 örneğini anlat.");
-    expect(p).toContain("'X ne alaka'");
+    expect(p).toContain("'what does X have to do with it'");
     const c = parseClarity('{"ask":"Motoru anlat.","ban":["Level 17"],"media":"new","brief":"Bölüm motorunun nasıl çalıştığını anlat: üretim, çözücü, ret kuralları."}');
     expect(c.ban).toEqual(["Level 17"]);
     expect(setBrief(task, task.revisions[0], c.brief)).toBe(true);

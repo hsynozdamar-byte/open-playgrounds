@@ -1,8 +1,8 @@
-// Tarayıcıda paylaşım: Claude, kullanıcının açık Chrome'unda (Claude in Chrome eklentisi) çalışır.
-// Paylaşım Playgrounds'un tarayıcısında, hesabın dünyasının oturumunda yapılır (server/pb.mjs). Yedek yol (uygulama yoksa): hesabın bağlı
-// Chrome'u (account.browser); paylaşmadan önce o Chrome'da açık hesabın
-// kullanıcı adı hesabınkiyle karşılaştırılır, uymazsa hiçbir şey paylaşılmaz.
-// Paylaşım onaylanmış gönderide başlar: elle (POST /api/publish) ya da saatinde zamanlayıcıdan (server/share.mjs).
+// Sharing in the browser: the assistant works in the user's open Chrome (Claude in Chrome extension).
+// Sharing happens in the Playgrounds browser, in the session of the account's world (server/pb.mjs). Fallback (no app): the account's
+// linked Chrome (account.browser); before sharing, the handle logged in there is compared with the
+// account's, and nothing is shared if they differ.
+// Sharing starts on an approved post: by hand (POST /api/publish) or from the scheduler at its time (server/share.mjs).
 import path from "node:path";
 import { read, update, MEDIA_DIR, DATA_DIR } from "./store.mjs";
 import { shareFiles } from "./sharemedia.mjs";
@@ -27,7 +27,7 @@ export const HOME = {
   youtube: "https://studio.youtube.com/",
 };
 export const canPublish = (platform) => Object.hasOwn(HOME, platform);
-// Site yönetim paneli: "Diğer" türündeki hesabın kullanıcı adı bir adresse (example.com/admin gibi) Rou yazıyı o panele girer.
+// Site admin panel: if the handle of an "other" account is an address (like example.com/admin), Rou enters the post in that panel.
 export const panelUrl = (acc) => {
   const h = String(acc?.handle ?? "").trim();
   if (acc?.platform !== "other" || !/^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(h)) return null;
@@ -43,111 +43,111 @@ const norm = (h) => String(h ?? "").trim().replace(/^@/, "").toLowerCase();
 const busy = new Set();
 export const publishing = () => [...busy];
 
-// Bağlı Chrome'lar: [{ id, name, local }].
-// Bağlı Chrome listesi 10 dakika saklanır: her "Rou başlasın"da yeniden aramak 10-30 sn sürüyordu.
+// Connected Chromes: [{ id, name, local }].
+// The list is kept for 10 minutes: searching again on every "Rou, start" took 10-30 s.
 let seenBrowsers = null;
 export async function browsers() {
   if (seenBrowsers && Date.now() - seenBrowsers.at < 10 * 60 * 1000) return { ok: true, list: seenBrowsers.list };
-  // Aynı anda gelen istekler tek aramayı bekler (zamanlayıcı ile kart birlikte sorabilir).
+  // Requests that arrive together wait for one search (the scheduler and a card may ask at once).
   if (looking) return looking;
   looking = findBrowsers().finally(() => { looking = null; });
   return looking;
 }
 let looking = null;
 async function findBrowsers() {
-  const r = await runClaude("list_connected_browsers aracını bir kez çağır ve SADECE sonucunu ham JSON dizisi olarak yaz. Başka hiçbir şey yapma, sekme açma.", 90000, undefined, { args: ["--chrome", "--allowedTools", T + "list_connected_browsers"] });
+  const r = await runClaude("Call the list_connected_browsers tool once and write ONLY its result as a raw JSON array. Do nothing else, open no tabs.", 90000, undefined, { args: ["--chrome", "--allowedTools", T + "list_connected_browsers"] });
   if (!r.ok) return r;
   const list = json(r.out, true);
-  if (!Array.isArray(list)) return { ok: false, error: "Chrome listesi okunamadı. Chrome açık ve Claude eklentisi bağlı mı?" };
+  if (!Array.isArray(list)) return { ok: false, error: "Could not read the Chrome list. Is Chrome open and the Claude extension connected?" };
   const out = list.map((b) => ({ id: String(b.deviceId), name: String(b.name || "Chrome"), local: !!b.isLocal }));
   if (out.length) seenBrowsers = { at: Date.now(), list: out };
   return { ok: true, list: out };
 }
 
-const selectLine = (b) => `Önce select_browser aracıyla deviceId "${b.id}" olan Chrome'u seç. Başka bir Chrome kullanma; o bağlı değilse dur ve hata ver.`;
+const selectLine = (b) => `First use the select_browser tool to pick the Chrome with deviceId "${b.id}". Use no other Chrome; if it is not connected, stop and report an error.`;
 
-// Bir Chrome'da sitede oturum açık mı (Rou'nun Chrome seçimi, server/browse.mjs chooseBrowser); yalnız okur. { loggedIn, seen }.
+// Whether a site is logged in in a Chrome (used when Rou picks a Chrome, server/browse.mjs chooseBrowser); read-only. { loggedIn, seen }.
 export async function siteLogin(browser, site) {
   if (!canPublish(site)) return { loggedIn: false };
   const prompt = [
     selectLine(browser),
-    `Yeni bir sekme aç ve ${HOME[site]} adresine git. Sitede bir hesabın açık olup olmadığını bul (giriş sayfasına yönlendiriyorsa açık değildir). Hiçbir şeye basma, hiçbir şey yazma.`,
-    "Bitince açtığın sekmeyi kapat.",
-    'SADECE şu JSON\'u yaz: {"loggedIn": true|false, "name": "görünen ad ya da boş"}',
+    `Open a new tab and go to ${HOME[site]}. Find out whether an account is logged in on the site (if it redirects to a login page, none is). Click nothing, type nothing.`,
+    "When done, close the tab you opened.",
+    'Write ONLY this JSON: {"loggedIn": true|false, "name": "display name or empty"}',
   ].join("\n\n");
   const r = await runClaude(prompt, 3 * 60 * 1000, undefined, { args: chrome(READ_TOOLS) });
   const j = r.ok ? json(r.out) : null;
   return { loggedIn: !!j?.loggedIn, seen: String(j?.name ?? "") };
 }
 
-// Hesabın Chrome'da açık olup olmadığına bakar; yalnız okur, hiçbir şeye basmaz.
+// Checks whether the account is logged in in Chrome; read-only, clicks nothing.
 export async function checkAccount(accountId, browser) {
   const { state: s } = read();
   const acc = accountById(s, accountId);
-  if (!acc || isFeed(acc.platform) || !canPublish(acc.platform)) return { ok: false, error: "Bu hesap tarayıcıdan paylaşılamaz" };
+  if (!acc || isFeed(acc.platform) || !canPublish(acc.platform)) return { ok: false, error: "This account cannot be shared from the browser" };
   const key = `check-${accountId}`;
-  if (busy.has(key)) return { ok: false, error: "Zaten kontrol ediliyor" };
+  if (busy.has(key)) return { ok: false, error: "Already being checked" };
   busy.add(key);
   const prompt = [
     selectLine(browser),
-    `Yeni bir sekme aç ve ${HOME[acc.platform]} adresine git. ${platformName(acc)} sitesinde hangi hesabın açık olduğunu bul (kullanıcı adı ve görünen ad). Gerekirse profil menüsüne bak ama hiçbir ayarı değiştirme, hiçbir şey paylaşma, beğenme ya da gönderme.`,
-    "Bitince açtığın sekmeyi kapat.",
-    'SADECE şu JSON\'u yaz: {"loggedIn": true|false, "handle": "@kullaniciadi ya da boş", "name": "görünen ad ya da boş"}',
+    `Open a new tab and go to ${HOME[acc.platform]}. Find out which account is logged in on ${platformName(acc)} (handle and display name). Look at the profile menu if needed, but change no setting and share, like or send nothing.`,
+    "When done, close the tab you opened.",
+    'Write ONLY this JSON: {"loggedIn": true|false, "handle": "@handle or empty", "name": "display name or empty"}',
   ].join("\n\n");
   const r = await runClaude(prompt, 4 * 60 * 1000, undefined, { args: chrome(READ_TOOLS) }).finally(() => busy.delete(key));
   const j = r.ok ? json(r.out) : null;
   const check = j
-    ? { at: new Date().toISOString(), ok: !!j.loggedIn && (!acc.handle || norm(j.handle) === norm(acc.handle)), seen: j.loggedIn ? String(j.handle || j.name || "") : "", ...(j.loggedIn ? {} : { error: "Bu Chrome'da giriş yapılmamış" }) }
-    : { at: new Date().toISOString(), ok: false, error: (r.error || "Yanıt okunamadı").slice(0, 200) };
-  if (j?.loggedIn && acc.handle && !check.ok) check.error = `Chrome'da ${check.seen} açık, hesap ${acc.handle}`;
+    ? { at: new Date().toISOString(), ok: !!j.loggedIn && (!acc.handle || norm(j.handle) === norm(acc.handle)), seen: j.loggedIn ? String(j.handle || j.name || "") : "", ...(j.loggedIn ? {} : { error: "Not logged in in this Chrome" }) }
+    : { at: new Date().toISOString(), ok: false, error: (r.error || "Could not read the reply").slice(0, 200) };
+  if (j?.loggedIn && acc.handle && !check.ok) check.error = `Chrome has ${check.seen} logged in, the account is ${acc.handle}`;
   update((st) => {
     const a = st.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === accountId);
     if (!a) return;
     a.browser = { id: browser.id, name: browser.name };
     a.check = check;
-    // Kullanıcı adı boşsa Chrome'da görüleni yaz.
+    // If the handle is empty, store the one seen in Chrome.
     if (!a.handle && j?.loggedIn && j.handle) a.handle = String(j.handle).startsWith("@") ? String(j.handle) : `@${j.handle}`;
   });
   return { ok: true, check };
 }
 
-// Hesap kontrolü Playgrounds'un tarayıcısında, hesabın dünyasının oturumunda: girişli kullanıcı kim ve profil
-// sayfası açılıyor mu. Yalnız okur: giriş yapmaz, hiçbir şeye basmaz, ayar değiştirmez. LinkedIn şirket sayfasında girişli kişi
-// sayfanın kendisi olamaz; orada giriş + sayfanın açılması yeter.
+// Account check in the Playgrounds browser, in the session of the account's world: who is logged in and whether the
+// profile page opens. Read-only: does not log in, click or change settings. On a LinkedIn company page the logged-in person
+// cannot be the page itself; there, being logged in and the page opening is enough.
 export async function checkAccountPb(accountId) {
   const { state: s } = read();
   const world = s.worlds.find((w) => w.accounts?.some((a) => a.id === accountId));
   const acc = world?.accounts.find((a) => a.id === accountId);
   const home = acc && (SITES[acc.platform]?.home ?? (/facebook/i.test(acc.name ?? "") ? "https://www.facebook.com/" : null));
-  if (!acc || !home) return { ok: false, error: "Bu hesap tarayıcıda kontrol edilemez" };
-  if (!pbInstalled()) return { ok: false, error: `${PB_NAME} kurulu değil` };
+  if (!acc || !home) return { ok: false, error: "This account cannot be checked in the browser" };
+  if (!pbInstalled()) return { ok: false, error: `${PB_NAME} is not installed` };
   const key = `check-${accountId}`;
-  if (busy.has(key)) return { ok: false, error: "Zaten kontrol ediliyor" };
+  if (busy.has(key)) return { ok: false, error: "Already being checked" };
   busy.add(key);
   const profile = profileUrl(acc);
   const page = /\/company\//.test(profile ?? "");
   let tab;
   let check;
   try {
-    tab = await rouTab(world, key, `Rou hesabı kontrol ediyor · ${platformName(acc)}`);
+    tab = await rouTab(world, key, `Rou is checking the account · ${platformName(acc)}`);
     const prompt = [
-      `Görevin: ${platformName(acc)} hesabını yalnız OKUYARAK kontrol etmek. Başka hiçbir şey yapma.`,
+      `Your task: check the ${platformName(acc)} account by READING only. Do nothing else.`,
       rouRules(tab),
-      `1) Bu sekmede ${home} adresine git. Sitede hangi hesabın açık olduğunu bul (kullanıcı adı ve görünen ad; gerekirse profil menüsünü aç ama hiçbir ayara girme). Giriş sayfasına yönlendiriyorsa açık hesap yoktur; GİRİŞ YAPMA.`,
-      profile ? `2) Sonra aynı sekmede ${profile} adresine git ve sayfanın gerçekten bu hesabın profili olarak açılıp açılmadığına bak ("sayfa yok", "kullanıcı bulunamadı" ya da başka bir hesaba yönlendirme açılmadı sayılır). Açılan profildeki kullanıcı adını da yaz.` : "",
-      "Paylaşma, beğenme, takip etme, mesaj atma, ayar değiştirme, giriş yapma yok.",
-      `SADECE şu JSON'u yaz: {"loggedIn": true|false, "handle": "açık hesabın kullanıcı adı ya da boş", "name": "görünen ad ya da boş"${profile ? ', "profileOpens": true|false, "profileHandle": "profil sayfasındaki kullanıcı adı ya da boş"' : ""}}`,
+      `1) In this tab go to ${home}. Find out which account is logged in on the site (handle and display name; open the profile menu if needed but enter no settings). If it redirects to a login page, no account is logged in; DO NOT LOG IN.`,
+      profile ? `2) Then in the same tab go to ${profile} and check whether the page really opens as this account's profile ("page doesn't exist", "user not found" or a redirect to another account counts as not opening). Also write the handle on the profile that opened.` : "",
+      "Do not share, like, follow, message, change settings or log in.",
+      `Write ONLY this JSON: {"loggedIn": true|false, "handle": "handle of the logged-in account or empty", "name": "display name or empty"${profile ? ', "profileOpens": true|false, "profileHandle": "handle on the profile page or empty"' : ""}}`,
     ].filter(Boolean).join("\n\n");
     const r = await runClaude(prompt, 5 * 60 * 1000, undefined, { args: rouArgs(undefined, [], [], { read: true }), cwd: MEDIA_DIR });
     const j = r.ok ? json(r.out) : null;
-    if (!j) check = { at: new Date().toISOString(), ok: false, via: "pb", error: String(r.error || "Yanıt okunamadı").slice(0, 200) };
+    if (!j) check = { at: new Date().toISOString(), ok: false, via: "pb", error: String(r.error || "Could not read the reply").slice(0, 200) };
     else {
       const seen = j.loggedIn ? String(j.handle || j.name || "") : "";
       const match = !acc.handle || page || !profile ? !!j.loggedIn : norm(j.handle) === norm(acc.handle);
       const opens = profile ? !!j.profileOpens : null;
       const errs = [
-        !j.loggedIn ? "Giriş yapılmamış" : !match ? `Girişli hesap ${seen}, kayıtta ${acc.handle}` : "",
-        opens === false ? `Profil açılmadı: ${profile}` : "",
+        !j.loggedIn ? "Not logged in" : !match ? `Logged in as ${seen}, the account says ${acc.handle}` : "",
+        opens === false ? `Profile did not open: ${profile}` : "",
       ].filter(Boolean);
       check = { at: new Date().toISOString(), ok: !errs.length, via: "pb", seen, ...(profile ? { profile, profileOpens: opens, profileSeen: String(j.profileHandle || "") } : {}), ...(errs.length ? { error: errs.join(" · ") } : {}) };
     }
@@ -162,153 +162,153 @@ export async function checkAccountPb(accountId) {
 }
 
 const HOW = {
-  linkedin: "LinkedIn'de 'Gönderi başlat' alanını aç, metni aynen yaz, görseli medya olarak ekle (kırpmadan), 'Gönder'e bas.",
-  x: "X'te yeni gönderi alanına metni aynen yaz ve 'Gönder'e bas. Birden çok tweet varsa ilkini paylaş, sonra her birini bir öncekine yanıt olarak (flood) sırayla ekle; ya da oluşturma penceresindeki + ile hepsini tek seferde ekleyip 'Tümünü gönder'.",
-  threads: "Threads'te yeni gönderi alanına metni aynen yaz ve 'Paylaş'a bas.",
-  instagram: "Instagram'da 'Oluştur' (+) ile yeni gönderi aç, dosya girişine görselleri sırasıyla yükle (Reels ise videoyu). KIRPMA ADIMI ZORUNLU: Instagram web varsayılan olarak kare (1:1) kırpar, bu kabul edilmez. Kırpma ekranında sol alttaki kırpma düğmesine bas ve 'Orijinal' seç (video için 9:16, görseller için 4:5 görünmeli); sonra take_screenshot ile önizlemeye bak: görselin ya da videonun üstü ve altı kesilmemiş, tamamı görünüyor olmalı. Kare görünüyorsa ya da kenarlar kesikse PAYLAŞMA, düzelt ya da hata ver. Sonra ileri, açıklamaya metni aynen yaz, 'Paylaş'a bas.",
-  tiktok: "TikTok yükleme sayfasında dosya girişine videoyu yükle, açıklamaya metni aynen yaz, 'Paylaş'a bas.",
-  youtube: "YouTube Studio'da 'Oluştur' > 'Video yükle' ile videoyu yükle; başlığa metnin ilk satırını (en fazla 100 karakter), açıklamaya metnin tamamını yaz; çocuklara özel değil seç, görünürlük 'Herkese açık', yayınla.",
+  linkedin: "On LinkedIn open the 'Start a post' box, write the text exactly, add the image as media (uncropped), press 'Post'.",
+  x: "On X write the text exactly into the new post box and press 'Post'. If there are several tweets, share the first, then add each one in order as a reply to the previous one (a thread); or add them all at once with + in the compose window and press 'Post all'.",
+  threads: "On Threads write the text exactly into the new post box and press 'Post'.",
+  instagram: "On Instagram open a new post with 'Create' (+), upload the images to the file input in order (the video for Reels). THE CROP STEP IS MANDATORY: Instagram web crops to a square (1:1) by default, which is not acceptable. On the crop screen press the crop button at the bottom left and choose 'Original' (video must show 9:16, images 4:5); then look at the preview with take_screenshot: the top and bottom of the image or video must not be cut off, all of it must be visible. If it looks square or the edges are cut, DO NOT SHARE, fix it or report an error. Then Next, write the text exactly into the caption, press 'Share'.",
+  tiktok: "On the TikTok upload page upload the video to the file input, write the text exactly into the description, press 'Post'.",
+  youtube: "In YouTube Studio upload the video with 'Create' > 'Upload videos'; write the first line of the text (at most 100 characters) as the title and the whole text as the description; choose not made for kids, visibility 'Public', publish.",
 };
 
-// Gönderiyi hesabın Chrome'unda paylaşır. Sonuç run'a yazılır: posted + postUrl ya da publish.error.
+// Shares the post in the account's Chrome. The result is written to the run: posted + postUrl or publish.error.
 export function publish(runId) {
   const { state: s } = read();
   const run = s.runs.find((r) => r.id === runId);
-  if (!run?.post && !run?.body) return { ok: false, error: "Gönderi yok" };
-  if (run.status === "posted") return { ok: false, error: "Zaten paylaşıldı" };
-  // Sunucu da bakar: eski bir kart ya da başka bir istemci onaysız (ya da onayı düşmüş) çıktıyı paylaştıramaz.
-  if (run.status !== "approved") return { ok: false, error: "Önce onaylanmalı" };
-  if (missingImage(run)) return { ok: false, error: "Görsel eksik; LinkedIn gönderisi görselsiz paylaşılmaz" };
+  if (!run?.post && !run?.body) return { ok: false, error: "No post" };
+  if (run.status === "posted") return { ok: false, error: "Already shared" };
+  // The server checks too: an old card or another client cannot share an unapproved (or un-approved) output.
+  if (run.status !== "approved") return { ok: false, error: "Approve it first" };
+  if (missingImage(run)) return { ok: false, error: "Image missing; a LinkedIn post is not shared without its image" };
   const task = s.tasks.find((t) => t.id === run.taskId);
   const acc = accountOf(s, taskRef(s, task));
-  if (!canPublishAcc(acc)) return { ok: false, error: "Hesap tarayıcıdan paylaşılamıyor" };
+  if (!canPublishAcc(acc)) return { ok: false, error: "This account cannot be shared from the browser" };
   const panel = panelUrl(acc);
-  // Playground Browser kuruluysa Rou orada, dünyanın profilinde paylaşır; değilse hesabın bağlı olduğu Chrome'da.
+  // If the Playgrounds browser is installed Rou shares there, in the world's profile; otherwise in the account's linked Chrome.
   const pb = pbInstalled();
-  if (!pb && !acc.browser) return { ok: false, error: "Hesap bir Chrome'a bağlı değil" };
-  if (busy.has(runId)) return { ok: false, error: "Zaten paylaşılıyor" };
+  if (!pb && !acc.browser) return { ok: false, error: "The account is not linked to a Chrome" };
+  if (busy.has(runId)) return { ok: false, error: "Already being shared" };
   busy.add(runId);
   let files;
-  try { files = shareFiles(run, acc.platform); } catch (e) { busy.delete(runId); return { ok: false, error: `Ekler tek videoda birleştirilemedi: ${e.message}`.slice(0, 300) }; }
+  try { files = shareFiles(run, acc.platform); } catch (e) { busy.delete(runId); return { ok: false, error: `Could not merge the attachments into one video: ${e.message}`.slice(0, 300) }; }
   const text0 = run.post ? bodyOf(run.post) : run.body;
-  // X'te yanıt ya da alıntı: metinde bir tweet adresi varsa ve işin notu/revizesi "yanıt" ya da "alıntı" diyorsa
-  // yeni tweet atılmaz; o tweet açılıp yanıtlanır ya da alıntılanır, adres metinden çıkarılır.
+  // Reply or quote on X: if the text has a tweet address and the task's note/revision says "reply" or "quote",
+  // no new tweet is posted; that tweet is opened and replied to or quoted, and the address is removed from the text.
   const notes = [task?.title, task?.notes, ...(task?.revisions ?? []).map((r) => r.note)].join("\n");
   const linked = acc.platform === "x" && (run.post?.quote ? ["quote", run.post.quote.url] : run.post?.reply ? ["reply", run.post.reply.url] : null);
   const target = linked ? linked[1] : acc.platform === "x" && String(text0 ?? "").match(/https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+\S*/)?.[0];
-  const mode = linked ? linked[0] : target && (/al[ıi]nt[ıi]|quote/i.test(notes) ? "quote" : /yan[ıi]t|reply/i.test(notes) ? "reply" : null);
+  const mode = linked ? linked[0] : target && (/al[ıi]nt[ıi]|quote|quoting/i.test(notes) ? "quote" : /yan[ıi]t|reply/i.test(notes) ? "reply" : null);
   const text = mode ? String(text0).replace(target, "").replace(/\n{3,}/g, "\n\n").trim() : text0;
-  const onTweet = mode && `Bu gönderi yeni tweet DEĞİL: şu tweete ${mode === "quote" ? "ALINTI (quote)" : "YANIT (reply)"} olarak paylaşılacak: ${target.split("?")[0]}\nO adresi aç. ${mode === "quote" ? "Tweetin altındaki Yeniden gönder (repost) düğmesine bas, menüden 'Alıntı' (Quote) seç; açılan pencerede alıntılanan tweetin göründüğünü doğrula, metni yaz, aşağıdaki dosyaları (varsa) bu pencerenin medya girişine yükle ve yüklendiğini gör, sonra 'Gönder'e bas." : "Tweetin altındaki Yanıtla düğmesine bas; açılan pencerede yanıtlanan tweetin göründüğünü doğrula, metni yaz, aşağıdaki dosyaları (varsa) bu pencereye yükle, 'Yanıtla'ya bas."} Tweet açılmıyorsa ya da silinmişse HİÇBİR ŞEY PAYLAŞMA, hata ver.`;
+  const onTweet = mode && `This post is NOT a new tweet: it will be shared as a ${mode === "quote" ? "QUOTE" : "REPLY"} to this tweet: ${target.split("?")[0]}\nOpen that address. ${mode === "quote" ? "Press the Repost button under the tweet, choose 'Quote' from the menu; check that the quoted tweet shows in the window that opens, write the text, upload the files below (if any) to this window's media input and see that they uploaded, then press 'Post'." : "Press the Reply button under the tweet; check that the tweet being replied to shows in the window that opens, write the text, upload the files below (if any) to this window, press 'Reply'."} If the tweet does not open or was deleted, SHARE NOTHING and report an error.`;
   const tweets = run.post?.format === "thread" ? run.post.tweets : null;
   const set = (p) => update((st) => { const r = st.runs.find((x) => x.id === runId); if (r) Object.assign(r, p); });
-  // Yeniden deneme:
-  // önceki denemenin neden düştüğü Rou'ya söylenir; yarıda kaldıysa gönderi çıkmış olabilir, önce profile bakar.
+  // Retry:
+  // Rou is told why the previous attempt failed; if it stopped midway the post may be out, so it checks the profile first.
   const prev = run.publish?.reason || run.publish?.error || "";
   const again = !!prev || (run.tried ?? []).includes("claude");
-  set({ publish: { phase: again ? "Rou yeniden deniyor" : "Rou paylaşıyor", at: new Date().toISOString(), by: "claude" }, tried: [...new Set([...(run.tried ?? []), "claude"])] });
+  set({ publish: { phase: again ? "Rou is trying again" : "Rou is sharing", at: new Date().toISOString(), by: "claude" }, tried: [...new Set([...(run.tried ?? []), "claude"])] });
   const head = String(text0 ?? "").split("\n").find((l) => l.trim())?.trim().slice(0, 120) ?? "";
   const retryLine = again ? [
-    `Bu gönderi daha önce paylaşılmaya çalışıldı ve bitmedi${prev ? `. Önceki denemenin sonucu: ${prev.replace(/\s+/g, " ").slice(0, 300)}` : ""}.`,
-    `ÖNCE hesabın kendi profilini aç ve son gönderilere bak: bu gönderi (ilk satırı: "${head}") zaten paylaşılmışsa YENİDEN PAYLAŞMA; posted true ve o gönderinin adresini yaz.`,
-    "Paylaşılmamışsa önceki denemeden açık kalan taslak ya da paylaşım penceresini kapat (taslağı kaydetme) ve baştan, tek seferde paylaş. Önceki deneme bir adımda takıldıysa (dosya yükleme, hesap geçişi) o adımı farklı yoldan dene; örneğin dosyaları tek tek yükle, yüklendiklerini gör.",
+    `This post was tried before and did not finish${prev ? `. Result of the previous attempt: ${prev.replace(/\s+/g, " ").slice(0, 300)}` : ""}.`,
+    `FIRST open the account's own profile and look at the latest posts: if this post (first line: "${head}") is already shared, DO NOT SHARE AGAIN; write posted true and that post's address.`,
+    "If it is not shared, close any draft or share window left open by the previous attempt (do not save the draft) and share from the start, once. If the previous attempt got stuck on a step (file upload, account switch), try that step another way; for example upload the files one by one and see that they uploaded.",
   ].join("\n") : "";
   const world = s.worlds.find((w) => w.accounts?.some((a) => a.id === acc.id));
-  // Site paneli: yazı panelde yeni içerik olarak girilir; hesap notu (voice) panelin kuralıdır (taslak mı, yayında mı).
+  // Site panel: the post is entered in the panel as new content; the account note (voice) is the panel's rule (draft or published).
   const panelPrompt = (tab) => [
-    `Kullanıcı bu yazıyı uygulamada onayladı. Görevin: yazıyı ${platformName(acc)} sitesinin yönetim panelinde yeni bir içerik olarak bir kez girmek.`,
+    `The user approved this post in the app. Your task: enter the post once as new content in the admin panel of the ${platformName(acc)} site.`,
     rouRules(tab, acc.secret ? acc : null),
     retryLine,
-    `Bu sekmede ${panel} adresine git. Oturum açık değilse ve giriş bilgisi verilmediyse HİÇBİR ŞEY YAPMA, dur ve "panelde oturum açık değil" hatası ver.`,
-    acc.voice ? `Panelin kuralı (hesap notu): ${acc.voice}` : "",
-    "Panelde yazının türüne uyan bölümü bul (menüde Blog, Yazılar, Haberler gibi) ve yeni içerik formunu aç. Aynı başlıkta bir içerik zaten varsa yenisini açma, onu güncelle.",
-    "Alanları yazıdan doldur: ad ya da başlık = metnin ilk satırı; kısa özet (pitch, açıklama özeti) = ilk paragraftan tek cümle; asıl metin (açıklama, gövde) = başlık satırı dışındaki metin, paragraflar arasında boş satır bırakarak. Panelde ayrı bağlantı alanları varsa metnin sonundaki bağlantı satırlarını (\"App Store:\", adres satırları) asıl metne yazma, bağlantı alanlarına etiketiyle gir (App Store, Instagram, Site); bağlantı alanı yoksa metinde kalsın. Etiket alanı varsa 3-5 kısa, aranacak etiket yaz (tür, platform, kullanılan araç; ör. oyun, ios, godot, yapay zeka). Aşama alanı varsa projenin durumuna göre seç (yayındaysa Canlı). Slug boşsa başlıktan kısa bir slug üret (en çok 6 kelime). Bilmediğin alanı boş bırak, hiçbir şey uydurma.",
-    files.length ? `Kapak görseli: görsel alanına şu dosyayı upload_file aracıyla yükle (dosya düğmesine tıklama), yüklendiğini önizlemeden doğrula:\n${files[0]}` : "Kapak görseli yok; görsel alanını boş bırak.",
-    "Durum: kullanıcı yazıyı uygulamada onayladı, bu yayın onayıdır. Durumu Yayında yap (hesap notu açıkça \"taslak bırak\" demiyorsa). Kaydet'e yalnız bir kez bas.",
-    "Bitirmeden kontrol et (aynı sekmede, yeni sekme açmadan): sitenin herkese açık sayfasında yazıyı aç (listede ve kendi sayfasında). Başlık, kapak görseli, paragraflar ve bağlantılar görünmeli. Sayfa açılmıyorsa ya da bir şey bozuk görünüyorsa bunu error'a yaz (posted yine true olabilir). Paneldeki başka hiçbir içeriği değiştirme, silme.",
-    `Metin (aynen):\n<<<\n${text}\n>>>`,
-    'SADECE şu JSON\'u yaz: {"posted": true|false|"unknown", "draft": true|false, "url": "yazının sitedeki herkese açık adresi (yönetim paneli adresi DEĞİL; bulamadıysan boş)", "error": "kaydedilmediyse ya da sitede sorun gördüysen ne olduğu"}',
+    `In this tab go to ${panel}. If not logged in and no login details were given, DO NOTHING, stop and report a "not logged in to the panel" error.`,
+    acc.voice ? `Panel rule (account note): ${acc.voice}` : "",
+    "Find the section in the panel that fits the post (in the menu, like Blog, Posts, News) and open the new content form. If content with the same title already exists, do not open a new one, update it.",
+    "Fill the fields from the post: name or title = the first line of the text; short summary (pitch, description summary) = one sentence from the first paragraph; main text (description, body) = the text other than the title line, leaving a blank line between paragraphs. If the panel has separate link fields, do not write the link lines at the end of the text (\"App Store:\", address lines) into the main text, enter them in the link fields with their label (App Store, Instagram, Site); if there is no link field, leave them in the text. If there is a tag field, write 3-5 short, searchable tags (type, platform, tool used; e.g. game, ios, godot, AI). If there is a stage field, pick it from the project's status (Live if it is published). If the slug is empty, make a short slug from the title (at most 6 words). Leave a field you do not know empty, invent nothing.",
+    files.length ? `Cover image: upload this file to the image field with the upload_file tool (do not click the file button), verify in the preview that it uploaded:\n${files[0]}` : "No cover image; leave the image field empty.",
+    "Status: the user approved the post in the app, this is the publishing approval. Set the status to Published (unless the account note explicitly says \"leave as draft\"). Press Save only once.",
+    "Before finishing, check (in the same tab, without opening a new one): open the post on the public page of the site (in the list and on its own page). The title, cover image, paragraphs and links must show. If the page does not open or something looks broken, write it to error (posted can still be true). Change or delete no other content in the panel.",
+    `Text (exactly):\n<<<\n${text}\n>>>`,
+    'Write ONLY this JSON: {"posted": true|false|"unknown", "draft": true|false, "url": "public address of the post on the site (NOT the admin panel address; empty if you could not find it)", "error": "what went wrong if it was not saved or you saw a problem on the site"}',
   ].filter(Boolean).join("\n\n");
   const prompt = (tab) => panel ? panelPrompt(tab) : [
-    "Kullanıcı bu gönderiyi kendi hesabında paylaşmayı uygulamada onayladı. Görevin: gönderiyi aşağıdaki hesapta, aynen yazıldığı gibi bir kez paylaşmak.",
+    "The user approved sharing this post on their own account in the app. Your task: share the post once on the account below, exactly as written.",
     tab ? rouRules(tab, acc.secret ? acc : null) : selectLine(acc.browser),
     retryLine,
-    `Platform: ${platformName(acc)}. Hesap: ${acc.handle || acc.name}. ${tab ? "Bu sekmede" : "Yeni bir sekmede"} ${HOME[acc.platform]} adresini aç.`,
-    acc.handle ? `PAYLAŞMADAN ÖNCE: açık hesabın kullanıcı adının ${acc.handle} olduğunu doğrula. Başka bir hesap açıksa önce platformun kendi hesap değiştirme menüsünden ${acc.handle} hesabına geç (Instagram: profil fotoğrafı ya da "Diğer" menüsü > "Hesap değiştir"; X: sol alttaki hesap menüsü; LinkedIn ve diğerleri: profil menüsü). Hesap listede yoksa ve giriş bilgisi verildiyse oradan "mevcut hesaba giriş yap" ile gir. Geçtikten sonra kullanıcı adını yeniden doğrula. Hâlâ ${acc.handle} değilse ya da giriş yapılamıyorsa HİÇBİR ŞEY PAYLAŞMA, dur ve hata ver.` : "Paylaşmadan önce hangi hesabın açık olduğunu not et.",
+    `Platform: ${platformName(acc)}. Account: ${acc.handle || acc.name}. ${tab ? "In this tab" : "In a new tab"} open ${HOME[acc.platform]}.`,
+    acc.handle ? `BEFORE SHARING: verify that the logged-in handle is ${acc.handle}. If another account is logged in, first switch to ${acc.handle} from the platform's own account switcher (Instagram: profile photo or the "More" menu > "Switch accounts"; X: the account menu at the bottom left; LinkedIn and others: the profile menu). If the account is not in the list and login details were given, log in from there with "log into existing account". After switching, verify the handle again. If it is still not ${acc.handle} or you cannot log in, SHARE NOTHING, stop and report an error.` : "Before sharing, note which account is logged in.",
     onTweet || HOW[acc.platform],
-    tweets && !mode ? `Flood, ${tweets.length} tweet, sırayla:\n${tweets.map((x, i) => `--- ${i + 1} ---\n${x}`).join("\n")}` : `Metin (aynen, satır boşluklarıyla):\n<<<\n${text}\n>>>`,
+    tweets && !mode ? `Thread, ${tweets.length} tweets, in order:\n${tweets.map((x, i) => `--- ${i + 1} ---\n${x}`).join("\n")}` : `Text (exactly, with its line breaks):\n<<<\n${text}\n>>>`,
     mentionRule(run.post),
-    acc.platform === "x" && files.length > 1 && /\.(mp4|mov)$/i.test(files[0]) ? `X'te video ve görseller aynı tweete girmez: ilk dosya (video) metinle birlikte ilk tweete yüklenir; kalan ${files.length - 1} görsel, aynı paylaşımda ilk tweete yanıt olarak eklenen ikinci tweete (metinsiz) yüklenir.` : "",
-    files.length ? `Yüklenecek dosyalar (bu sırayla; dosya düğmesine tıklama, dosya yükleme aracını (file_upload ya da upload_file) dosya girişine kullan):\n${files.join("\n")}` : "Dosya yok.",
-    "Kurallar: Metni değiştirme, ekleme yapma. Paylaş tuşuna yalnız bir kez bas. Paylaşıldı mı emin değilsen yeniden deneme; profilde son gönderiye bakıp kontrol et. Hesap ya da sitedeki başka hiçbir şeyi değiştirme, mesaj gönderme, beğenme. Bitince paylaşılan gönderinin adresini bulmaya çalış. Açtığın sekmeyi açık bırak.",
-    'SADECE şu JSON\'u yaz: {"posted": true|false|"unknown", "url": "gönderinin adresi ya da boş", "account": "paylaşılan hesabın kullanıcı adı", "error": "paylaşılmadıysa nedeni"}',
+    acc.platform === "x" && files.length > 1 && /\.(mp4|mov)$/i.test(files[0]) ? `On X a video and images do not go in the same tweet: the first file (the video) is uploaded to the first tweet with the text; the remaining ${files.length - 1} images are uploaded, without text, to a second tweet added in the same share as a reply to the first.` : "",
+    files.length ? `Files to upload (in this order; do not click the file button, use the file upload tool (file_upload or upload_file) on the file input):\n${files.join("\n")}` : "No files.",
+    "Rules: do not change the text or add to it. Press the share button only once. If you are not sure whether it was shared, do not retry; check the latest post on the profile. Change nothing else on the account or the site, send no messages, like nothing. When done, try to find the address of the shared post. Leave the tab you opened open.",
+    'Write ONLY this JSON: {"posted": true|false|"unknown", "url": "address of the post or empty", "account": "handle of the account it was shared on", "error": "reason if it was not shared"}',
   ].filter(Boolean).join("\n\n");
-  // started.failed: Rou tarayıcıya hiç başlayamadı (uygulama yok, sekme açılmadı); o zaman gönderinin çıkmadığı kesindir.
+  // started.failed: Rou never got started in the browser (no app, tab did not open); then the post is certainly not out.
   const started = { failed: false };
-  // Görsel ve video yüklemek (Instagram carousel'i, video) 10 dakikayı aşabiliyor; süre dosya sayısıyla uzar.
+  // Uploading images and video (Instagram carousel, video) can take over 10 minutes; the limit grows with the file count.
   const LIMIT = Math.min(30, 12 + files.length * 3) * 60 * 1000;
   const tr = tracker(runId, "publish", { name: pb ? PB_NAME : acc.browser?.name });
   const live = { onTool: tr.onTool, onResult: tr.onResult };
   const start = async () => {
-    if (!pb && panel) { started.failed = true; return { ok: false, error: `Site paneline giriş ${PB_NAME} ile yapılır; uygulama kurulu değil` }; }
+    if (!pb && panel) { started.failed = true; return { ok: false, error: `Logging in to the site panel is done with ${PB_NAME}; the app is not installed` }; }
     if (!pb) return runClaude(prompt(null), LIMIT, undefined, { args: chrome(POST_TOOLS), cwd: MEDIA_DIR, ...live });
     let tab;
-    try { tab = await rouTab(world, `share-${runId}`, `Rou paylaşıyor · ${platformName(acc)}`, acc.platform); } catch (e) { started.failed = true; return { ok: false, error: e.message }; }
+    try { tab = await rouTab(world, `share-${runId}`, `Rou is sharing · ${platformName(acc)}`, acc.platform); } catch (e) { started.failed = true; return { ok: false, error: e.message }; }
     return runClaude(prompt(tab), LIMIT, undefined, { args: rouArgs(MEDIA_DIR, [], [], { read: acc.platform === "instagram" }), cwd: MEDIA_DIR, ...live }).finally(() => releaseTab(tab.targetId));
   };
   const done = start().then((r) => {
     busy.delete(runId);
     tr.stop();
     const j = r.ok ? json(r.out) : null;
-    if (j?.posted === true) { import("./notify.mjs").then(({ notify }) => notify(panel ? (j.draft ? "Yazı panele taslak olarak girildi" : j.error ? `Yazı yayında ama: ${j.error}`.slice(0, 120) : "Yazı sitede yayında") : "Gönderi paylaşıldı", read().state.runs.find((x) => x.id === runId)?.title ?? ""));
-      // Site paneli: kayıt adresi değil, yazının sitedeki herkese açık adresi tutulur (panelin yolu verilirse atılır).
+    if (j?.posted === true) { import("./notify.mjs").then(({ notify }) => notify(panel ? (j.draft ? "Post entered in the panel as a draft" : j.error ? `Post is live but: ${j.error}`.slice(0, 120) : "Post is live on the site") : "Post shared", read().state.runs.find((x) => x.id === runId)?.title ?? ""));
+      // Site panel: keep the post's public address on the site, not the panel address (dropped if it is the panel's path).
       const url = typeof j.url === "string" && !(panel && new URL(panel).pathname.length > 1 && j.url.includes(new URL(panel).pathname)) ? j.url : undefined;
       return update((st) => void markPosted(st, runId, { url })); }
-    // Rou sonucu yazamadıysa (süre doldu, yanıt okunamadı) gönderi çıkmış olabilir: "paylaşılamadı" denmez, kontrol istenir.
-    // Yoksa "Yeniden dene" ya da elle paylaşım aynı gönderiyi ikinci kez çıkarırdı.
-    const never = started.failed || /Claude oturumu kapalı|Claude çalıştırılamadı/.test(r.error ?? "");
+    // If Rou could not write a result (time ran out, reply unreadable) the post may be out: it is not called "could not share", a check is asked for.
+    // Otherwise "Try again" or sharing by hand would post the same post twice.
+    const never = started.failed || /Claude oturumu kapalı|Claude çalıştırılamadı|Claude is signed out|could not be started/.test(r.error ?? "");
     const unsure = j?.posted === "unknown" || (!j && !never);
-    const why = j ? "" : ` (Rou sonucu yazamadı: ${String(r.error || "yanıt okunamadı").replace(/\s+/g, " ").slice(0, 90)})`;
-    const error = unsure ? `Paylaşılıp paylaşılmadığı anlaşılamadı${why}. Profilinden kontrol et; paylaşıldıysa 'Paylaştım' de.` : (j?.error || r.error || "Yanıt okunamadı").slice(0, 300);
+    const why = j ? "" : ` (Rou could not write a result: ${String(r.error || "reply unreadable").replace(/\s+/g, " ").slice(0, 90)})`;
+    const error = unsure ? `Could not tell whether it was shared${why}. Check your profile; if it was shared, press 'I shared it'.` : (j?.error || r.error || "Could not read the reply").slice(0, 300);
     update((st) => void markPosted(st, runId, { error }));
   }).catch((e) => {
-    // Paylaşım sürerken çıktı silindiyse markPosted hata verir; yakalanmazsa sunucunun tamamı kapanırdı.
+    // If the output is deleted while sharing, markPosted throws; uncaught it would take the whole server down.
     busy.delete(runId);
     tr.stop();
-    console.error("paylaşım:", e?.message ?? e);
+    console.error("share:", e?.message ?? e);
   });
   return { ok: true, done };
 }
 
-// Rou, hesabın dünyasının Playground Browser profilinde hesaba girer (oturum düştüyse).
-// Rou şifre yazmaz: oturum kapalıysa ya da doğrulama kodu, CAPTCHA çıkarsa durur; girişi kullanıcı tarayıcıda yapar.
+// Rou logs in to the account in the Playgrounds browser profile of the account's world (if the session dropped).
+// Rou does not type passwords: if the session is closed or a verification code or CAPTCHA appears it stops; the user logs in in the browser.
 export function pbLogin(accountId) {
   const s = read().state;
   const world = s.worlds.find((w) => w.accounts?.some((a) => a.id === accountId));
   const acc = world?.accounts.find((a) => a.id === accountId);
   const site = acc && SITES[acc.platform];
-  if (!acc || !site) return { ok: false, error: "Bu hesap için tarayıcı girişi yok" };
-  if (!pbInstalled()) return { ok: false, error: `${PB_NAME} kurulu değil` };
+  if (!acc || !site) return { ok: false, error: "No browser login for this account" };
+  if (!pbInstalled()) return { ok: false, error: `${PB_NAME} is not installed` };
   const key = `login-${accountId}`;
-  if (busy.has(key)) return { ok: false, error: "Zaten giriş yapılıyor" };
+  if (busy.has(key)) return { ok: false, error: "Already logging in" };
   busy.add(key);
   const set = (p) => update((st) => { const a = st.worlds.flatMap((w) => w.accounts ?? []).find((x) => x.id === accountId); if (a) a.pbLogin = { ...p, at: new Date().toISOString() }; });
-  set({ phase: "Rou giriş yapıyor" });
+  set({ phase: "Rou is logging in" });
   const done = (async () => {
     let tab;
     try {
-      tab = await rouTab(world, key, `Rou giriş yapıyor · ${platformName(acc)}`, acc.platform);
+      tab = await rouTab(world, key, `Rou is logging in · ${platformName(acc)}`, acc.platform);
       const prompt = [
-        `Görevin: ${platformName(acc)} hesabına (${acc.handle || acc.login || acc.name}) giriş yapmak. Başka hiçbir şey yapma.`,
+        `Your task: log in to the ${platformName(acc)} account (${acc.handle || acc.login || acc.name}). Do nothing else.`,
         rouRules(tab, acc),
-        `Bu sekmede ${site.home} adresine git. Hesap zaten açıksa giriş yapma, yalnız hangi hesabın açık olduğunu bul. Açık değilse ${site.login} adresinde giriş yap.`,
-        acc.handle ? `Girişten sonra açık hesabın ${acc.handle} olduğunu doğrula.` : "",
-        "Paylaşma, beğenme, mesaj atma, ayar değiştirme yok. Bitince sekmeyi açık bırak.",
-        'SADECE şu JSON\'u yaz: {"loggedIn": true|false, "handle": "açık hesabın kullanıcı adı ya da boş", "error": "giremediysen nedeni"}',
+        `In this tab go to ${site.home}. If the account is already logged in, do not log in, only find out which account it is. If not, log in at ${site.login}.`,
+        acc.handle ? `After logging in, verify that the logged-in account is ${acc.handle}.` : "",
+        "Do not share, like, message or change settings. Leave the tab open when done.",
+        'Write ONLY this JSON: {"loggedIn": true|false, "handle": "handle of the logged-in account or empty", "error": "why you could not log in"}',
       ].filter(Boolean).join("\n\n");
       const r = await runClaude(prompt, 6 * 60 * 1000, undefined, { args: rouArgs(), cwd: MEDIA_DIR });
       const j = r.ok ? json(r.out) : null;
       if (j?.loggedIn) set({ ok: true, seen: String(j.handle || "") });
-      else set({ ok: false, error: String(j?.error || r.error || "Yanıt okunamadı").slice(0, 300) });
+      else set({ ok: false, error: String(j?.error || r.error || "Could not read the reply").slice(0, 300) });
     } catch (e) {
       set({ ok: false, error: String(e.message).slice(0, 300) });
     } finally {

@@ -59,15 +59,15 @@ export function profileUrl(acc) {
 }
 
 export const TWEET_MAX = 280;
-// X Premium hesapta uzun gönderi açık.
+// Long posts are open on X Premium accounts.
 export const X_PREMIUM_MAX = 25000;
 export const tweetMax = (acc) => (acc?.premium ? X_PREMIUM_MAX : TWEET_MAX);
 export const THREADS_MAX = 500;
 export const IG_CAPTION_MAX = 2200;
-export const IG_FOLD = 125; // Instagram açıklamanın bu kadarını "devamı" demeden gösterir
-export const LI_FOLD = 210; // LinkedIn "devamını gör" öncesi yaklaşık
+export const IG_FOLD = 125; // Instagram shows this much of the caption before "more"
+export const LI_FOLD = 210; // LinkedIn shows about this much before "see more"
 
-// Eski veri: hesaplar projedeydi (project.accounts). Dünyaya taşınır, proje kullandıklarını accountIds ile tutar.
+// Old data: accounts lived on the project (project.accounts). They move to the world; the project keeps the ones it uses in accountIds.
 export function migrate(s) {
   let changed = false;
   for (const p of s.projects ?? []) {
@@ -84,7 +84,7 @@ export function migrate(s) {
   return changed;
 }
 
-// Hesabı id ile bulur (tüm dünyalarda). Sonuç: hesap + dünyası.
+// Finds an account by id (across all worlds). Result: the account + its world.
 export function accountById(s, id) {
   if (!id) return undefined;
   for (const w of s.worlds) {
@@ -93,36 +93,36 @@ export function accountById(s, id) {
   }
   return undefined;
 }
-// Projenin kullandığı hesaplar (dünyasından, seçili sırayla).
+// The accounts a project uses (from its world, in the chosen order).
 export const accountsOfProject = (s, p) => {
   const w = p && s.worlds.find((x) => x.id === p.worldId);
   return (p?.accountIds ?? []).map((id) => w?.accounts?.find((a) => a.id === id)).filter(Boolean);
 };
-// Hesabı kullanan projeler: gönderi o projenin bağlamıyla (açıklama, marka, bilgi) hazırlanır.
+// Projects that use the account: the post is prepared with that project's context (description, brand, notes).
 export const projectsOfAccount = (s, id) => s.projects.filter((p) => p.accountIds?.includes(id));
 
-// a: otomasyon ya da { projectId, accountId }. Seçili hesap silindiyse hesap yok sayılır.
-// Sonuç: hesap + projesi (yoksa hesabı kullanan ilk proje) + dünyası. Gelen kaynakları (Gmail...) paylaşım hesabı değildir.
+// a: an automation or { projectId, accountId }. If the chosen account was deleted there is no account.
+// Result: the account + its project (else the first project using it) + its world. Incoming sources (Gmail...) are not posting accounts.
 export const accountOf = (s, a) => {
   const acc = accountById(s, a?.accountId);
   if (!acc || isFeed(acc.platform)) return undefined;
   const p = (a?.projectId ? s.projects.find((x) => x.id === a.projectId) : undefined) ?? projectsOfAccount(s, acc.id)[0];
   return { ...acc, project: p };
 };
-// Bir işin hesabı ve biçimi: planlanan gönderide task.post, otomasyonda otomasyonunki.
+// A task's account and format: task.post for a planned post, the automation's for an automation.
 export const taskRef = (s, t) => {
   if (!t) return undefined;
   if (t.post) return { projectId: t.projectId, accountId: t.post.accountId, format: t.post.format };
   const a = t.autoId ? s.automations.find((x) => x.id === t.autoId) : undefined;
-  return a && t.format ? { ...a, format: t.format } : a; // sırayla biçimli otomasyonda işin kendi biçimi
+  return a && t.format ? { ...a, format: t.format } : a; // in an automation with rotating formats, the task's own format
 };
-// Elle eklenen gönderinin platformu: hesap yoksa biçimden okunur (Gönderi ekle'de seçilen platform post.format olarak durur).
+// The platform of a hand-added post: with no account it is read from the format (the platform picked in Add post is stored as post.format).
 export const POST_PLATFORMS = ["instagram", "linkedin", "x", "threads"];
 export const platformOfFormat = (format) => (format ? Object.keys(PLATFORMS).find((p) => PLATFORMS[p].formats.includes(format)) : undefined);
 export const postPlatform = (s, t) => accountOf(s, taskRef(s, t))?.platform ?? platformOfFormat(t?.post?.format);
 
-// Hesabı seçilmemiş elle gönderi için hesap: platform seçildiyse dünyada o platformun hesabı (projenin bağlı hesabı önce),
-// "Rou seçsin" ise projenin bağlı hesaplarından konuda adı geçen platform, yoksa ilki. Uygun hesap yoksa undefined (düz metin, elle paylaşım).
+// The account for a hand-added post with none chosen: if a platform was picked, the world's account on that platform (the project's linked account first);
+// if "Rou picks", the platform named in the topic among the project's linked accounts, else the first. No fitting account gives undefined (plain text, shared by hand).
 const HINTS = { instagram: /instagram|\big\b|reels?|carousel/i, linkedin: /linkedin/i, x: /\bx\b|tweet|twitter|flood/i, threads: /threads/i };
 export function pickAccount(s, t) {
   if (!t?.post || accountOf(s, taskRef(s, t))) return undefined;
@@ -135,7 +135,7 @@ export function pickAccount(s, t) {
   const text = `${t.title} ${t.post.brief ?? ""} ${t.notes ?? ""}`;
   return mine.find((a) => HINTS[a.platform]?.test(text)) ?? mine[0];
 }
-// Platformu seçilmiş ama dünyada o platformun hesabı olmayan gönderi: platformun adı (görev kartındaki not için).
+// A post whose platform is chosen but the world has no account on it: the platform's name (for the note on the task card).
 export function missingAccount(s, t) {
   if (!t?.post || accountOf(s, taskRef(s, t))) return undefined;
   const plat = platformOfFormat(t.post.format);
@@ -157,90 +157,90 @@ export const LANGS = [
 ];
 export const DEFAULT_LANG = "en";
 export const SEP = "· · ·";
-// Hesabın dil ayarı kesindir (dil hesap başına seçilir). Otomasyon talimatında, marka
-// örneğinde ya da eski gönderilerde başka dil geçse de bu geçerli; yalnız o gönderiye yazılan revize notu dili değiştirebilir.
+// The account's language setting is final (language is chosen per account). Even if the automation instruction, brand
+// example or older posts use another language, this applies; only a revision note written for that post can change the language.
 export function langRule(acc, format) {
-  return `${langOf(acc, format)} Bu hesabın dil ayarıdır ve kesindir: otomasyon talimatı, örnek metin ya da eski gönderiler başka dilde olsa da bu dilde yaz. Yalnız bu gönderiye yazılmış bir revize notu dili değiştirebilir.`;
+  return `${langOf(acc, format)} This is the account's language setting and it is final: write in this language even if the automation instruction, example text or older posts are in another language. Only a revision note written for this post can change the language.`;
 }
 function langOf(acc, format) {
   const l = acc?.lang ?? DEFAULT_LANG;
-  if (l === "en") return "Dil: her şey İngilizce (metin, slayt, başlık, ekrandaki yazı, açıklama). Doğal, ana dili İngilizce olan biri gibi.";
-  if (l !== "tr+en") return "Dil: Türkçe.";
+  if (l === "en") return "Language: everything in English (text, slides, headlines, on-screen text, caption). Natural, like a native English speaker.";
+  if (l !== "tr+en") return "Language: Turkish. Write the whole post (text, slides, headlines, on-screen text, caption) in natural Turkish.";
   const visual = format === "ig_post" || format === "ig_reel" || format === "short";
   return [
-    `Dil: iki dilli. Önce Türkçe metni yaz, sonra bir boş satır, tek başına "${SEP}" satırı, bir boş satır ve aynı metnin İngilizcesi.`,
-    "İngilizce özet değil, aynı içeriğin doğal İngilizcesi (birebir çeviri kokmasın); paragraf sayısı aynı.",
-    "Uzunluk kuralları her dil için ayrı geçerli; toplam LinkedIn sınırı 3000 karakter.",
-    visual ? "Görsel/videodaki yazılar yalnız İngilizce; açıklama (caption) iki dilli." : "",
-    "Tweet ya da flood ise her tweet iki dili birlikte taşıyamıyorsa yalnız Türkçe yaz.",
+    `Language: bilingual. Write the Turkish text first, then a blank line, the line "${SEP}" on its own, a blank line, and the English version of the same text.`,
+    "Not an English summary but natural English of the same content (it should not read like a word-for-word translation); the same number of paragraphs.",
+    "The length rules apply to each language separately; the total LinkedIn limit is 3000 characters.",
+    visual ? "Text in the image/video is English only; the caption is bilingual." : "",
+    "For a tweet or thread, if each tweet cannot carry both languages, write Turkish only.",
   ].filter(Boolean).join(" ");
 }
 
-// Biçime göre yazım kuralları. Hesabın tarzı bunlardan önce gelir; bunlar yalnız biçimdir.
+// Writing rules per format. The account's style comes before these; these are format only.
 export const RULES = {
   ig_post: [
-    "Kaydırmalı (carousel) Instagram gönderisi: 3 ile 7 arası slayt. Slaytlar görsele basılacak, okunması 3 saniye sürmeli.",
-    "1. slayt kapak: tek güçlü cümle, en fazla 8 kelime. Diğer slaytlar: kısa başlık (en fazla 6 kelime) + en fazla 2 kısa cümle.",
-    "Son slayt bir kapanış: düşünceyi bağlar ya da ne yapılacağını söyler. 'Takip et' kalıbı zorunlu değil.",
-    `Açıklama (caption): ilk ${IG_FOLD} karakter tek başına anlamlı olmalı, çünkü gerisi katlanır. En fazla ${IG_CAPTION_MAX} karakter; birkaç cümlelik akan paragraflar, cümle başına satır atlama yok.`,
-    "Etiketler: 3 ile 8 arası, konuya özgü, # ile başlar; açıklamanın içine değil hashtags alanına yaz.",
+    "Swipeable (carousel) Instagram post: 3 to 7 slides. Slides are printed onto the image and must take 3 seconds to read.",
+    "Slide 1 is the cover: one strong sentence, at most 8 words. Other slides: a short title (at most 6 words) + at most 2 short sentences.",
+    "The last slide is a close: it ties the thought together or says what to do. A 'Follow' line is not required.",
+    `Caption: the first ${IG_FOLD} characters must make sense on their own, because the rest is folded. At most ${IG_CAPTION_MAX} characters; flowing paragraphs of a few sentences, no line break per sentence.`,
+    "Hashtags: 3 to 8, specific to the topic, starting with #; put them in the hashtags field, not inside the caption.",
   ],
   ig_reel: [
-    "Dikey Reels videosu, ekranda yazıyla anlatılır (sesli anlatım yok). Toplam 12 ile 30 saniye.",
-    "hook: ilk 2 saniyede ekranda görünen cümle, en fazla 7 kelime; izleyiciyi durdurmalı.",
-    "scenes: 3 ile 7 sahne. Her sahnede ekranda tek bir kısa cümle (en fazla 10 kelime) ve süresi (sec, 2 ile 6 arası). Okuma süresi: kelime başına en az 0,4 sn.",
-    "Sahnelerden birinde vurgulanacak tek kelime ya da kısa ifade (accent) seçebilirsin; o cümlenin içinden aynen alınmalı.",
-    `Açıklama (caption): ilk ${IG_FOLD} karakter tek başına anlamlı. Etiketler 3 ile 8 arası, hashtags alanında.`,
+    "Vertical Reels video, told with on-screen text (no voiceover). 12 to 30 seconds in total.",
+    "hook: the sentence on screen in the first 2 seconds, at most 7 words; it must stop the viewer.",
+    "scenes: 3 to 7 scenes. Each scene has one short sentence on screen (at most 10 words) and its duration (sec, between 2 and 6). Reading time: at least 0.4 s per word.",
+    "In one of the scenes you may pick a single word or short phrase to highlight (accent); it must be taken exactly from within that sentence.",
+    `Caption: the first ${IG_FOLD} characters make sense on their own. Hashtags 3 to 8, in the hashtags field.`,
   ],
   linkedin: [
-    `LinkedIn ilk ${LI_FOLD} karakter civarını gösterir, gerisi "devamını gör" ile açılır. İlk iki satır okuyanı tutmalı ama şablon kanca cümlesi olmasın.`,
-    "2 ile 4 paragraf; her paragraf birkaç cümlelik akan bir blok, aralarında bir boş satır. Cümle başına satır atlama yok. Toplam 600 ile 1300 karakter arası; düşünce kısaysa kısa kalsın.",
-    "Etiket kullanma ya da en fazla 2. Emoji ile madde işareti yapma.",
+    `LinkedIn shows about the first ${LI_FOLD} characters, the rest opens with "see more". The first two lines must hold the reader but must not be a template hook sentence.`,
+    "2 to 4 paragraphs; each paragraph is a flowing block of a few sentences, with a blank line between them. No line break per sentence. 600 to 1300 characters in total; if the thought is short, keep it short.",
+    "No hashtags, or at most 2. Do not use emoji as bullet points.",
   ],
   tweet: [
-    `Tek tweet, en fazla ${TWEET_MAX} karakter (boşluklar dahil). İdeali 100 ile 220 arası.`,
-    "Etiket yok, emoji en fazla bir tane. Bağlantı yok.",
+    `A single tweet, at most ${TWEET_MAX} characters (spaces included). Ideally between 100 and 220.`,
+    "No hashtags, at most one emoji. No links.",
   ],
   thread: [
-    `Flood: 3 ile 7 tweet. Her tweet en fazla ${TWEET_MAX} karakter ve tek başına okunabilir.`,
-    "İlk tweet floodu taşır; '1/' gibi numara ya da '🧵' koyma.",
-    "Etiket yok.",
+    `Thread: 3 to 7 tweets. Each tweet is at most ${TWEET_MAX} characters and readable on its own.`,
+    "The first tweet carries the thread; do not add numbering like '1/' or '🧵'.",
+    "No hashtags.",
   ],
   threads: [
-    `Tek Threads gönderisi, en fazla ${THREADS_MAX} karakter. Sohbet gibi, doğal.`,
-    "Etiket en fazla bir tane. Bağlantı yok.",
+    `A single Threads post, at most ${THREADS_MAX} characters. Conversational, natural.`,
+    "At most one hashtag. No links.",
   ],
   short: [
-    "Dikey kısa video (TikTok ya da YouTube Shorts), ekranda yazıyla anlatılır (sesli anlatım yok). Toplam 12 ile 30 saniye.",
-    "hook: ilk 2 saniyede ekranda görünen cümle, en fazla 7 kelime.",
-    "scenes: 3 ile 7 sahne. Her sahnede ekranda tek bir kısa cümle (en fazla 10 kelime) ve süresi (sec, 2 ile 6 arası). Okuma süresi: kelime başına en az 0,4 sn.",
-    "Sahnelerden birinde vurgulanacak tek kelime ya da kısa ifade (accent) seçebilirsin; o cümlenin içinden aynen alınmalı.",
-    "Açıklama (caption): kısa; YouTube Shorts ise ilk satırı başlık gibi (en fazla 100 karakter). Etiketler 3 ile 5 arası, hashtags alanında.",
+    "Vertical short video (TikTok or YouTube Shorts), told with on-screen text (no voiceover). 12 to 30 seconds in total.",
+    "hook: the sentence on screen in the first 2 seconds, at most 7 words.",
+    "scenes: 3 to 7 scenes. Each scene has one short sentence on screen (at most 10 words) and its duration (sec, between 2 and 6). Reading time: at least 0.4 s per word.",
+    "In one of the scenes you may pick a single word or short phrase to highlight (accent); it must be taken exactly from within that sentence.",
+    "Caption: short; for YouTube Shorts the first line works as a title (at most 100 characters). Hashtags 3 to 5, in the hashtags field.",
   ],
   text: [
-    "Hesabın platformuna uygun düz metin gönderi. Uzunluğu talimat ve tarz belirler.",
+    "A plain text post that fits the account's platform. The instruction and style set its length.",
   ],
 };
 
-// Modelden beklenen JSON şekli.
+// The JSON shape expected from the model.
 export const SCHEMA = {
-  ig_post: '{"slides":[{"title":"…","text":"…","image":"medya adı","from":0}],"caption":"…","hashtags":["#…"]}',
-  ig_reel: '{"hook":"…","scenes":[{"text":"…","sec":3,"accent":"…","clip":"medya adı","from":0,"asset":"obje adı"}],"caption":"…","hashtags":["#…"]}',
+  ig_post: '{"slides":[{"title":"…","text":"…","image":"media name","from":0}],"caption":"…","hashtags":["#…"]}',
+  ig_reel: '{"hook":"…","scenes":[{"text":"…","sec":3,"accent":"…","clip":"media name","from":0,"asset":"object name"}],"caption":"…","hashtags":["#…"]}',
   linkedin: '{"text":"…"}',
   tweet: '{"tweets":["…"]}',
   thread: '{"tweets":["…","…"]}',
   threads: '{"tweets":["…"]}',
-  short: '{"hook":"…","scenes":[{"text":"…","sec":3,"accent":"…","clip":"medya adı","from":0,"asset":"obje adı"}],"caption":"…","hashtags":["#…"]}',
+  short: '{"hook":"…","scenes":[{"text":"…","sec":3,"accent":"…","clip":"media name","from":0,"asset":"object name"}],"caption":"…","hashtags":["#…"]}',
   text: '{"text":"…"}',
 };
 
 const str = (x, max = 4000) => (typeof x === "string" ? x.replace(/—/g, ",").trim().slice(0, max) : "");
 const tags = (x) => [...new Set((Array.isArray(x) ? x : typeof x === "string" ? x.split(/\s+/) : []).map((t) => str(t, 60).replace(/^#?/, "#").replace(/[\s,.;]+$/g, "")).filter((t) => t.length > 1))].slice(0, 12);
 
-// Sahnenin/slaytın kaydı: projenin medya adı (server/library.mjs keyOf) ve başlangıç saniyesi.
+// A scene's/slide's footage: the project's media name (server/library.mjs keyOf) and the start second.
 const clipOf = (key, from, field) => (typeof key === "string" && key.trim() ? { [field]: key.trim().slice(0, 600), from: Math.max(0, Math.round((Number(from) || 0) * 10) / 10) } : {});
 
-// Modelin JSON'unu biçime göre temizler. Kullanılamazsa null.
+// Cleans the model's JSON per format. Null when unusable.
 export function normalize(format, j) {
   if (!j || typeof j !== "object") return null;
   if (format === "ig_post") {
@@ -262,8 +262,8 @@ export function normalize(format, j) {
   }
   if (format === "tweet" || format === "thread" || format === "threads") {
     const tweets = (Array.isArray(j.tweets) ? j.tweets : typeof j.text === "string" ? [j.text] : []).map((x) => str(x, X_PREMIUM_MAX)).filter(Boolean).slice(0, format === "threads" ? 1 : 10);
-    // Tek tweet istenip birden çok yazıldıysa (revize "iki tweet" dediyse) kesme, flood olarak tut.
-    // Alıntı/yanıt hedefi (server/xquote.mjs) düzenlemede kaybolmasın.
+    // If a single tweet was asked for but several were written (e.g. a revision said "two tweets"), do not cut; keep it as a thread.
+    // The quote/reply target (server/xquote.mjs) must not be lost in an edit.
     const target = (k) => (j[k] && typeof j[k].url === "string" ? { [k]: j[k] } : {});
     const x = { ...target("quote"), ...target("reply") };
     if (format === "tweet" && tweets.length > 1) return { format: "thread", tweets, ...x };
@@ -272,20 +272,20 @@ export function normalize(format, j) {
   return null;
 }
 
-// Elle yazılan metinden gönderi (pg run --body): X/Threads biçimleri tweets[] okur, diğerleri text.
+// A post from hand-written text (pg run --body): X/Threads formats read tweets[], the others text.
 export function postOfText(format, text) {
   return format === "tweet" || format === "thread" || format === "threads" ? { format, tweets: [text] } : { format, text };
 }
 
-// Paylaşırken etiketlenecek sayfalar (post.mentions: ["Acme"]): metindeki @Ad düz yazı kalmaz,
-// platformun önerisinden o şirket/kişi sayfası seçilir. Paylaşan (Rou) bu satırı okur.
+// Pages to tag when sharing (post.mentions: ["Acme"]): an @Name in the text does not stay plain text,
+// the company/person page is picked from the platform's suggestions. The sharer (Rou) reads this line.
 export function mentionRule(post) {
   const m = (post?.mentions ?? []).filter(Boolean);
   if (!m.length) return "";
-  return `Etiketleme: metindeki ${m.map((x) => `@${x}`).join(", ")} düz yazı olarak kalmasın. Yazarken @ ve adı yazınca açılan öneri listesinden ${m.map((x) => `${x} şirket sayfasını`).join(", ")} seç, etiket bağlantıya dönsün. Öneride doğru sayfa (resmî, doğrulanmış) yoksa adı düz yazı bırak ve sonuçta bunu belirt.`;
+  return `Tagging: ${m.map((x) => `@${x}`).join(", ")} in the text must not stay plain text. When you type @ and the name, pick ${m.map((x) => `the ${x} company page`).join(", ")} from the suggestion list that opens, so the tag becomes a link. If the suggestions have no correct (official, verified) page, leave the name as plain text and say so in the result.`;
 }
 
-// Kopyalanacak metin: platforma yapıştırılacak hâli.
+// The text to copy: the form to paste into the platform.
 export function bodyOf(post) {
   if (!post) return "";
   if (post.format === "ig_post" || isVideo(post.format)) return [post.caption, post.hashtags.join(" ")].filter(Boolean).join("\n\n");
@@ -294,11 +294,11 @@ export function bodyOf(post) {
 }
 
 // Measurable problems against the rules. Given to the check pass and shown as warnings in the preview.
-// Hesaba göre biçim kuralları: X Premium'da 280 sınırı yok.
+// Format rules per account: there is no 280 limit on X Premium.
 export function rulesOf(format, acc) {
   if (!acc?.premium || (format !== "tweet" && format !== "thread")) return RULES[format];
-  const long = "X Premium: 280 karakter sınırı yok. Anlatı gerektiriyorsa tek uzun gönderi yaz (paragraflar arasında bir boş satır); gereksiz uzatma.";
-  return [format === "tweet" ? long : `${long} Flood istenirse her tweet tek başına okunabilir olsun.`, ...RULES[format].slice(1)];
+  const long = "X Premium: no 280-character limit. If the story needs it, write one long post (a blank line between paragraphs); do not pad.";
+  return [format === "tweet" ? long : `${long} If a thread is asked for, each tweet must be readable on its own.`, ...RULES[format].slice(1)];
 }
 
 export function problems(post, acc) {
@@ -326,28 +326,28 @@ export function problems(post, acc) {
   return out;
 }
 
-// Video süresi: hook + sahneler + kapanış kartı (saniye).
+// Video length: hook + scenes + end card (seconds).
 export const HOOK_SEC = 2.2;
 export const END_SEC = 2;
 export const reelSeconds = (post) => (post.hook ? HOOK_SEC : 0) + post.scenes.reduce((n, x) => n + x.sec, 0) + END_SEC;
 
-// Okunur taslak: metin, varsa slayt ve sahne yazıları (düzenleyici ve hazırlık kullanır).
+// Readable draft: the text, plus slide and scene texts if any (used by the editor and prepare).
 export function draftText(post, body) {
   if (!post) return String(body ?? "").trim();
   const parts = [];
   if (post.text) parts.push(post.text);
   if (post.tweets?.length) parts.push(post.tweets.map((t, i) => (post.tweets.length > 1 ? `${i + 1}/ ${t}` : t)).join("\n\n"));
-  if (post.hook) parts.push(`Kanca: ${post.hook}`);
-  if (post.slides?.length) parts.push(post.slides.map((x, i) => `Slayt ${i + 1}: ${[x.title, x.text].filter(Boolean).join(" · ")}`).join("\n"));
-  if (post.scenes?.length) parts.push(post.scenes.map((x, i) => `Sahne ${i + 1}: ${x.text ?? ""}`).join("\n"));
-  if (post.caption) parts.push(`Açıklama: ${post.caption}`);
+  if (post.hook) parts.push(`Hook: ${post.hook}`);
+  if (post.slides?.length) parts.push(post.slides.map((x, i) => `Slide ${i + 1}: ${[x.title, x.text].filter(Boolean).join(" · ")}`).join("\n"));
+  if (post.scenes?.length) parts.push(post.scenes.map((x, i) => `Scene ${i + 1}: ${x.text ?? ""}`).join("\n"));
+  if (post.caption) parts.push(`Caption: ${post.caption}`);
   if (post.hashtags?.length) parts.push(post.hashtags.join(" "));
   return parts.filter(Boolean).join("\n\n").trim();
 }
 
-// Marka ayarındaki onaylı örnek: brand.example ya da brand.use içindeki `Onaylı örnek: "…"`. Yoksa boş.
+// The approved example in the brand settings: brand.example or `Approved example: "…"` inside brand.use (the old Turkish label also works). Empty if none.
 export function brandExample(brand) {
   if (typeof brand?.example === "string" && brand.example.trim()) return brand.example.trim();
-  const m = String(brand?.use ?? "").match(/Onaylı örnek:\s*["“]([^"”]+)["”]/u);
+  const m = String(brand?.use ?? "").match(/(?:Approved example|Onaylı örnek):\s*["“]([^"”]+)["”]/u);
   return m ? m[1].trim() : "";
 }

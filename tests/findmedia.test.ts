@@ -41,17 +41,17 @@ describe("standing visual rules", () => {
   it("uses the user's work hints from settings, with a neutral default", async () => {
     const { workHints } = await import("../server/findmedia.mjs");
     expect(workHints({ settings: { workHints: " videolar ~/Videolar " } })).toBe("videolar ~/Videolar");
-    expect(workHints({})).toBe("projenin Medya klasörü ve Bilgi kaynakları");
+    expect(workHints({})).toBe("the project's Media folder and Notes sources");
   });
 
   it("tells the search where the real work lives, to prefer motion, and passes rules and the topic's source", async () => {
     const { findPrompt } = await import("../server/findmedia.mjs");
     const p = findPrompt({ title: "X gönderisi", topic: { title: "Proje A launch", brief: "", source: "https://example.com/work/proje-a" } }, { tweets: ["metin"] }, "abc", [], "- X gönderilerinde her zaman bir görsel bulunmalı.", { hints: "portfolyo: example.com/work/<slug>" });
     expect(p).toContain("portfolyo: example.com/work/<slug>");
-    expect(p).toContain("Konunun kaynağı (önce buraya bak; uygunsa bunu göster): https://example.com/work/proje-a");
-    expect(p).toContain("Hareket önce gelir");
+    expect(p).toContain("The topic's source (look here first; show this if it fits): https://example.com/work/proje-a");
+    expect(p).toContain("Motion comes first");
     expect(p).toContain("- X gönderilerinde her zaman bir görsel bulunmalı.");
-    expect(findPrompt({ title: "t" }, null, "abc")).not.toContain("kalıcı görsel kuralları");
+    expect(findPrompt({ title: "t" }, null, "abc")).not.toContain("permanent visual rules");
   });
 });
 
@@ -61,8 +61,8 @@ describe("findPrompt, ikinci tur", () => {
     const { findPrompt } = await import("../server/findmedia.mjs");
     const task = { title: "X gönderisi", revisions: [{ note: "animasyonu ekle", redo: ["Logo animasyonu video olarak yok"] }] };
     const p = findPrompt(task, { tweets: ["metin"] }, "abc");
-    expect(p).toContain("İlk denemede eksik kaldı, bu kez mutlaka yap: Logo animasyonu video olarak yok");
-    expect(p).toContain("fix alanına");
+    expect(p).toContain("Missing in the first attempt, this time be sure to do it: Logo animasyonu video olarak yok");
+    expect(p).toContain("in the fix field");
     expect(p).toContain('"fix":');
   });
 });
@@ -88,13 +88,13 @@ describe("research before writing", () => {
     const { findPrompt } = await import("../server/findmedia.mjs");
     const task = { title: "X gönderisi", revisions: [{ at: "2026-11-11T13:41:00Z", note: "bir pt nasil kullanir bir diyetisyen nasil kullanir", clear: { ask: "Rolleri anlat.", keep: [], ban: [], media: "new", text: true, visual: true, need: ["PT, diyetisyen ve üye uygulamayı nasıl kullanıyor?"] } }] };
     const p = findPrompt(task, { text: "eski" }, "abc", [], "", { prev: { video: "media/old-v0.mp4", images: ["media/old-r0.png"], found: { from: "f", note: "üç üye ekranı" } } });
-    expect(p).toContain("ÖNCE İŞİ ÖĞREN");
+    expect(p).toContain("FIRST LEARN THE WORK");
     expect(p).toContain("PT, diyetisyen ve üye uygulamayı nasıl kullanıyor?");
     expect(p).toContain("--tour");
-    expect(p).toMatch(/old-v0\.mp4[\s\S]*AYNI dosyaları/);
+    expect(p).toMatch(/old-v0\.mp4[\s\S]*SAME files/);
     expect(p).toContain('"facts"');
     const only = findPrompt(task, { text: "eski" }, "abc", [], "", { factsOnly: true });
-    expect(only).toContain("files boş kalsın");
+    expect(only).toContain("leave files empty");
     expect(only).not.toContain("--tour");
   });
 });
@@ -116,11 +116,11 @@ describe("kapak bento ve carousel sırası", () => {
     const task = { id: "t", title: "Proje A carousel", revisions: [{ at: "a", note: "tasarım yapma", clear: { ask: "İşin kendisini paylaş.", raw: true } }] };
     const post = { format: "ig_post", caption: "x" };
     const withRule = findPrompt(task, post, "ord", [], "- İlk kare markanın kimlik parçalarını toplayan bir bento olsun.", { raw: true });
-    expect(withRule).toContain("Kapak bento");
-    expect(withRule).not.toContain("kolaj yapma");
+    expect(withRule).toContain("Cover bento");
+    expect(withRule).not.toContain("do not make a collage");
     const plain = findPrompt(task, post, "ord", [], "", { raw: true });
-    expect(plain).not.toContain("Kapak bento");
-    expect(plain).toContain("kolaj yapma");
+    expect(plain).not.toContain("Cover bento");
+    expect(plain).toContain("do not make a collage");
   });
 });
 
@@ -138,7 +138,7 @@ describe("kapak bento hazır alınmaz, beğenilen örnek gösterilir", () => {
     const ref = bentoRef(s, s.tasks[0]);
     expect(ref.endsWith("media/f1-r0.png")).toBe(true);
     const p = findPrompt({ id: "men", title: "x", revisions: [{ at: "a", note: "bentoyu iyi yap", clear: { ask: "Bentoyu kendin kur.", raw: true } }] }, { format: "ig_post", caption: "x" }, "ord", [], "", { raw: true, bentoRef: ref });
-    expect(p).toContain("HAZIR BENTO KOYMA");
+    expect(p).toContain("DO NOT USE A READY-MADE BENTO");
     expect(p).toContain("f1-r0.png");
   });
 });

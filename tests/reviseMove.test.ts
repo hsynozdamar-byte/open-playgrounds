@@ -39,9 +39,9 @@ describe("revize taşıması", () => {
     const s = world();
     const t = s.tasks.find((x) => x.id === "ft")!;
     const before = structuredClone(t);
-    expect(movePost(s, t, { projectId: "gp", accountId: "jl" })).toEqual({ error: "Hesap o dünyada değil" });
-    expect(movePost(s, t, { worldId: "w-b", projectId: "gp" })).toEqual({ error: "Proje o dünyada değil" });
-    expect(movePost(s, t, { accountId: "yok" })).toEqual({ error: "Hesap yok" });
+    expect(movePost(s, t, { projectId: "gp", accountId: "jl" })).toEqual({ error: "Account is not in that world" });
+    expect(movePost(s, t, { worldId: "w-b", projectId: "gp" })).toEqual({ error: "Project is not in that world" });
+    expect(movePost(s, t, { accountId: "yok" })).toEqual({ error: "No such account" });
     expect(t).toEqual(before);
     expect(movePost(s, t, {})).toBeNull();
   });
@@ -52,7 +52,7 @@ describe("revize taşıması", () => {
     const mv = movePost(s, t, { projectId: "fe", accountId: "jl" });
     addRevision(t, { note: "Dünya B hesabında paylaş", prev: "eski metin", runId: "r1", moved: mv && !("error" in mv) ? mv.from : undefined });
     expect(revisionMode(s, t, "yeni")).toBeNull();
-    expect(reviseBlock(t)).toContain("başka bir yere taşındı");
+    expect(reviseBlock(t)).toContain("moved the post elsewhere");
   });
 
   it("Rou kartı taşımayı gösterir, geçersiz hedefte çıkmaz", () => {

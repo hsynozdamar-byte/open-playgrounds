@@ -68,7 +68,7 @@ describe("mentionRule", () => {
   it("tells the sharer to pick the company page for each @name", () => {
     const r = mentionRule({ format: "linkedin", text: "Hi @Acme", mentions: ["Acme"] });
     expect(r).toContain("@Acme");
-    expect(r).toContain("Acme şirket sayfasını");
+    expect(r).toContain("the Acme company page");
   });
 });
 

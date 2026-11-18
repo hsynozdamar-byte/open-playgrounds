@@ -77,7 +77,7 @@ describe("onay", () => {
   it("paylaşımlı iş açık kalır, düşük puanlı çıktı kendiliğinden onaylanmaz", () => {
     const s = state();
     Object.assign(s.runs[3], { review: { score: 3, notes: ["zayıf"] } });
-    expect(() => approveRun(s, "r4", { via: "auto" })).toThrow(/Tasarım puanı düşük/);
+    expect(() => approveRun(s, "r4", { via: "auto" })).toThrow(/Design score is low/);
     expect(approveRun(s, "r4")).toMatchObject({ status: "approved" });
     expect(s.tasks.find((t) => t.id === "t4")!.status).toBe("todo");
     expect(() => approveRun(s, "r4")).toThrow();
@@ -89,7 +89,7 @@ describe("paylaşım yedeği", () => {
   it("Rou hata yazınca paylaşım kullanıcıya geçer; paketi verilmişse bir daha dokunmaz", () => {
     const s = state();
     Object.assign(s.runs[1], { publish: { error: "buton yok", at: at("10:05").toISOString() }, tried: ["claude"] });
-    expect(dueFallbacks(s, at("10:06"))).toEqual([{ runId: "r2", next: "me", reason: "Rou paylaşamadı: buton yok" }]);
+    expect(dueFallbacks(s, at("10:06"))).toEqual([{ runId: "r2", next: "me", reason: "Rou could not share: buton yok" }]);
     Object.assign(s.runs[1], { publish: { handoff: true, at: at("10:06").toISOString() } });
     expect(dueFallbacks(s, at("10:07"))).toEqual([]);
   });
@@ -115,7 +115,7 @@ describe("LinkedIn görseli", () => {
   it("görselsiz onaylanmaz", () => {
     const s = li();
     Object.assign(s.runs[4], { status: "ready", at: at("08:00").toISOString() });
-    expect(() => approveRun(s as never, "r9")).toThrow("Görsel eksik");
+    expect(() => approveRun(s as never, "r9")).toThrow("Image missing");
     Object.assign(s.runs[4], { images: ["media/r9-1.png"] });
     expect(approveRun(s as never, "r9")).toMatchObject({ status: "approved" });
   });

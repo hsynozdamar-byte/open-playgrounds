@@ -29,7 +29,7 @@ describe("revizede oynanış kesiti", () => {
     const s = { projects: [{ id: "p", media: {} }], tasks: [], runs: [] };
     const task = { id: "t", revisions: [{ at: "2026-11-05T00:00:00Z", note: "daha iyi oynanış bul" }] };
     const r = await pickFootage(s, task, ["p"], { key: "a.mp4", from: 0, sec: 15 });
-    expect(r.error).toMatch(/oynanış kaydı yok/);
+    expect(r.error).toMatch(/no gameplay recording/);
   });
 });
 

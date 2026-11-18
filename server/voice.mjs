@@ -1,5 +1,5 @@
-// Sesli Reels: kullanıcının okuduğu ses (POST /api/run-voice) yazıya dökülür (kelime zamanlarıyla),
-// sözcük sözcük altyazılı dikey video üretilir ve ses eklenir. Hepsi bu Mac'te, ücretsiz (whisper.cpp + Remotion + ffmpeg).
+// Voiced Reels: the voice the user recorded (POST /api/run-voice) is transcribed (with word timings),
+// a vertical video with word-by-word captions is rendered, and the voice is added. All local and free (whisper.cpp + Remotion + ffmpeg).
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,10 +14,10 @@ import { HEADLESS } from "../shared/headless.mjs";
 import { FFMPEG, FFPROBE } from "../shared/platform.mjs";
 
 const CHROME = HEADLESS;
-// Konuşma sesi için: alçak uğultuyu kes, gürültüyü azalt, sıkıştır, Instagram seviyesine getir (-14 LUFS, tepe -1.5 dBTP).
+// For speech: cut low rumble, reduce noise, compress, bring to Instagram level (-14 LUFS, peak -1.5 dBTP).
 const VOICE_CHAIN = "highpass=f=80,lowpass=f=12000,afftdn=nf=-25,acompressor=threshold=-20dB:ratio=3:attack=5:release=120:makeup=2,loudnorm=I=-14:TP=-1.5:LRA=9";
 
-// Gerçek sayfanın görüntüsü (sahne türü screen): başsız Chrome ile telefon genişliğinde (420 px, 2.5x) çekilir; videoda yazısı okunur, jpeg olarak veri adresine çevrilir.
+// A shot of a real page (scene kind screen): taken with headless Chrome at phone width (420 px, 2.5x) so its text is readable in the video, converted to a jpeg data URL.
 async function capture(url, dir, i) {
   const png = path.join(dir, `s${i}.png`);
   const r = await sh(CHROME, ["--headless=new", "--disable-gpu", "--no-first-run", `--user-data-dir=${path.join(dir, "chrome")}`, "--hide-scrollbars", "--force-device-scale-factor=2.5", "--window-size=420,1500", "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1", `--screenshot=${png}`, url], 60 * 1000);
@@ -45,7 +45,7 @@ function sh(cmd, args, ms = 10 * 60 * 1000) {
 const setRun = (runId, p) => update((st) => { const r = st.runs.find((x) => x.id === runId); if (r) Object.assign(r, p); });
 const tail = (s) => String(s || "").trim().split("\n").slice(-2).join(" ").slice(0, 240);
 
-// whisper.cpp kelime çıktısı (-ml 1 -sow -oj): her parça bir kelime, zamanları ms.
+// whisper.cpp word output (-ml 1 -sow -oj): each piece is one word, times in ms.
 export function wordsOf(json) {
   const out = [];
   for (const x of json.transcription ?? []) {
@@ -56,7 +56,7 @@ export function wordsOf(json) {
   return out;
 }
 
-// Altyazı parçaları: en çok 4 kelime ya da ~22 harf; cümle sonu ya da 350 ms'den uzun sessizlikte yeni parça.
+// Caption chunks: at most 4 words or ~22 letters; a new chunk at a sentence end or a silence longer than 350 ms.
 export function chunksOf(words) {
   const chunks = [];
   let cur = null;
@@ -75,14 +75,14 @@ export function chunksOf(words) {
 
 export function runVoice(runId, file) {
   const src = mediaPath(file);
-  if (!src) return { ok: false, error: "Ses dosyası bulunamadı" };
+  if (!src) return { ok: false, error: "Voice file not found" };
   const { state: s } = read();
   const run = s.runs.find((r) => r.id === runId);
-  if (!run) return { ok: false, error: "Çıktı yok" };
-  if (busy.has(runId)) return { ok: false, error: "Video zaten hazırlanıyor" };
-  if (!fs.existsSync(MODEL)) return { ok: false, error: "Ses tanıma kurulu değil (whisper modeli yok)" };
+  if (!run) return { ok: false, error: "No such output" };
+  if (busy.has(runId)) return { ok: false, error: "The video is already being prepared" };
+  if (!fs.existsSync(MODEL)) return { ok: false, error: "Speech recognition is not installed (no whisper model)" };
   busy.add(runId);
-  setRun(runId, { voice: file, phase: "Ses yazıya dökülüyor", renderError: undefined });
+  setRun(runId, { voice: file, phase: "Transcribing the voice", renderError: undefined });
   const task = s.tasks.find((t) => t.id === run.taskId);
   const acc = accountOf(s, taskRef(s, task));
   const project = s.projects.find((p) => p.id === task?.projectId);
@@ -90,39 +90,39 @@ export function runVoice(runId, file) {
   (async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pg-voice-"));
     try {
-      // Önce ses temizlenir; döküm ve video bu temiz sese göre kurulur (zamanlar birebir).
+      // The voice is cleaned first; the transcript and the video are built on this clean voice (timings match exactly).
       const clean = path.join(tmp, "clean.wav");
       const c = await sh(FFMPEG, ["-y", "-v", "error", "-i", src, "-vn", "-af", VOICE_CHAIN, "-ar", "48000", "-ac", "1", clean]);
-      if (!c.ok) throw new Error(`Ses okunamadı: ${tail(c.err)}`);
+      if (!c.ok) throw new Error(`Could not read the audio: ${tail(c.err)}`);
       const wav = path.join(tmp, "a.wav");
       const a = await sh(FFMPEG, ["-y", "-v", "error", "-i", clean, "-ar", "16000", "-ac", "1", wav]);
-      if (!a.ok) throw new Error(`Ses okunamadı: ${tail(a.err)}`);
+      if (!a.ok) throw new Error(`Could not read the audio: ${tail(a.err)}`);
       const dur = Number((await sh(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", wav])).out) || 0;
-      if (dur < 1) throw new Error("Kayıt çok kısa");
-      // İpucu: okunan senaryonun kendisi (yazım doğru çıksın: radius, padding gibi), sonra dünya/proje adları.
+      if (dur < 1) throw new Error("The recording is too short");
+      // Hint: the script that was read (so spellings come out right: radius, padding), then world/project names.
       const script = String(run.body ?? "").replace(/\*\*[^*]+\*\*/g, " ").replace(/\s+/g, " ").trim();
       const hint = [script, ...s.worlds.map((w) => w.name), ...s.projects.map((p) => p.name)].join(" ").slice(0, 700);
       const w = await sh(WHISPER, ["-m", MODEL, "-l", "auto", "-ml", "1", "-sow", "-oj", "-np", "--prompt", hint, "-of", path.join(tmp, "w"), "-f", wav]);
-      if (!w.ok) throw new Error(`Ses yazıya dökülemedi: ${tail(w.err)}`);
+      if (!w.ok) throw new Error(`Could not transcribe the voice: ${tail(w.err)}`);
       const words = wordsOf(JSON.parse(fs.readFileSync(path.join(tmp, "w.json"), "utf8")));
-      if (!words.length) throw new Error("Kayıtta konuşma duyulmadı");
-      // Sahneler: senaryodaki her sahne, cümlesinin sesteki başladığı ana oturur; sayfa sahneleri çekilir.
+      if (!words.length) throw new Error("No speech was heard in the recording");
+      // Scenes: each scene of the script is placed at the moment its sentence starts in the voice; page scenes are shot.
       const sb = run.storyboard?.beats ?? [];
       const starts = alignBeats(sb, words);
       const beats = [];
       for (let i = 0; i < sb.length; i++) {
         const visual = { ...sb[i].visual };
-        if (visual.kind === "screen") { setRun(runId, { phase: "Sayfa çekiliyor" }); visual.image = await capture(visual.url, tmp, i); }
+        if (visual.kind === "screen") { setRun(runId, { phase: "Capturing the page" }); visual.image = await capture(visual.url, tmp, i); }
         beats.push({ start: starts[i], text: sb[i].text, visual });
       }
-      setRun(runId, { phase: "Video hazırlanıyor" });
+      setRun(runId, { phase: "Preparing the video" });
       const m = await renderVoice(runId, chunksOf(words), Math.round(dur * 1000), account, run.template, undefined, beats);
-      if (!m.ok) throw new Error(m.error || "Video üretilemedi");
-      setRun(runId, { phase: "Ses ekleniyor" });
+      if (!m.ok) throw new Error(m.error || "Could not render the video");
+      setRun(runId, { phase: "Adding the voice" });
       const silent = path.join(MEDIA_DIR, path.basename(m.files.video));
       const out = silent.replace(/\.mp4$/, "-ses.mp4");
       const mux = await sh(FFMPEG, ["-y", "-v", "error", "-i", silent, "-i", clean, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out]);
-      if (!mux.ok) throw new Error(`Ses eklenemedi: ${tail(mux.err)}`);
+      if (!mux.ok) throw new Error(`Could not add the voice: ${tail(mux.err)}`);
       fs.rmSync(silent, { force: true });
       update((st) => {
         const r = st.runs.find((x) => x.id === runId);

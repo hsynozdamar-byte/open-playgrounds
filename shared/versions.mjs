@@ -1,5 +1,5 @@
-// Gönderinin küçük sürüm geçmişi: düzenleme, yeniden çizim ve geri dönüşten önce eski hâl run.versions'a girer (en yeni başta).
-// Revize yeni bir çıktı (run) açar; aynı işin eski çıktıları da sürüm olarak listelenir (src/ui/Versions.tsx).
+// A post's small version history: before an edit, re-render or restore, the old state goes into run.versions (newest first).
+// A revision opens a new output (run); the task's older outputs are also listed as versions (src/ui/Versions.tsx).
 export const VERSION_MAX = 8;
 const KEYS = ["post", "attach", "body", "images", "video", "cover", "template"];
 const MEDIA = ["attach", "images", "video", "cover", "template"];
@@ -13,7 +13,7 @@ export function snapshot(run, why) {
 
 const same = (a, b) => KEYS.every((k) => JSON.stringify(a[k]) === JSON.stringify(b[k]));
 
-// Şu anki hâli geçmişe ekler; son kayıtla aynıysa eklemez.
+// Adds the current state to the history; skipped when it equals the latest entry.
 export function pushVersion(run, why) {
   if (!run.post && !run.images?.length && !run.body) return;
   const v = snapshot(run, why);
@@ -21,7 +21,7 @@ export function pushVersion(run, why) {
   run.versions = [v, ...(run.versions ?? [])].slice(0, VERSION_MAX);
 }
 
-// from: geçmişteki bir sürüm ya da aynı işin eski bir çıktısı. Şu anki hâl geçmişe girer, böylece bu da geri alınabilir.
+// from: a version in the history or an older output of the same task. The current state goes into the history, so this can be undone too.
 export function applyVersion(run, from) {
   pushVersion(run, "restore");
   for (const k of KEYS) {
@@ -32,8 +32,8 @@ export function applyVersion(run, from) {
   delete run.renderError;
 }
 
-// Yalnız bir parça (ör. eski çıktının videosu, metni değil): "media" eski çıktının görsel/videosunu,
-// "text" metnini alır; öbürü şu anki hâliyle kalır. Görsel biçimlerde (IG gönderisi, Reel) metin sahnelerle bağlı, ayrılmaz.
+// Only one part (e.g. the old output's video, not its text): "media" takes the old output's images/video,
+// "text" takes its text; the other stays as it is now. In visual formats (IG post, Reel) the text is tied to the scenes and cannot be split.
 export function canTakePart(run, from, part) {
   if (part === "media") return MEDIA.some((k) => from[k] && (Array.isArray(from[k]) ? from[k].length : true));
   const f = run.post?.format;

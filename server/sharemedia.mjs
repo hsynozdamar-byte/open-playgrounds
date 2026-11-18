@@ -1,6 +1,6 @@
-// Paylaşılacak dosyalar, platformun kabul ettiği biçimde. LinkedIn bir gönderide yalnız tek video alır, video ile
-// görseli de karıştırmaz: gönderide video varsa ve birden çok ek varsa hepsi sırasıyla tek videoda birleşir
-// (görseller 4 sn'lik kare olur). Birleşen video data/media/<runId>-li.mp4; ekler değişince yeniden üretilir.
+// Files to share, in the format the platform accepts. LinkedIn takes only one video in a post and does not mix video
+// with images: if the post has a video and more than one attachment, they are all merged in order into one video
+// (images become 4-second frames). The merged video is data/media/<runId>-li.mp4; it is rebuilt when the attachments change.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,21 +11,21 @@ const VIDEO = /\.(mp4|mov|m4v|webm)$/i;
 const STILL_SEC = 4;
 const even = (n) => Math.ceil(n / 2) * 2;
 
-// run.order: Rou'nun verdiği carousel sırası. Listede olmayan dosya sona gider, artık var olmayan satır atlanır.
+// run.order: the carousel order Rou gave. A file not in the list goes last, a line for a file that no longer exists is skipped.
 export const ordered = (run, files) => {
   const at = (f) => { const i = (run.order ?? []).indexOf(f); return i < 0 ? Infinity : i; };
   return files.map((f, i) => [f, i]).sort((a, b) => at(a[0]) - at(b[0]) || a[1] - b[1]).map((x) => x[0]);
 };
 
 export function shareFiles(run, platform) {
-  // Video + ayrı görseller (kapak değil): X'te ikisi de paylaşılır (video ilk tweette, görseller yanıtta; publish.mjs).
+  // Video + separate images (not the cover): on X both are shared (video in the first tweet, images in the reply; publish.mjs).
   const extra = (run.images ?? []).filter((f) => !/-cover\./.test(f) && f !== `media/${run.id}-0.jpg` && f !== `media/${run.id}-0.png`);
-  // Instagram carousel'i (ig_post) video ile görselleri birlikte taşır, run.order sırasıyla (kapak bento önce).
+  // An Instagram carousel (ig_post) carries the video and the images together, in run.order (the bento cover first).
   const mixed = platform === "instagram" && run.post?.format === "ig_post" && run.video && extra.length;
   const rel = mixed ? ordered(run, [run.video, ...extra]).slice(0, 10)
     : run.video ? (platform === "x" && extra.length ? [run.video, ...extra.slice(0, 4)] : [run.video]) : run.images ?? [];
   const files = rel.map((f) => path.join(DATA_DIR, f));
-  // run.noMerge: kullanıcı video ile görselleri ayrı ayrı istedi (ör. splash + fotoğraflar); tek videoda birleştirilmez.
+  // run.noMerge: the user wanted the video and the images separately (e.g. splash + photos); they are not merged into one video.
   if (run.noMerge || platform !== "linkedin" || files.length < 2 || !files.some((f) => VIDEO.test(f))) return files;
   const out = path.join(MEDIA_DIR, `${run.id}-li.mp4`);
   const newest = Math.max(...files.map((f) => fs.statSync(f).mtimeMs));
@@ -39,7 +39,7 @@ function probe(f) {
   return { w, h };
 }
 
-// Kenar boşluğu, dosyanın sol üst köşesindeki renkle dolar; böylece farklı boyutlu ekler arasında şerit görünmez.
+// The padding is filled with the colour of the file's top-left corner so no band shows between attachments of different sizes.
 function corner(f) {
   const px = execFileSync(FFMPEG, ["-v", "error", "-i", f, "-frames:v", "1", "-vf", "crop=2:2:0:0,scale=1:1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
   return `0x${[...px.subarray(0, 3)].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
@@ -47,7 +47,7 @@ function corner(f) {
 
 function merge(files, out) {
   const sizes = files.map(probe);
-  // Tuval: en geniş ve en yüksek ek; LinkedIn'in en büyük 1920 genişliğine sığar.
+  // Canvas: the widest and tallest attachment; fits LinkedIn's maximum width of 1920.
   const k = Math.min(1, 1920 / Math.max(...sizes.map((s) => s.w)));
   const W = even(Math.max(...sizes.map((s) => s.w)) * k), H = even(Math.max(...sizes.map((s) => s.h)) * k);
   const args = ["-y", "-v", "error"];

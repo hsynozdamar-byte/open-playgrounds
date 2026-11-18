@@ -42,7 +42,7 @@ describe("seri rengi (automation.color)", () => {
   });
 
   it("prompt kuralı", () => {
-    expect(seriesRule("#C8102E")).toBe("Seri rengi: #c8102e, bu serinin bütün kapak ve slaytlarında vurgu bu renk.");
+    expect(seriesRule("#C8102E")).toBe("Series color: #c8102e. Use it as the accent on every cover and slide of this series.");
     expect(seriesRule(undefined)).toBe("");
   });
 });

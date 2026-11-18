@@ -1,49 +1,49 @@
-// Onay kapısı: bir çıktı "Onay bekliyor"a düşmeden önce daha önce yakalanmış hata türlerine bakılır. Takılan kontrol çıktıyı
-// "Hazırlanamadı" yapar, nedeni kartta yazar; zamanlayıcı (server/schedule.mjs retryable) kendiliğinden yeniden dener.
-// Yeni bir hata türü yakalandığında buraya bir kontrol eklenir (tarih + ne olduğu), testi tests/quality.test.ts'te.
+// Approval gate: before an output goes to "Waiting for approval" it is checked for kinds of mistakes caught before. A failed check
+// makes the output "failed" with the reason on the card; the scheduler (server/schedule.mjs retryable) retries it by itself.
+// When a new kind of mistake is caught, a check is added here (date + what it was), with its test in tests/quality.test.ts.
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./store.mjs";
 import { attachMedia } from "./library.mjs";
 import { revisionsOf } from "../shared/revise.mjs";
 
-// Tasarım denetiminin puanı bunun altındaysa çıktı zayıf sayılır. Zayıf çıktı da kullanıcıya gösterilir (eleştirisiyle onaya düşer);
-// yalnız kendiliğinden onaylanmaz (server/share.mjs approveRun).
+// An output whose design review score is under this counts as weak. A weak output is still shown to the user (it goes to approval
+// with its critique); it is only never approved automatically (server/share.mjs approveRun).
 export const FLOOR = 5;
 export const designLow = (r) => !!r?.review && (r.review?.score) < FLOOR;
 
 const textsOf = (r) => [r.body, r.post?.text, r.post?.caption, r.post?.hook, ...(Array.isArray(r.post?.tweets) ? r.post.tweets : [])].filter((x) => typeof x === "string");
 
 export const CHECKS = [
-  // Rou'nun kendine notu metnin ilk satırına girmesin.
-  { id: "note", why: "Metinde Rou'nun iç notu kalmış", test: (r) => textsOf(r).some((t) => /^\s*(KONU UYMADI|YAPILAMADI|NOT ?:|TODO)\b/im.test(t)) },
-  // Görsel anahtarı çözülmezse siyah zemine yalnız yazı çizilir.
-  // Ek başka bir projenin medyasından olabilir (bir hesap başka bir projeyi anlatır): dünyadaki projelerin hiçbirinde çözülmüyorsa boştur.
-  { id: "blank", why: "Ekteki görselde gerçek görüntü yok (yalnız yazılı kart)", test: (r, pids) => !!r.attach?.slides?.length && !r.video && !pids.some((pid) => attachMedia(pid, r.attach).slides?.some((x) => x.media)) },
-  // Çıktının gösterdiği dosya diskte yoksa paylaşımda boş kalır.
-  { id: "file", why: "Çıktının görsel ya da video dosyası bulunamadı", test: (r) => [r.video, ...(r.images ?? [])].filter(Boolean).some((f) => !fs.existsSync(path.join(DATA_DIR, f))) },
-  // Metin boş (yalnız görsel gönderisi değilse).
-  { id: "empty", why: "Gönderinin metni boş", test: (r) => !!r.post && !textsOf(r).some((t) => t.trim()) && !(r.images?.length || r.video) },
-  // Son revize açıkça bir biçim istiyorsa (GIF, video) o biçim çıktıda olmalı.
-  // Not okunmuşsa (clear) kapı yalnız yeni medya isteyen notta (media "new") biçim arar; kaldırma/yasak cümleleri istek sayılmaz.
-  { id: "asked", why: "Revizede istenen GIF, video ya da animasyon çıktıda yok", test: (r, pids, task) => {
+  // Rou's own note must not end up on the first line of the text.
+  { id: "note", why: "Rou's internal note was left in the text", test: (r) => textsOf(r).some((t) => /^\s*(TOPIC MISMATCH|UNABLE|KONU UYMADI|YAPILAMADI|NOTE ?:|NOT ?:|TODO)\b/im.test(t)) },
+  // If the visual key does not resolve, only text is drawn on a black ground.
+  // The attachment may come from another project's media (an account can talk about another project): it is blank only if it resolves in none of the world's projects.
+  { id: "blank", why: "The attached visual has no real footage (text-only card)", test: (r, pids) => !!r.attach?.slides?.length && !r.video && !pids.some((pid) => attachMedia(pid, r.attach).slides?.some((x) => x.media)) },
+  // If a file the output shows is missing on disk, the share would be empty.
+  { id: "file", why: "The output's image or video file was not found", test: (r) => [r.video, ...(r.images ?? [])].filter(Boolean).some((f) => !fs.existsSync(path.join(DATA_DIR, f))) },
+  // Empty text (unless it is an image-only post).
+  { id: "empty", why: "The post's text is empty", test: (r) => !!r.post && !textsOf(r).some((t) => t.trim()) && !(r.images?.length || r.video) },
+  // If the last revision explicitly asks for a format (GIF, video), that format must be in the output.
+  // If the note was clarified (clear), the gate looks for a format only when the note wants new media (media "new"); removal/ban sentences do not count as a request.
+  { id: "asked", why: "The GIF, video or animation asked for in the revision is not in the output", test: (r, pids, task) => {
     const rv = revisionsOf(task).at(-1);
     if (rv?.clear && rv.clear.media !== "new") return false;
-    const NO = /(video|gif|animasyon|kayd)[^.;]{0,120}?(çıkar|kaldır|sil|olmasın|koyma|istem|gerek yok|ne gerek)|videosuz/i;
+    const NO = /(video|gif|animasyon|kayd|animation|recording)[^.;]{0,120}?(çıkar|kaldır|sil|olmasın|koyma|istem|gerek yok|ne gerek|remove|drop|delete|without|don'?t|do not|no need|not needed)|videosuz|no (video|gif|animation)|without (a |an )?(video|gif|animation)/i;
     const ask = `${rv?.clear?.ask ?? ""} ${rv?.clear ? "" : rv?.note ?? ""}`;
     if (NO.test(ask)) return false;
     const media = [r.video, ...(r.images ?? [])].filter(Boolean);
     if (/\bgif/i.test(ask)) return !media.some((f) => /\.gif$/i.test(f));
-    // "kaydır-" kayıt değil ("ilk kaydırmada").
-    if (/\bvideo|animasyon|ekran kayd|\bkayd[ıi](?!r)/i.test(ask)) return !media.some((f) => /\.(mp4|mov|webm|gif)$/i.test(f));
+    // "kaydır-" is scrolling, not recording ("ilk kaydırmada").
+    if (/\bvideo|animasyon|animation|screen ?record|recording|ekran kayd|\bkayd[ıi](?!r)/i.test(ask)) return !media.some((f) => /\.(mp4|mov|webm|gif)$/i.test(f));
     return false;
   } },
 ];
 
-// { ok } ya da { ok: false, error, failed: [id] }
-// pids: işin projesi ve dünyasındaki öteki projeler. task: revizeleriyle birlikte görev.
+// { ok } or { ok: false, error, failed: [id] }
+// pids: the task's project and the other projects in its world. task: the task with its revisions.
 export function gate(r, pids = [], task = null, s = null) {
   const failed = CHECKS.filter((c) => { try { return c.test(r, pids.filter(Boolean), task, s); } catch { return false; } });
   if (!failed.length) return { ok: true };
-  return { ok: false, failed: failed.map((c) => c.id), error: `Onay kontrolünden geçmedi: ${failed.map((c) => c.why).join("; ")}. Rou kendiliğinden yeniden deneyecek.` };
+  return { ok: false, failed: failed.map((c) => c.id), error: `Failed the approval check: ${failed.map((c) => c.why).join("; ")}. Rou will retry by itself.` };
 }

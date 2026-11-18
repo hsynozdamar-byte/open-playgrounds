@@ -1,5 +1,5 @@
-// İşletim sistemine göre değişen işler tek yerde: komut bulma, alt süreç başlatma ve durdurma, klasör açma, çöp kutusu, yollar.
-// Fonksiyonlar `plat` (process.platform) ve `env` alır ki testte başka bir sistem taklit edilebilsin.
+// Everything that differs by operating system in one place: finding commands, starting and stopping child processes, opening folders, the trash, paths.
+// Functions take `plat` (process.platform) and `env` so a test can imitate another system.
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,13 +7,13 @@ import path from "node:path";
 export const isWin = (plat = process.platform) => plat === "win32";
 export const isMac = (plat = process.platform) => plat === "darwin";
 
-// Komutun PATH'teki tam yolu (Windows'ta PATHEXT uzantılarıyla: claude.cmd, codex.exe). Yoksa "".
-// Yol içeren bir komut (C:\x\claude.exe, ./bin/x) olduğu gibi denetlenir.
+// The full path of a command on PATH (on Windows with PATHEXT extensions: claude.cmd, codex.exe). "" when missing.
+// A command with a path in it (C:\x\claude.exe, ./bin/x) is checked as it is.
 export function which(cmd, { plat = process.platform, env = process.env, exists = fs.existsSync } = {}) {
   if (!cmd) return "";
   const win = isWin(plat);
   const p = win ? path.win32 : path.posix;
-  // Windows'ta uzantısız dosya denenmez: npm, claude.cmd'nin yanına Windows'ta çalışmayan uzantısız bir sh betiği de koyar.
+  // On Windows files without an extension are not tried: npm also puts an extensionless sh script next to claude.cmd, which does not run on Windows.
   const exts = win ? String(env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean).map((e) => e.toLowerCase()) : [""];
   const hasExt = win && /\.[a-z0-9]+$/i.test(cmd);
   const tries = (base) => (hasExt ? [base] : exts.map((e) => base + e));
@@ -23,29 +23,29 @@ export function which(cmd, { plat = process.platform, env = process.env, exists 
   return "";
 }
 
-// Windows'ta .cmd/.bat (npm'in kurduğu claude.cmd, codex.cmd, npx.cmd) doğrudan başlatılamaz (Node ≥18.20 reddeder) ve
-// shell: true argümanları kaçışsız birleştirir. cross-spawn'ın yolu: cmd.exe /d /s /c "<komut> <kaçışlı argümanlar>".
+// On Windows .cmd/.bat files (claude.cmd, codex.cmd, npx.cmd installed by npm) cannot be started directly (Node ≥18.20 refuses) and
+// shell: true joins the arguments without escaping. The cross-spawn way: cmd.exe /d /s /c "<command> <escaped arguments>".
 const META = /([()\][%!^"`<>&|;, *?])/g;
-// Argüman: tırnaklanır, cmd.exe özel karakterleri ^ ile kaçar; .cmd betikleri argümanı bir kez daha açtığı için iki kez.
+// An argument is quoted and cmd.exe special characters are escaped with ^; twice, because .cmd scripts expand the argument once more.
 export function cmdQuote(arg, double = true) {
   let a = String(arg).replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, "$1$1");
   a = `"${a}"`.replace(META, "^$1");
   return double ? a.replace(META, "^$1") : a;
 }
-// Döner: spawn(file, args, opts) için { file, args, opts }. opts'a windowsHide eklenir.
+// Returns { file, args, opts } for spawn(file, args, opts). windowsHide is added to opts.
 export function spawnSpec(file, args = [], opts = {}, { plat = process.platform } = {}) {
   const o = { windowsHide: true, ...opts };
   if (!isWin(plat) || !/\.(cmd|bat)$/i.test(file)) return { file, args, opts: o };
   const line = [String(file).replace(META, "^$1"), ...args.map((a) => cmdQuote(a))].join(" ");
   return { file: "cmd.exe", args: ["/d", "/s", "/c", `"${line}"`], opts: { ...o, windowsVerbatimArguments: true } };
 }
-// Komutu PATH'te bulup başlatılabilir biçime getirir (bulunamazsa adıyla; hata spawn'ın "error" olayında gelir).
+// Finds the command on PATH and makes it startable (by its name when not found; the error arrives in spawn's "error" event).
 export const resolveSpawn = (cmd, args, opts, o = {}) => spawnSpec(which(cmd, o) || cmd, args, opts, o);
 
-// npx: Windows'ta npx.cmd (MCP sunucusu yapılandırmasında { command: "cmd", args: ["/c", "npx", ...] }).
+// npx: npx.cmd on Windows (in an MCP server config { command: "cmd", args: ["/c", "npx", ...] }).
 export const npxCommand = (args, { plat = process.platform } = {}) => (isWin(plat) ? { command: "cmd", args: ["/c", "npx", ...args] } : { command: "npx", args });
 
-// Süreci açtığı alt süreçlerle birlikte durdurur. Unix'te süreç grubu (detached başlatılmış olmalı), Windows'ta taskkill /T.
+// Stops a process together with the child processes it started. On Unix the process group (must have been started detached), on Windows taskkill /T.
 export function killTree(pid, { plat = process.platform, run, kill = process.kill } = {}) {
   if (!pid) return;
   if (isWin(plat)) {
@@ -53,14 +53,14 @@ export function killTree(pid, { plat = process.platform, run, kill = process.kil
     go("taskkill", ["/pid", String(pid), "/T", "/F"]);
     return;
   }
-  try { kill(-pid, "SIGTERM"); } catch { try { kill(pid, "SIGTERM"); } catch { /* çoktan bitmiş */ } }
+  try { kill(-pid, "SIGTERM"); } catch { try { kill(pid, "SIGTERM"); } catch { /* already finished */ } }
 }
 
-// Klasörü ya da dosyayı sistemin dosya yöneticisinde açmak için komut.
+// The command to open a folder or file in the system's file manager.
 export const openCommand = (p, { plat = process.platform } = {}) => (isMac(plat) ? ["open", [p]] : isWin(plat) ? ["explorer.exe", [p]] : ["xdg-open", [p]]);
 
-// Çöp kutusuna taşıma komutu: macOS ~/.Trash'e taşınır (rename, komut yok); Windows'ta PowerShell ile Geri Dönüşüm Kutusu;
-// Linux'ta gio trash. Döner: null (macOS: elle taşı) ya da [komut, argümanlar].
+// Command to move to the trash: on macOS the file is moved to ~/.Trash (a rename, no command); on Windows the Recycle Bin through PowerShell;
+// on Linux gio trash. Returns null (macOS: move it by hand) or [command, arguments].
 export function trashCommand(p, { plat = process.platform } = {}) {
   if (isMac(plat)) return null;
   if (isWin(plat)) {
@@ -70,23 +70,23 @@ export function trashCommand(p, { plat = process.platform } = {}) {
   return ["gio", ["trash", p]];
 }
 
-// ffmpeg ve ffprobe: PG_FFMPEG / PG_FFPROBE ile tam yol verilebilir; yoksa PATH'teki ad (Windows'ta ffmpeg.exe kendiliğinden bulunur).
+// ffmpeg and ffprobe: PG_FFMPEG / PG_FFPROBE can give a full path; otherwise the name on PATH (on Windows ffmpeg.exe is found by itself).
 export const FFMPEG = process.env.PG_FFMPEG || "ffmpeg";
 export const FFPROBE = process.env.PG_FFPROBE || "ffprobe";
 
-// "~" ve "~/x" (Windows'ta "~\x" de) kullanıcı klasörüne açılır.
+// "~" and "~/x" (also "~\x" on Windows) expand to the home folder.
 export const expandHome = (p, home) => String(p ?? "").replace(/^~(?=[\\/]|$)/, home);
-// Medya anahtarı: klasöre göre yol, her sistemde "/" ile (veride saklanır, adreste kullanılır).
+// Media key: the path inside the folder, with "/" on every system (stored in data, used in addresses).
 export const mediaKey = (rel) => String(rel).split(/[\\/]+/).join("/");
 
-// Yalnız macOS'ta çalışan işler: arayüz bunları başka sistemde gizler (GET /api/platform).
+// Jobs that work only on macOS: the interface hides them on other systems (GET /api/platform).
 export const features = ({ plat = process.platform, shell = false } = {}) => ({
   os: plat,
   features: { focusChrome: isMac(plat), macNotify: isMac(plat), trash: true, openFolder: true, shell },
 });
 
-// Senkron indirme (curl yerine; Windows'ta curl her zaman yok). Ayrı bir Node süreci fetch ile indirir: zaman ve boyut sınırlı.
-// Döner: true (dosya yazıldı) ya da false.
+// Synchronous download (instead of curl; Windows does not always have curl). A separate Node process downloads with fetch: limited in time and size.
+// Returns true (file written) or false.
 export function downloadSync(url, file, { ms = 25000, max = 30 * 1024 * 1024 } = {}) {
   if (!/^https?:\/\//i.test(String(url))) return false;
   const js = `const [u,f,max]=process.argv.slice(1);fetch(u,{redirect:"follow",signal:AbortSignal.timeout(${ms})}).then(async(r)=>{if(!r.ok)process.exit(2);const b=Buffer.from(await r.arrayBuffer());if(b.length>Number(max))process.exit(3);require("fs").writeFileSync(f,b);}).catch(()=>process.exit(1));`;

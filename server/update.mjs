@@ -1,6 +1,6 @@
-// Güncelleme: kaynak (src, shared, public, index.html) derlenmiş sürümden (dist) yeniyse ya da sunucu kodu (server, shared, scripts)
-// sunucu açıldıktan sonra değiştiyse uygulama "Güncelleme var" der. POST /api/update derler; sunucu kodu değiştiyse gözetimli
-// sunucu 75 koduyla çıkıp yeniden başlar (server/serve.mjs). Geliştirme sunucusunda (npm run dev) Vite zaten anlık günceller.
+// Update: when the source (src, shared, public, index.html) is newer than the built version (dist), or server code (server, shared, scripts)
+// changed after the server started, the app says an update is available. POST /api/update builds; if server code changed, the supervised
+// server exits with code 75 and restarts (server/serve.mjs). On the dev server (npm run dev) Vite already updates instantly.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -26,26 +26,26 @@ export function version() {
   return { built, client: newest(["src", "shared", "public", "index.html"]) > built, server: newest(["server", "shared"]) > STARTED, ...(pending ? { pending: true, jobs: jobNames() } : {}) };
 }
 
-// Yeniden başlatma kuruldu, süren işlerin bitmesi bekleniyor. Bu sırada zamanlayıcı yeni hazırlık başlatmaz (server/schedule.mjs):
-// yoksa sıra hiç boşalmaz ve güncelleme saatlerce gelmez. Uygulama neyin beklendiğini adıyla gösterir (src/ui/Update.tsx).
+// A restart is armed and running jobs are being waited for. Meanwhile the scheduler starts no new prepares (server/schedule.mjs):
+// otherwise the queue never empties and the update would not come for hours. The app shows what it waits for by name (src/ui/Update.tsx).
 let pending = false;
 export const restartPending = () => pending;
 function jobNames(now = Date.now()) {
   try {
     const { state: s } = read();
-    return [...new Set(s.runs.filter((r) => r.status === "working" && now - new Date(r.at).getTime() < 90 * 60000).map((r) => s.tasks.find((t) => t.id === r.taskId)?.title ?? r.title ?? "Hazırlık"))].slice(0, 6);
+    return [...new Set(s.runs.filter((r) => r.status === "working" && now - new Date(r.at).getTime() < 90 * 60000).map((r) => s.tasks.find((t) => t.id === r.taskId)?.title ?? r.title ?? "Preparing"))].slice(0, 6);
   } catch { return []; }
 }
 
-// Sunucu yeniden başlarken süren işler yarıda kalır (hazırlık, paylaşım, Rou'nun kod işi): yeniden başlatma onlar bitene kadar bekler (en çok 90 dk).
+// Jobs running while the server restarts are cut off (prepare, share, Rou's code change): the restart waits for them (90 min at most).
 export function jobsRunning(now = Date.now()) {
   try {
     const { state: s } = read();
     const fresh = (at, min) => at && now - new Date(at).getTime() < min * 60000;
     const prep = s.runs.filter((r) => r.status === "working" && fresh(r.at, 90)).length;
     const share = s.runs.filter((r) => r.status === "approved" && r.publish?.phase && !r.publish.handoff && fresh(r.publish.at, 20)).length;
-    // Rou'nun kod işi tek aşamada uzun sürer (at yenilenmez): kısa bir pencere güncellemenin onu
-    // çalışırken kesmesine ve yarım dosyaların kayıtsız kalmasına yol açar. Hazırlıkla aynı pencere.
+    // Rou's code change is one long step (at is not refreshed): a short window would let an update cut it off
+    // mid-work and leave half-written files uncommitted. Same window as preparing.
     const change = s.change && !s.change.done && fresh(s.change.at, 90) ? 1 : 0;
     return prep + share + change;
   } catch { return 0; }
@@ -57,7 +57,7 @@ export function update() {
   if (busy) return busy;
   busy = new Promise((resolve) => {
     const v = version();
-    // busy bir sonraki turda temizlenir: senkron dönüşte burada temizlense, ardından atanan söz sonsuza dek eski sonucu döndürürdü
+    // busy is cleared on the next tick: cleared synchronously here, the promise assigned afterwards would return the old result forever
     const done = (r) => { queueMicrotask(() => (busy = null)); resolve(r); if (r.ok && v.server && !pending) { pending = true; void idle().then(() => setTimeout(() => process.exit(75), 300)); } };
     if (!v.client) return done({ ok: true, restart: !!v.server, waiting: v.server ? jobsRunning() : 0 });
     const p = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["vite", "build"], { cwd: ROOT, stdio: ["ignore", "ignore", "pipe"], shell: process.platform === "win32" });

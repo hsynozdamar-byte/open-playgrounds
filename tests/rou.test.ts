@@ -49,10 +49,10 @@ describe("Rou hangi gönderiden söz edildiğini bilir", () => {
     const lines = runLines(s, "2026-11-11").split("\n").filter((l: string) => l.startsWith("- "));
     expect(lines).toHaveLength(2);
     expect(lines[0]).toContain("(runId:f2)");
-    expect(lines[0]).toContain("görev günü 2026-11-12 (Per)");
-    expect(lines[0]).toContain("yenisi şu an hazırlanıyor");
-    expect(lines[0]).not.toContain("GECİKMİŞ");
+    expect(lines[0]).toContain("task day 2026-11-12 (Thu)");
+    expect(lines[0]).toContain("a new one is being prepared now");
+    expect(lines[0]).not.toContain("LATE");
     expect(lines[1]).toContain("(runId:m2)");
-    expect(lines[1]).toContain("görev id:men, görev günü 2026-11-10 (Sal) 10:00, GECİKMİŞ");
+    expect(lines[1]).toContain("task id:men, task day 2026-11-10 (Tue) 10:00, LATE");
   });
 });

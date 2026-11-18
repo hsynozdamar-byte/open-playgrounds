@@ -1,7 +1,7 @@
-// Başsız ekran görüntüsü, PDF ve kayıt için ayrı Chrome kabuğu. Kullanıcının Google Chrome'u asla başlatılmaz:
-// aynı ikili, profil verilmezse açık Chrome oturumuna bağlanıp onu kapatabiliyor.
-// Yol: PG_CHROME, yoksa ~/.cache/pg-headless altında bu sistem için kurulmuş chrome-headless-shell
-// (`npx @puppeteer/browsers install chrome-headless-shell@stable --path ~/.cache/pg-headless`), yoksa PATH'teki ad.
+// A separate Chrome shell for headless screenshots, PDFs and recording. The user's Google Chrome is never launched:
+// the same binary, without a profile, can attach to the open Chrome session and close it.
+// Path: PG_CHROME, else the chrome-headless-shell installed for this system under ~/.cache/pg-headless
+// (`npx @puppeteer/browsers install chrome-headless-shell@stable --path ~/.cache/pg-headless`), else the name on PATH.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

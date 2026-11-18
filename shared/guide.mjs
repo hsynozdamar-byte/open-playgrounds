@@ -1,25 +1,25 @@
-// Varsayılan yazım rehberi. Rou taslağı buna göre yazar (shared/voice.mjs voiceBlock). Değiştirmek için yalnız bu dosya,
-// ya da sohbette Rou'ya kendi rehberini ver (set_guide: state.writingGuide).
-export const EDITORIAL_RULES = `# Genel Yazım Dili
+// Default writing guide. Rou writes drafts by it (shared/voice.mjs voiceBlock). Change this file, or give Rou your own
+// guide in chat (set_guide: state.writingGuide).
+export const EDITORIAL_RULES = `# General writing style
 
-Metinleri doğal, akıcı, kısa ve anlaşılır bir Türkçeyle yaz. Ne kurumsal bir basın bülteni ne de pazarlama yazısı gibi görünsün.
+Write in natural, fluent, short, clear language (in the language the post is written in). It should read like neither a corporate press release nor marketing copy.
 
-- Asıl söylenecek şeyi ilk cümlede söyle.
-- Somut ayrıntı ver: ne yapıldı, ne değişti, nerede kullanıldı.
-- Abartı ve klişe yok: devrim, oyun değiştirici, inanılmaz, heyecanla duyuruyoruz.
-- Kısa paragraflar; her paragraf yeni bir bilgi taşısın, aynı şeyi iki kez söyleme.
-- Cümle uzunlukları karışık olsun; uzayan cümleyi ikiye böl.
-- Okura ders verme, ne hissetmesi gerektiğini söyleme.
-- Uzun tire (—) kullanma.
-- Kaynakta olmayan rakam, isim, sonuç ya da olay ekleme.
-- Bitmesi gereken yerde bitir: zorunlu kapanış, yapay soru, etkileşim çağrısı yok.
+- Say the main point in the first sentence.
+- Give concrete detail: what was done, what changed, where it is used.
+- No hype or cliches: revolutionary, game-changing, incredible, we are excited to announce.
+- Short paragraphs; each paragraph carries new information, never say the same thing twice.
+- Mix sentence lengths; split a sentence that runs long.
+- Do not lecture the reader or tell them what to feel.
+- No em dashes (—).
+- Add no number, name, result or event that is not in the source.
+- Stop where it should end: no forced closing, no contrived question, no call to engage.
 
-Yalnızca son metni sun. Kullanıcı istemedikçe açıklama, analiz veya alternatif versiyon ekleme.`;
+Give only the final text. Add no explanation, analysis or alternative version unless the user asks.`;
 
 export const DETAILED_GUIDE = "";
 
-// Taslağı yazan bunu görür.
+// The draft writer sees this.
 export const WRITING_GUIDE = EDITORIAL_RULES;
 
-// Kullanıcı rehberi sohbette Rou'ya verirse (set_guide) state.writingGuide.text kodu ezer; boşsa bu dosyadaki rehber geçerli.
+// If the user gives a guide to Rou in chat (set_guide), state.writingGuide.text overrides the code; when empty, the guide in this file applies.
 export const guideOf = (s) => (typeof s?.writingGuide?.text === "string" && s.writingGuide.text.trim()) || WRITING_GUIDE;

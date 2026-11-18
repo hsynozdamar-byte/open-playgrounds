@@ -1,2 +1,2 @@
-// Kullanıcının adı (Ayarlar › Hesap, state.settings.userName); yoksa "kullanıcı".
-export const userName = (s) => s?.settings?.userName?.trim() || "kullanıcı";
+// The user's name (Settings › Account, state.settings.userName); "user" when unset.
+export const userName = (s) => s?.settings?.userName?.trim() || "user";

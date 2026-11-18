@@ -1,5 +1,5 @@
-// Rou tarayıcıda (Playgrounds'un kendi tarayıcısı ya da yedek olarak bağlı Chrome) çalışırken ne yaptığı: claude akışındaki her araç kısa bir Türkçe adıma çevrilir, çıktıya (run[field].live) yazılır.
-// Uygulama bunu canlı gösterir: hangi Chrome, hangi sayfa, şu an ne yapıyor, son adımlar. Yazma en sık 1,5 sn'de bir.
+// What Rou is doing while it works in the browser (Playgrounds' own browser or, as a fallback, a linked Chrome): each tool in the claude stream becomes a short step, written to the run (run[field].live).
+// The app shows this live: which Chrome, which page, what it is doing now, the last steps. Writes at most every 1.5 s.
 import { update } from "./store.mjs";
 import { notify } from "./notify.mjs";
 import { asksPermission } from "../shared/chrome.mjs";
@@ -7,50 +7,50 @@ import { asksPermission } from "../shared/chrome.mjs";
 const host = (u) => { try { const x = new URL(u); return (x.host + x.pathname).replace(/\/$/, "").slice(0, 80); } catch { return String(u ?? "").slice(0, 80); } };
 export function stepOf(name, input) {
   const t = String(name).replace(/^mcp__(claude-in-chrome|pb)__/, "");
-  // Playgrounds tarayıcısının araçları (chrome-devtools-mcp)
-  if (t === "navigate_page") return input.url ? { text: `Açıyor: ${host(input.url)}`, url: input.url } : { text: "Sayfada geziyor" };
-  if (t === "take_snapshot") return { text: "Sayfayı okuyor" };
-  if (t === "take_screenshot") return { text: "Ekrana bakıyor" };
-  if (t === "click" || t === "hover" || t === "drag") return { text: "Tıklıyor" };
-  if (t === "fill" || t === "fill_form") return { text: "Formu dolduruyor" };
-  if (t === "upload_file") return { text: "Dosya yüklüyor" };
-  if (t === "press_key") return { text: `Tuş: ${input.key ?? ""}` };
-  if (t === "handle_dialog") return { text: "Uyarıyı yanıtlıyor" };
+  // Tools of the Playgrounds browser (chrome-devtools-mcp)
+  if (t === "navigate_page") return input.url ? { text: `Opening: ${host(input.url)}`, url: input.url } : { text: "Browsing the page" };
+  if (t === "take_snapshot") return { text: "Reading the page" };
+  if (t === "take_screenshot") return { text: "Looking at the screen" };
+  if (t === "click" || t === "hover" || t === "drag") return { text: "Clicking" };
+  if (t === "fill" || t === "fill_form") return { text: "Filling the form" };
+  if (t === "upload_file") return { text: "Uploading a file" };
+  if (t === "press_key") return { text: `Key: ${input.key ?? ""}` };
+  if (t === "handle_dialog") return { text: "Answering the dialog" };
   if (t === "list_pages" || t === "select_page" || t === "wait_for") return null;
-  if (t === "Bash" && /pb pass/.test(String(input.command ?? ""))) return { text: "Şifreyi giriyor" };
-  if (t === "select_browser") return { text: "Chrome seçiliyor" };
-  if (t === "navigate") return { text: `Açıyor: ${host(input.url)}`, url: input.url };
-  if (t === "tabs_create_mcp") return { text: "Yeni sekme açıyor" };
-  if (t === "tabs_close_mcp") return { text: "Sekmeyi kapatıyor" };
-  if (t === "get_page_text" || t === "read_page") return { text: "Sayfayı okuyor" };
-  if (t === "find") return { text: `Arıyor: ${String(input.query ?? "").slice(0, 60)}` };
-  if (t === "form_input") return { text: "Formu dolduruyor" };
-  if (t === "file_upload") return { text: "Dosya yüklüyor" };
-  if (t === "javascript_tool") return { text: "Sayfada işlem yapıyor" };
+  if (t === "Bash" && /pb pass/.test(String(input.command ?? ""))) return { text: "Entering the password" };
+  if (t === "select_browser") return { text: "Picking a Chrome" };
+  if (t === "navigate") return { text: `Opening: ${host(input.url)}`, url: input.url };
+  if (t === "tabs_create_mcp") return { text: "Opening a new tab" };
+  if (t === "tabs_close_mcp") return { text: "Closing the tab" };
+  if (t === "get_page_text" || t === "read_page") return { text: "Reading the page" };
+  if (t === "find") return { text: `Searching: ${String(input.query ?? "").slice(0, 60)}` };
+  if (t === "form_input") return { text: "Filling the form" };
+  if (t === "file_upload") return { text: "Uploading a file" };
+  if (t === "javascript_tool") return { text: "Working on the page" };
   if (t === "computer") {
     const a = input.action;
-    if (a === "screenshot") return { text: "Ekrana bakıyor" };
-    if (a === "type") return { text: `Yazıyor: ${String(input.text ?? "").slice(0, 50)}` };
-    if (a === "key") return { text: `Tuş: ${input.text ?? ""}` };
-    if (a === "scroll") return { text: "Kaydırıyor" };
-    if (/click/.test(a ?? "")) return { text: "Tıklıyor" };
-    return { text: "Sayfada çalışıyor" };
+    if (a === "screenshot") return { text: "Looking at the screen" };
+    if (a === "type") return { text: `Typing: ${String(input.text ?? "").slice(0, 50)}` };
+    if (a === "key") return { text: `Key: ${input.text ?? ""}` };
+    if (a === "scroll") return { text: "Scrolling" };
+    if (/click/.test(a ?? "")) return { text: "Clicking" };
+    return { text: "Working on the page" };
   }
   if (t === "tabs_context_mcp" || t === "list_connected_browsers" || t === "ToolSearch") return null;
-  if (t === "Read") return { text: "Dosya okuyor" };
-  if (t === "Write" || t === "Edit") return { text: "Dosya yazıyor" };
+  if (t === "Read") return { text: "Reading a file" };
+  if (t === "Write" || t === "Edit") return { text: "Writing a file" };
   return { text: t };
 }
 
-// Chrome aracı bu kadar sürede sonuçlanmazsa Rou büyük olasılıkla Claude in Chrome'un izin/onay penceresinde bekliyor.
+// If a Chrome tool does not finish in this time, Rou is most likely waiting at the Claude in Chrome permission/approval prompt.
 export const STALL = 30 * 1000;
-export const WAITING = "Chrome'da onay bekliyor";
+export const WAITING = "Waiting for approval in Chrome";
 
-// field: "act" (uygulama turu) ya da "live" (hazırlık); browser: { name }.
-// Döner: runClaude için { onTool, onResult } ve iş bitince çağrılan stop.
-// Onay beklenirken live.step WAITING olur, live.waiting true; bildirim her bekleyişte bir kez gider.
+// field: "act" (the do turn) or "live" (preparation); browser: { name }.
+// Returns { onTool, onResult } for runClaude and a stop to call when the job ends.
+// While waiting for approval live.step is WAITING and live.waiting is true; one notification goes out per wait.
 export function tracker(runId, field, browser) {
-  let live = { browser: browser?.name ?? "", url: "", step: "Başlıyor", at: new Date().toISOString(), log: [] };
+  let live = { browser: browser?.name ?? "", url: "", step: "Starting", at: new Date().toISOString(), log: [] };
   let timer = null, stall = null, told = false, before = null;
   const flush = () => {
     timer = null;
@@ -70,7 +70,7 @@ export function tracker(runId, field, browser) {
     live = { ...live, step: WAITING, waiting: true, at: new Date().toISOString() };
     if (timer) { clearTimeout(timer); timer = null; }
     flush();
-    if (!told) { told = true; notify("Rou Chrome'da onayını bekliyor", `${live.browser || "Chrome"}, ${host(live.url).split("/")[0] || "site"}`); }
+    if (!told) { told = true; notify("Rou is waiting for your approval in Chrome", `${live.browser || "Chrome"}, ${host(live.url).split("/")[0] || "site"}`); }
   };
   const clear = () => {
     if (stall) { clearTimeout(stall); stall = null; }

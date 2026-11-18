@@ -3,16 +3,16 @@ import { stepOf } from "../server/live.mjs";
 
 // Rou'nun Chrome'daki araçları uygulamada okunur adımlara çevrilir.
 describe("canlı adımlar", () => {
-  it("araçları Türkçe adıma çevirir, sayfa adresini tutar", () => {
-    expect(stepOf("mcp__claude-in-chrome__navigate", { url: "https://www.linkedin.com/company/setup/new/" })).toEqual({ text: "Açıyor: www.linkedin.com/company/setup/new", url: "https://www.linkedin.com/company/setup/new/" });
-    expect(stepOf("mcp__claude-in-chrome__computer", { action: "left_click" })?.text).toBe("Tıklıyor");
-    expect(stepOf("mcp__claude-in-chrome__computer", { action: "type", text: "Örnek Uygulama" })?.text).toBe("Yazıyor: Örnek Uygulama");
-    expect(stepOf("mcp__claude-in-chrome__form_input", {})?.text).toBe("Formu dolduruyor");
+  it("translates tools into steps, sayfa adresini tutar", () => {
+    expect(stepOf("mcp__claude-in-chrome__navigate", { url: "https://www.linkedin.com/company/setup/new/" })).toEqual({ text: "Opening: www.linkedin.com/company/setup/new", url: "https://www.linkedin.com/company/setup/new/" });
+    expect(stepOf("mcp__claude-in-chrome__computer", { action: "left_click" })?.text).toBe("Clicking");
+    expect(stepOf("mcp__claude-in-chrome__computer", { action: "type", text: "Örnek Uygulama" })?.text).toBe("Typing: Örnek Uygulama");
+    expect(stepOf("mcp__claude-in-chrome__form_input", {})?.text).toBe("Filling the form");
     expect(stepOf("mcp__claude-in-chrome__tabs_context_mcp", {})).toBeNull();
   });
 });
 
-// Chrome aracı uzun süre sonuçlanmazsa ya da izin hatası dönerse adım "Chrome'da onay bekliyor" olur.
+// Chrome aracı uzun süre sonuçlanmazsa ya da izin hatası dönerse adım "Waiting for approval in Chrome" olur.
 import { vi, beforeEach, afterEach } from "vitest";
 vi.mock("../server/store.mjs", () => ({ update: (fn: (s: unknown) => void) => fn(mem) }));
 vi.mock("../server/notify.mjs", () => ({ notify: (...a: string[]) => sent.push(a) }));
@@ -28,11 +28,11 @@ describe("onay bekleyişi", async () => {
     t.onTool("mcp__claude-in-chrome__navigate", { url: "https://www.linkedin.com/company/setup/new/" });
     vi.advanceTimersByTime(STALL + 10);
     expect(live()).toMatchObject({ step: WAITING, waiting: true });
-    expect(sent).toEqual([["Rou Chrome'da onayını bekliyor", "İş, www.linkedin.com"]]);
+    expect(sent).toEqual([["Rou is waiting for your approval in Chrome", "İş, www.linkedin.com"]]);
     t.onResult("ok", false);
     vi.advanceTimersByTime(2000);
     expect(live().waiting).toBeUndefined();
-    expect(live().step).toBe("Açıyor: www.linkedin.com/company/setup/new");
+    expect(live().step).toBe("Opening: www.linkedin.com/company/setup/new");
     t.stop();
   });
   it("izin hatası dönerse hemen bekliyor yazar", () => {

@@ -1,17 +1,17 @@
-// X'te alıntı ve yanıt: gönderi bir tweete alıntı ya da yanıt olacaksa metindeki tweet adresi ve
-// "alıntı olarak paylaş" gibi talimat satırları metinden çıkar; hedef tweet post.quote / post.reply olarak saklanır.
-// Önizleme hedef tweeti (yazar, metin, görsel) gösterir; paylaşım o tweeti açıp alıntılar ya da yanıtlar (server/publish.mjs).
+// Quote and reply on X: if the post is to quote or reply to a tweet, the tweet address and instruction lines like
+// "share as a quote" are removed from the text; the target tweet is stored as post.quote / post.reply.
+// The preview shows the target tweet (author, text, image); sharing opens that tweet and quotes or replies to it (server/publish.mjs).
 import { bodyOf } from "../shared/social.mjs";
 
 export const TWEET_URL = /https?:\/\/(?:www\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]+)\/status\/(\d+)\S*/;
-const INSTRUCTION = /^\s*(al[ıi]nt[ıi]|yan[ıi]t|quote|reply)[^\n]{0,40}(payla[şs]|olarak|tweet)[^\n]*$/i;
+const INSTRUCTION = /^\s*(al[ıi]nt[ıi]|yan[ıi]t|quote|quoting|reply|replying)[^\n]{0,40}(payla[şs]|olarak|tweet|share|as a)[^\n]*$/i;
 
 export function modeOf(notes) {
   const t = String(notes ?? "");
-  return /al[ıi]nt[ıi]|quote/i.test(t) ? "quote" : /yan[ıi]t|reply/i.test(t) ? "reply" : null;
+  return /al[ıi]nt[ıi]|quote|quoting/i.test(t) ? "quote" : /yan[ıi]t|reply|replying/i.test(t) ? "reply" : null;
 }
 
-// fxtwitter'ın herkese açık API'si: yazar, metin, ilk görsel ya da videonun kapağı. Ulaşılamazsa yalnız adres kalır.
+// fxtwitter's public API: author, text, first image or the video's cover. If unreachable only the address is kept.
 async function tweetInfo(user, id) {
   const url = `https://x.com/${user}/status/${id}`;
   try {
@@ -21,7 +21,7 @@ async function tweetInfo(user, id) {
     const media = (x) => {
       const m = x?.media?.all?.[0] ?? x?.media?.videos?.[0] ?? x?.media?.photos?.[0];
       if (!m) return undefined;
-      // Videoda önizleme oynasın diye orta boy mp4 (yoksa asıl adres).
+      // A mid-size mp4 so the preview can play a video (else the original address).
       const mp4 = (m.formats ?? []).filter((f) => f.container === "mp4" && f.bitrate).sort((a, b) => a.bitrate - b.bitrate);
       const video = m.type === "photo" ? undefined : (mp4[Math.min(2, mp4.length - 1)]?.url ?? m.url);
       return { kind: m.type === "photo" ? "image" : "video", thumb: m.thumbnail_url ?? m.url, ...(video ? { video } : {}) };
@@ -44,7 +44,7 @@ export async function linkTweet(post, notes) {
   return { ...post, tweets: tweets.length ? tweets : post.tweets, [mode]: target };
 }
 
-// Hazır bir gönderinin hedef tweet bilgisini yeniler (alıntı kutusunda video görünmeyebilir).
+// Refreshes the target tweet info of a ready post (a video may not show in the quote box).
 export async function refreshTarget(post) {
   const t = post?.quote ?? post?.reply;
   const m = t?.url?.match(TWEET_URL);

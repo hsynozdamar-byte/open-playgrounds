@@ -1,7 +1,7 @@
-// Bildirim. Önce açık Playgrounds sayfasına gider (store.mjs notice): masaüstü uygulaması onu kendi ikonuyla gösterir.
-// Sunucu sürecinde doğrudan, başka süreçte (pg CLI) POST /api/notify ile. Açık sayfa yoksa Playgrounds kabuğu (Electron) kendi
-// ikonuyla gösterir; kabuk da çalışmıyorsa macOS'ta son çare osascript, başka sistemlerde bildirim düşer.
-// Testte (PG_DRY) sessiz.
+// Notification. It goes to an open Playgrounds page first (store.mjs notice): the desktop app shows it with its own icon.
+// Directly in the server process, via POST /api/notify from another process (pg CLI). With no open page the Playgrounds shell
+// (Electron) shows it with its own icon; if the shell is not running either, osascript is the last resort on macOS, elsewhere the notification is dropped.
+// Silent in tests (PG_DRY).
 import { spawn } from "node:child_process";
 
 const q = (x) => `"${String(x).replace(/\\/g, "\\\\").replace(/"/g, '\\"').slice(0, 220)}"`;
@@ -13,7 +13,7 @@ const osa = (title, text) => {
 const script = (title, text) => {
   try {
     if (process.platform === "darwin") spawn("osascript", ["-e", `display notification ${q(text)} with title "Playgrounds" subtitle ${q(title)}`], { stdio: "ignore", detached: true }).unref();
-  } catch { /* bildirim yoksa iş yine sürer */ }
+  } catch { /* the job continues without a notification */ }
 };
 export function notify(title, text) {
   if (process.env.PG_DRY) return;

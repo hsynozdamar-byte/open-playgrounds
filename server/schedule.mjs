@@ -1,25 +1,26 @@
-// Otomasyonların zamanlayıcısı: sunucu açıkken dakikada bir bakar. Bugünün işlerini açar (materialize);
-// Rou'nun işini saatinden LEAD dk önce hazırlar. Rou'ya atanmış tek işler de aynı yoldan. Çıktılar yine onay bekler,
-// onaylanmadan hiçbir şey paylaşılmaz. Bilgisayar uyurken çalışmaz; uyanınca kaçırdığı bugünkü işleri yakalar.
+// Scheduler for automations: checks once a minute while the server is up. Opens today's tasks (materialize);
+// prepares Rou's task LEAD min before its time. Single tasks assigned to Rou go the same way. Outputs still wait for approval,
+// nothing is shared without approval. Does not run while the computer sleeps; on waking it picks up today's missed tasks.
 import { restartPending } from "./update.mjs";
 import { read, update } from "./store.mjs";
 import { materialize, needsMaterialize } from "../shared/repeat.mjs";
 import { needsChrome } from "../shared/chrome.mjs";
 import { accountOf, taskRef } from "../shared/social.mjs";
 
-export const LEAD = 60; // dk: saatli işler bu kadar önce hazırlanır
-export const DAY_START = "07:00"; // saatsiz işler bu saatten sonra hazırlanır
-export const AHEAD_AT = "12:00"; // Rou'nun otomasyon işleri bir gün önceden, bu saatten sonra hazırlanır (automation.ahead === false olanlar kendi günü)
+export const LEAD = 60; // min: timed tasks are prepared this long before
+export const DAY_START = "07:00"; // tasks with no time are prepared after this time
+export const AHEAD_AT = "12:00"; // Rou's automation tasks are prepared a day ahead, after this time (those with automation.ahead === false on their own day)
 
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const toMin = (hm) => { const [h, m] = hm.split(":").map(Number); return h * 60 + m; };
 
-// Düşen iş kendiliğinden yeniden denenir: son çıktı "Hazırlanamadı" ise, son denemeden RETRY_MIN dk geçtiyse ve bugün
-// RETRY_MAX'tan az denendiyse. Rou'nun soru sorduğu, kullanıcının elinin gerektiği (şifre, revizeye dosya) ya da paylaşılmış işler denenmez.
+// A failed task is retried automatically: if the last output failed, RETRY_MIN min passed since the last attempt, and it was
+// tried fewer than RETRY_MAX times today. Tasks where Rou asked a question, the user is needed (password, a file for the revision) or that were shared are not retried.
 export const RETRY_MIN = 20, RETRY_MAX = 3;
-// "Revize iste ile tekrar dene": yasaklı ifade ikinci denemede de kaldı, aynı notla üçüncü deneme de aynı sonucu verir.
-const NEEDS_YOU = /durduruldu|Rou soruyor|zaten paylaşıldı|şifre|dosya olarak ekle|Revize iste ile tekrar dene/i;
+// "Request a revision to try again": the banned phrase stayed in the second attempt too, a third attempt with the same note gives the same result.
+// Both the old Turkish and the English wording of the failure texts are matched (they may be stored in existing data).
+const NEEDS_YOU = /durduruldu|stopped|Rou soruyor|Rou asks|zaten paylaşıldı|already shared|şifre|password|dosya olarak ekle|as a file|Revize iste ile tekrar dene|revision note to try again|Request a revision/i;
 const failText = (r) => `${r.renderError ?? ""} ${r.body ?? ""}`;
 export function retryable(s, t, now = new Date()) {
   const runs = (s.runs ?? []).filter((r) => r.taskId === t.id);
@@ -28,19 +29,19 @@ export function retryable(s, t, now = new Date()) {
   if (!last.at || last.status !== "failed") return false;
   if (NEEDS_YOU.test(failText(last))) return false;
   if (now - new Date(last.at) < RETRY_MIN * 60 * 1000) return false;
-  // Gün yerel saatle sayılır (UTC ile sayınca gün sınırı kayıyordu).
+  // The day is counted in local time (counting in UTC shifted the day boundary).
   const day = iso(now);
   return runs.filter((r) => r.status === "failed" && r.at && iso(new Date(r.at)) === day).length < RETRY_MAX;
 }
 
-// Şimdi hazırlanması gereken işler. Saf işlev (test edilir).
+// Tasks that must be prepared now. Pure function (tested).
 export function dueNow(s, now = new Date()) {
   const today = iso(now);
   const tomorrow = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
   const min = now.getHours() * 60 + now.getMinutes();
   const out = { claude: [], chrome: [] };
   for (const t of s.tasks ?? []) {
-    // Rou'ya atanmış tek iş: günü geldiyse (ya da geçtiyse) başlar; takvimde saati varsa saatinden LEAD dk önce.
+    // A single task assigned to Rou: starts when its day comes (or has passed); if it has a calendar time, LEAD min before it.
     if (!t.autoId && t.who === "claude") {
       if (t.status === "done" || t.status === "waiting" || !t.day || t.day > today) continue;
       if ((s.runs ?? []).some((r) => r.taskId === t.id)) continue;
@@ -53,12 +54,12 @@ export function dueNow(s, now = new Date()) {
     if (!t.autoId || t.status === "done") continue;
     const a = (s.automations ?? []).find((x) => x.id === t.autoId);
     if (!a || a.status !== "active" || a.who !== "claude") continue;
-    // Yarının işi: bugün AHEAD_AT'ten sonra hazırlanır; onay bir gün önceden verilir.
+    // Tomorrow's task: prepared today after AHEAD_AT; approval is given a day ahead.
     const ahead = a.ahead !== false && t.day === tomorrow && (t.autoDay ?? t.day) === tomorrow;
     if (!ahead && (t.day !== today || (t.autoDay ?? t.day) !== today)) continue;
     const tried = (s.runs ?? []).filter((r) => r.taskId === t.id);
-    if (tried.length && !retryable(s, t, now)) continue; // hazırlandı, hazırlanıyor ya da denendi
-    // Daha önce denenmiş iş zamanı gelmiş iştir: yeniden deneme saatini beklemez (önceden hazırlanan yarının işi gibi).
+    if (tried.length && !retryable(s, t, now)) continue; // prepared, being prepared or already tried
+    // A task tried before is due: a retry does not wait for the time (like tomorrow's task prepared ahead).
     const at = tried.length ? 0 : ahead ? toMin(AHEAD_AT) : t.autoSlot ? Math.max(0, toMin(t.autoSlot) - LEAD) : toMin(DAY_START);
     if (min < at) continue;
     out.claude.push(t.id);
@@ -70,24 +71,24 @@ let lastRetention = 0;
 let lastTopics = "";
 export function tick(now = new Date()) {
   if (needsMaterialize(read().state)) update((s) => void materialize(s, iso(now)));
-  // Onay beklemeyen otomasyon (a.approve === false): çıktı gelince uygulamadaki Onayla ile aynı yoldan onaylanır (approveRun).
-  // Paylaşılacak gönderinin işi açık kalır ve saatinde paylaşılır; önceden iş burada "bitti" yapılıyordu ve gönderi hiç çıkmıyordu.
-  // Sesi, videosu ya da görseli eksik çıktı onaylanmaz, kartta bekler.
+  // An automation that skips approval (a.approve === false): the output is approved through the same path as Approve in the app (approveRun).
+  // The task of a post to be shared stays open and is shared at its time; it used to be marked "done" here and the post never went out.
+  // An output with missing voice, video or image is not approved, it waits on the card.
   const auto = (st, r) => { const t = st.tasks.find((x) => x.id === r.taskId); const a = t && st.automations.find((x) => x.id === t.autoId); return a?.approve === false ? t : null; };
   if (read().state.runs.some((r) => r.status === "ready" && auto(read().state, r))) import("./share.mjs").then(({ approveRun }) => update((st) => {
-    for (const r of st.runs) if (r.status === "ready" && auto(st, r)) { try { approveRun(st, r.id, { via: "auto" }); } catch { /* eksik: bekler */ } }
-  })).catch((e) => console.error("onay:", e));
-  // Takılan hazırlıklar durdurulur; aşağıdaki retryable onları 20 dk sonra yeniden başlatır.
-  import("./prepare.mjs").then(({ stopStuck }) => { const x = stopStuck(); if (x.length) console.log("takılan hazırlık durduruldu:", x.join(", ")); }).catch((e) => console.error("bekçi:", e));
+    for (const r of st.runs) if (r.status === "ready" && auto(st, r)) { try { approveRun(st, r.id, { via: "auto" }); } catch { /* incomplete: it waits */ } }
+  })).catch((e) => console.error("approve:", e));
+  // Stuck preparations are stopped; retryable below restarts them after 20 min.
+  import("./prepare.mjs").then(({ stopStuck }) => { const x = stopStuck(); if (x.length) console.log("stuck preparation stopped:", x.join(", ")); }).catch((e) => console.error("watchdog:", e));
   const s = read().state;
   const d = dueNow(s, now);
-  // Güncelleme için yeniden başlatma bekleniyorsa yeni hazırlık başlamaz; işler yeni sunucuda, bir sonraki turda alınır.
+  // If a restart for an update is pending, no new preparation starts; the tasks are picked up by the new server on the next tick.
   const hold = restartPending();
-  if (!hold && d.claude.length) import("./prepare.mjs").then(({ prepareMany }) => prepareMany(d.claude)).catch((e) => console.error("hazırlık:", e));
-  // Rou'nun Chrome işleri plansız, doğrudan yürür; Chrome'u Rou kendisi seçer, bağlı Chrome yoksa kartta yazar ve bildirim gider.
-  if (d.chrome.length) import("./browse.mjs").then(async ({ startDirect }) => { for (const id of d.chrome) await startDirect(id); }).catch((e) => console.error("tarayıcı işi:", e));
-  // Kit (görünüm) değiştiyse onay bekleyen görseller yeni kitle yeniden çizilir; eski hâl sürüm geçmişinde kalır.
-  // Bu kitle bir kez denenip çizilemeyen çıktı (kitTried) yeniden denenmez: yoksa bozuk bir render her dakika baştan başlardı.
+  if (!hold && d.claude.length) import("./prepare.mjs").then(({ prepareMany }) => prepareMany(d.claude)).catch((e) => console.error("prepare:", e));
+  // Rou's Chrome tasks run directly without a plan; Rou picks the Chrome itself, and if none is connected the card says so and a notification goes out.
+  if (d.chrome.length) import("./browse.mjs").then(async ({ startDirect }) => { for (const id of d.chrome) await startDirect(id); }).catch((e) => console.error("browser task:", e));
+  // If the kit (look) changed, images waiting for approval are redrawn with the new kit; the old state stays in the version history.
+  // An output that was tried once with this kit and could not be drawn (kitTried) is not retried: otherwise a broken render would restart every minute.
   import("./prepare.mjs").then(({ kitHash, kitOf, rerender }) => {
     const st = read().state;
     const stale = st.runs.filter((r) => r.status === "ready" && r.kitHash && r.images?.length && r.post && !r.phase).filter((r) => {
@@ -98,18 +99,18 @@ export function tick(now = new Date()) {
     });
     for (const r of stale.slice(0, 2)) rerender(r.id, { why: "kit" });
   }).catch((e) => console.error("kit:", e));
-  // Haftalık konu planı: günde bir, önümüzdeki 7 günün konusu boş saatlerini Rou doldurur (server/plan.mjs fillTopics).
+  // Weekly topic plan: once a day, Rou fills the empty topic slots of the next 7 days (server/plan.mjs fillTopics).
   if (now.getHours() * 60 + now.getMinutes() >= toMin(DAY_START) && lastTopics !== iso(now)) {
     lastTopics = iso(now);
-    import("./plan.mjs").then(({ addDays, fillTopics }) => fillTopics({ from: iso(now), until: addDays(iso(now), 7) })).then((r) => r.filled && console.log(`konu: ${r.filled} gönderinin konusu planlandı`)).catch((e) => console.error("konu:", e));
+    import("./plan.mjs").then(({ addDays, fillTopics }) => fillTopics({ from: iso(now), until: addDays(iso(now), 7) })).then((r) => r.filled && console.log(`topics: planned the topic of ${r.filled} posts`)).catch((e) => console.error("topics:", e));
   }
-  // Saklama: günde bir (server/retention.mjs).
+  // Retention: once a day (server/retention.mjs).
   if (Date.now() - lastRetention > 864e5) {
     lastRetention = Date.now();
-    import("./retention.mjs").then(({ retention }) => { const r = retention(); if (Object.values(r).some(Boolean)) console.log("saklama:", r); }).catch((e) => console.error("saklama:", e));
+    import("./retention.mjs").then(({ retention }) => { const r = retention(); if (Object.values(r).some(Boolean)) console.log("retention:", r); }).catch((e) => console.error("retention:", e));
   }
-  // Onaylanmış gönderiler saatinde paylaşılır (server/share.mjs).
-  import("./share.mjs").then(({ shareDue, fallbackDue }) => { shareDue(now); fallbackDue(now); }).catch((e) => console.error("paylaşım:", e));
+  // Approved posts are shared at their time (server/share.mjs).
+  import("./share.mjs").then(({ shareDue, fallbackDue }) => { shareDue(now); fallbackDue(now); }).catch((e) => console.error("share:", e));
   return d;
 }
 
@@ -117,4 +118,4 @@ export function startSchedule() {
   if (process.env.PG_NO_SCHEDULE) return;
   setTimeout(() => { safe(); setInterval(safe, 60 * 1000); }, 15 * 1000);
 }
-const safe = () => { try { tick(); } catch (e) { console.error("zamanlayıcı:", e); } };
+const safe = () => { try { tick(); } catch (e) { console.error("scheduler:", e); } };
