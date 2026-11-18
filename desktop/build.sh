@@ -17,7 +17,7 @@ echo "→ icons"
 rm -rf "$APP" "$TMP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$TMP/Playgrounds.iconset"
 swiftc -O desktop/make-icon.swift -o "$TMP/make-icon"
 SRC=public/apple-touch-icon.png
-"$TMP/make-icon" "$SRC" "$APP/Contents/Resources/orb.png" 64
+"$TMP/make-icon" "$SRC" "$APP/Contents/Resources/orb.png" 256
 for s in 16 32 128 256 512; do
   "$TMP/make-icon" "$SRC" "$TMP/Playgrounds.iconset/icon_${s}x${s}.png" $s 0.08
   "$TMP/make-icon" "$SRC" "$TMP/Playgrounds.iconset/icon_${s}x${s}@2x.png" $((s * 2)) 0.08
@@ -55,8 +55,11 @@ echo "✓ $APP"
 if [ "$1" = "--install" ]; then
   mkdir -p "$HOME/Applications"
   osascript -e 'quit app "Playgrounds"' 2>/dev/null || true
+  # Wait until the old copy has quit, or `open` fails.
+  i=0; while pgrep -qf "Playgrounds.app/Contents/MacOS/Playgrounds" && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
   rm -rf "$HOME/Applications/Playgrounds.app"
   cp -R "$APP" "$HOME/Applications/"
-  open "$HOME/Applications/Playgrounds.app"
+  # Launch Services can still be letting go of the old copy; try a few times.
+  for _ in 1 2 3 4 5 6; do open "$HOME/Applications/Playgrounds.app" 2>/dev/null && break; sleep 0.5; done
   echo "✓ installed to ~/Applications/Playgrounds.app"
 fi

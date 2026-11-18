@@ -125,6 +125,7 @@ func clock(_ sec: Int) -> String {
 
 final class Web: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
   let view: WKWebView
+  var onReady: (() -> Void)?
 
   override init() {
     let cfg = WKWebViewConfiguration()
@@ -177,6 +178,11 @@ final class Web: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHa
 
   func webView(_ w: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError e: Error) { showError() }
 
+  func webView(_ w: WKWebView, didFinish n: WKNavigation!) {
+    // Wait for the app to draw its first frame, so the loader never fades into a blank page.
+    w.evaluateJavaScript("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))") { _, _ in self.onReady?() }
+  }
+
   func webViewWebContentProcessDidTerminate(_ w: WKWebView) { load() }
 
   func webView(_ w: WKWebView, runOpenPanelWith p: WKOpenPanelParameters, initiatedByFrame f: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
@@ -208,6 +214,73 @@ final class Web: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHa
   }
 }
 
+// MARK: - Loader
+
+// Shown while the server starts and the page loads: the orb breathes and turns slowly, with a soft glow.
+final class Loader: NSView {
+  private let orb = CALayer()
+  private let glow = CALayer()
+  private let shownAt = Date()
+
+  override init(frame: NSRect) {
+    super.init(frame: frame)
+    wantsLayer = true
+    let img = Bundle.main.image(forResource: "orb")
+    for l in [glow, orb] {
+      l.contents = img
+      l.contentsGravity = .resizeAspect
+      layer?.addSublayer(l)
+    }
+    glow.opacity = 0.55
+    glow.filters = CIFilter(name: "CIGaussianBlur", parameters: [kCIInputRadiusKey: 28]).map { [$0] }
+    layerUsesCoreImageFilters = true
+    animate()
+  }
+  required init?(coder: NSCoder) { fatalError() }
+
+  override func layout() {
+    super.layout()
+    let d: CGFloat = 112
+    let r = CGRect(x: bounds.midX - d / 2, y: bounds.midY - d / 2 + 14, width: d, height: d)
+    CATransaction.begin(); CATransaction.setDisableActions(true)
+    orb.frame = r
+    glow.frame = r.insetBy(dx: -18, dy: -18)
+    CATransaction.commit()
+  }
+
+  private func animate() {
+    let ease = CAMediaTimingFunction(name: .easeInEaseOut)
+    let breathe = CABasicAnimation(keyPath: "transform.scale")
+    breathe.fromValue = 0.9; breathe.toValue = 1.04
+    breathe.duration = 1.4; breathe.autoreverses = true; breathe.repeatCount = .infinity; breathe.timingFunction = ease
+    let turn = CABasicAnimation(keyPath: "transform.rotation.z")
+    turn.fromValue = 0; turn.toValue = -2 * Double.pi
+    turn.duration = 9; turn.repeatCount = .infinity
+    let pulse = CABasicAnimation(keyPath: "opacity")
+    pulse.fromValue = 0.3; pulse.toValue = 0.75
+    pulse.duration = 1.4; pulse.autoreverses = true; pulse.repeatCount = .infinity; pulse.timingFunction = ease
+    orb.add(breathe, forKey: "breathe"); orb.add(turn, forKey: "turn")
+    glow.add(breathe, forKey: "breathe"); glow.add(pulse, forKey: "pulse")
+    // Fade in.
+    let pop = CABasicAnimation(keyPath: "opacity"); pop.fromValue = 0; pop.toValue = 1; pop.duration = 0.35
+    layer?.add(pop, forKey: "in")
+  }
+
+  // Fades out, but stays at least a moment so a fast load does not flash.
+  func finish() {
+    let wait = max(0, 0.7 - Date().timeIntervalSince(shownAt))
+    DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
+      NSAnimationContext.runAnimationGroup({ c in
+        c.duration = 0.45
+        c.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        self.animator().alphaValue = 0
+        let grow = CABasicAnimation(keyPath: "transform.scale"); grow.toValue = 1.25; grow.duration = 0.45; grow.fillMode = .forwards; grow.isRemovedOnCompletion = false
+        self.orb.add(grow, forKey: "out"); self.glow.add(grow, forKey: "out")
+      }, completionHandler: { self.removeFromSuperview() })
+    }
+  }
+}
+
 final class Window: NSWindow {
   // ⌘W hides; the app keeps running in the menu bar.
   override func performClose(_ sender: Any?) { orderOut(nil); (NSApp.delegate as? App)?.windowHidden() }
@@ -225,14 +298,16 @@ final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelega
   var tick: Timer?
   var hotKey: EventHotKeyRef?
   var restarting = false
+  var loader: Loader?
 
   func applicationDidFinishLaunching(_ n: Notification) {
     UNUserNotificationCenter.current().delegate = self
     buildMainMenu()
     buildStatusItem()
     buildWindow()
+    web.onReady = { [weak self] in self?.loader?.finish(); self?.loader = nil }
     server.ensure { up in
-      if up { self.web.load(); self.live.connect() } else { self.web.showError() }
+      if up { self.web.load(); self.live.connect() } else { self.web.showError(); self.loader?.finish(); self.loader = nil }
     }
     live.onChange = { [weak self] s in self?.state = s; self?.refreshTitle() }
     // The server went away (e.g. npm run dev was stopped): start our own; the page reconnects by itself.
@@ -387,6 +462,14 @@ final class App: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelega
       web.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       web.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
     ])
+    let l = Loader()
+    l.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(l)
+    NSLayoutConstraint.activate([
+      l.topAnchor.constraint(equalTo: root.topAnchor), l.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+      l.leadingAnchor.constraint(equalTo: root.leadingAnchor), l.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+    ])
+    loader = l
     window.contentView = root
     window.setFrameAutosaveName("PlaygroundsMain")
     if !window.setFrameUsingName("PlaygroundsMain") { window.center() }
