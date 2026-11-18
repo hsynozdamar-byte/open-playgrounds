@@ -41,6 +41,7 @@ if (process.platform === "win32") app.setAppUserModelId("app.playgrounds.desktop
 // Oturumlar, sekmeler ve (paketli kurulumda) veri: ~/Library/Application Support/Playgrounds, %APPDATA%\Playgrounds.
 // PG_USER_DATA başka bir klasör verir (deneme, ekran görüntüsü).
 app.setPath("userData", process.env.PG_USER_DATA || path.join(app.getPath("appData"), "Playgrounds"));
+if (process.env.PG_USER_DATA) app.setAppLogsPath(path.join(process.env.PG_USER_DATA, "logs"));
 app.commandLine.appendSwitch("remote-debugging-port", String(CDP_PORT));
 app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
 // Siteler Electron'u değil Chrome'u görsün (bazı girişler gömülü tarayıcıyı reddediyor).
@@ -455,7 +456,8 @@ function api(req, res) {
     if (url.pathname === "/notify" && req.method === "POST") {
       const { title, text } = await body();
       if (!Notification.isSupported()) return send(200, { ok: false });
-      const n = new Notification({ title: "Playgrounds", subtitle: String(title || ""), body: String(text || "") });
+      // macOS'ta başlık uygulama adı, konu alt başlık; Windows'ta alt başlık yok, konu başlık olur.
+      const n = new Notification(MAC ? { title: "Playgrounds", subtitle: String(title || ""), body: String(text || "") } : { title: String(title || "Playgrounds"), body: String(text || "") });
       n.on("click", () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); app.focus({ steal: true }); } });
       n.show();
       return send(200, { ok: true });
@@ -591,7 +593,11 @@ const TOKEN = (() => {
 })();
 const dataTag = (dir) => crypto.createHash("sha256").update(path.resolve(dir)).digest("hex").slice(0, 16);
 const whoami = (port) => fetch(`http://127.0.0.1:${port}/api/whoami`, { signal: AbortSignal.timeout(1500) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-const portFree = (port) => new Promise((res) => { const t = net.createServer(); t.once("error", () => res(false)); t.listen(port, "127.0.0.1", () => t.close(() => res(true))); });
+// Boş mu: önce bağlanmayı dener (macOS'ta 0.0.0.0'da dinleyen bir sunucu varken 127.0.0.1'e bağlanmak yine de başarılı olur),
+// sonra bütün adreslerde dinlemeyi.
+const answers = (port) => new Promise((res) => { const c = net.connect(port, "127.0.0.1"); c.setTimeout(800); c.once("connect", () => { c.destroy(); res(true); }); c.once("error", () => res(false)); c.once("timeout", () => { c.destroy(); res(false); }); });
+const bindable = (port) => new Promise((res) => { const t = net.createServer(); t.once("error", () => res(false)); t.listen(port, () => t.close(() => res(true))); });
+const portFree = async (port) => !(await answers(port)) && (await bindable(port));
 const anyPort = () => new Promise((res) => { const t = net.createServer(); t.listen(0, "127.0.0.1", () => { const { port } = t.address(); t.close(() => res(port)); }); });
 const ours = (w) => w?.app === "playgrounds" && (w.token === TOKEN || w.data === dataTag(DATA() || path.join(ROOT, "data")));
 async function pickPort() {
@@ -718,8 +724,9 @@ async function shellWindow() {
   win.on("close", (e) => { if (!quitting && MAC) { e.preventDefault(); remember(); win.hide(); } });
   if (!MAC) win.on("closed", () => app.quit());
   win.on("blur", remember);
-  // Kapanış takılmasın (SIGTERM ile, ya da bir pencere kapanmayı bekletirse): sunucu durdurulur, 3 sn sonra süreç zorla biter.
-  app.on("before-quit", () => { quitting = true; remember(); server?.kill("SIGTERM"); setTimeout(() => app.exit(0), 3000); });
+  // Kapanış takılmasın: sunucu durdurulur; Chromium kapanırken takılırsa (SIGTERM'de görüldü, ana döngü durduğu için zamanlayıcı da
+  // çalışmıyor) ayrı bir bekçi süreç 6 sn sonra bu süreci bitirir.
+  app.on("before-quit", () => { quitting = true; remember(); saveNow(); server?.kill("SIGTERM"); watchdog(); });
   // Girişte başlatma kapalı gelir; menüden açılır.
   if (MAC && systemPreferences.getMediaAccessStatus("microphone") === "not-determined") systemPreferences.askForMediaAccess("microphone").catch(() => {});
   await startPlaygrounds();
@@ -793,8 +800,16 @@ function listenApi() {
     srv.listen(API_PORT, "127.0.0.1", () => { apiPort = API_PORT; resolve(); });
   });
 }
+// Kapanış bekçisi: süreç 6 sn içinde bitmezse zorla kapatılır (veri önceden yazılmış olur).
+let watching = false;
+function watchdog() {
+  if (watching) return;
+  watching = true;
+  const js = `setTimeout(()=>{try{process.kill(${process.pid},0);process.kill(${process.pid},"SIGKILL")}catch{}},6000)`;
+  try { spawn(process.execPath, ["-e", js], { env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" }, detached: true, stdio: "ignore", windowsHide: true }).unref(); } catch { /* bekçi yoksa normal kapanış */ }
+}
 // SIGTERM/SIGINT (kill <pid>, oturum kapanışı): normal çıkış yolu.
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { quitting = true; app.quit(); setTimeout(() => app.exit(0), 3000); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { quitting = true; watchdog(); app.quit(); });
 app.on("second-instance", () => { if (win) { win.show(); app.focus({ steal: true }); } });
 app.on("activate", () => win?.show());
 app.on("web-contents-created", (_e, wc) => { wc.on("will-attach-webview", (ev) => ev.preventDefault()); });

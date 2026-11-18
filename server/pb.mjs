@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { SITES } from "../shared/pb.mjs";
+import { npxCommand } from "../shared/platform.mjs";
 
 // Tarayıcı artık Playgrounds uygulamasının içinde (Tarayıcı sayfası); ayrı Playground Browser.app yok.
 export const PB_NAME = "Playgrounds";
@@ -107,7 +108,7 @@ const MCP_VERSION = "1.12.0";
 // tools: ek izinli araçlar (Read, Write, Bash(...)); dirs: Rou'nun okuyup yazabileceği ek klasörler.
 // read: sayfayı okuma araçları (take_snapshot, take_screenshot; debugging kategorisi) da açılır (hesap analizi).
 export function rouArgs(filesDir, tools = [], dirs = [], { read = false } = {}) {
-  const mcp = { mcpServers: { pb: { command: "npx", args: ["-y", `chrome-devtools-mcp@${MCP_VERSION}`, "--browserUrl", `http://127.0.0.1:${PB_PORT}`, "--usageStatistics=false", "--performanceCrux=false", "--javascriptEvaluation=false", "--categoryPerformance=false", "--categoryEmulation=false", "--categoryMemory=false", "--categoryNetwork=false", ...(read ? [] : ["--categoryDebugging=false"]), "--screenshotFormat=jpeg", "--screenshotMaxWidth=1280", ...(filesDir ? ["--workspace", filesDir] : [])] } } };
+  const mcp = { mcpServers: { pb: npxCommand(["-y", `chrome-devtools-mcp@${MCP_VERSION}`, "--browserUrl", `http://127.0.0.1:${PB_PORT}`, "--usageStatistics=false", "--performanceCrux=false", "--javascriptEvaluation=false", "--categoryPerformance=false", "--categoryEmulation=false", "--categoryMemory=false", "--categoryNetwork=false", ...(read ? [] : ["--categoryDebugging=false"]), "--screenshotFormat=jpeg", "--screenshotMaxWidth=1280", ...(filesDir ? ["--workspace", filesDir] : [])]) } };
   return ["--mcp-config", JSON.stringify(mcp), "--strict-mcp-config", "--allowedTools", [`mcp__pb`, ...tools].join(","), "--disallowedTools", "mcp__pb__new_page,mcp__pb__close_page", ...[filesDir, ...dirs].filter(Boolean).flatMap((d) => ["--add-dir", d])];
 }
 // Rou'nun her PB işinde başa eklenen satırlar.

@@ -3,11 +3,11 @@
 import { execFile } from "node:child_process";
 import { changeOn } from "./change.mjs";
 import { caps, CLIS, llmConfig } from "../shared/llm.mjs";
-import { which } from "../shared/platform.mjs";
+import { spawnSpec, which } from "../shared/platform.mjs";
 
 // Giriş denetimi birkaç saniye sürebilir; sonuç 5 dakika saklanır (komut değişince yeniden bakılır).
 let cache = null;
-const run = (file, args) => new Promise((resolve) => execFile(file, args, { timeout: 10000, windowsHide: true, shell: /\.(cmd|bat)$/i.test(file) }, (err, out) => resolve({ err, out: String(out ?? "") })));
+const run = (file, args) => { const sp = spawnSpec(file, args, { timeout: 10000 }); return new Promise((resolve) => execFile(sp.file, sp.args, sp.opts, (err, out) => resolve({ err, out: String(out ?? "") }))); };
 
 async function check(cfg) {
   const path = which(cfg.file);

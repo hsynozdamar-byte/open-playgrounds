@@ -29,6 +29,7 @@ import { LENGTH, VOICE_CORE, VOICE_CORE_EN, voiceBlock } from "../shared/voice.m
 import { guideOf } from "../shared/guide.mjs";
 import { seriesColor, seriesRule } from "../shared/series.mjs";
 import { FORMATS, HOOK_SEC, SCHEMA, rulesOf, langRule, accountOf, attachOf, bodyOf, canAttach, formatOf, isVideo, needsImage, normalize, platformName, problems, taskRef, pickAccount, formatsOf, platformOfFormat, PLATFORM_LABEL, postOfText, brandExample } from "../shared/social.mjs";
+import { FFMPEG, FFPROBE } from "../shared/platform.mjs";
 
 const LIMIT_MS = 4 * 60 * 1000; // takılırsa 4 dk sonra durdurulur
 const running = new Map(); // taskId → AbortController
@@ -369,7 +370,7 @@ async function polish(runId, s, task, acc, post, signal) {
       if (st.cancelled) return { cancelled: true };
       if (!st.ok) break;
       const sheet = path.join(dir, `sheet-${round}.jpg`);
-      spawnSync("ffmpeg", ["-y", "-loglevel", "error", ...st.files.flatMap((f) => ["-i", f]), "-filter_complex", `${st.files.map((_, i) => `[${i}]scale=360:-2[v${i}]`).join(";")};${st.files.map((_, i) => `[v${i}]`).join("")}hstack=inputs=${st.files.length}`, "-q:v", "4", sheet]);
+      spawnSync(FFMPEG, ["-y", "-loglevel", "error", ...st.files.flatMap((f) => ["-i", f]), "-filter_complex", `${st.files.map((_, i) => `[${i}]scale=360:-2[v${i}]`).join(";")};${st.files.map((_, i) => `[v${i}]`).join("")}hstack=inputs=${st.files.length}`, "-q:v", "4", sheet]);
       if (!fs.existsSync(sheet)) break;
       const lines = (post.scenes ?? post.slides ?? []).map((x) => x.clip ?? x.image).filter(Boolean).map((k) => {
         const f = fileOfKey(pid, k);
@@ -469,7 +470,7 @@ export function montageFootage(files, out, each = 3.8) {
   const m0 = probe(files[0]) ?? { w: 1920, h: 1080 };
   const W = Math.min(1920, m0.w) & ~1, H = Math.round((W * m0.h) / m0.w) & ~1;
   const chain = files.map((_, i) => `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30[v${i}]`).join(";");
-  const f = spawnSync("ffmpeg", ["-y", "-v", "error", ...ins, "-filter_complex", `${chain};${files.map((_, i) => `[v${i}]`).join("")}concat=n=${files.length}:v=1:a=0[o]`, "-map", "[o]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
+  const f = spawnSync(FFMPEG, ["-y", "-v", "error", ...ins, "-filter_complex", `${chain};${files.map((_, i) => `[v${i}]`).join("")}concat=n=${files.length}:v=1:a=0[o]`, "-map", "[o]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
   if (f.status !== 0) throw new Error(f.stderr.slice(0, 160));
   return out;
 }
@@ -524,7 +525,7 @@ export async function pickFootage(s, task, projectIds, prev, signal) {
 }
 
 export function cutFootage(src, out, sec = 15, from = 0) {
-  const f = spawnSync("ffmpeg", ["-y", "-v", "error", ...(from > 0 ? ["-ss", String(from)] : []), "-i", src, "-t", String(sec), "-vf", "scale='min(1080,iw)':-2", "-r", "30", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
+  const f = spawnSync(FFMPEG, ["-y", "-v", "error", ...(from > 0 ? ["-ss", String(from)] : []), "-i", src, "-t", String(sec), "-vf", "scale='min(1080,iw)':-2", "-r", "30", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
   if (f.status !== 0) throw new Error(f.stderr.slice(0, 160));
   return out;
 }
@@ -626,7 +627,7 @@ export function feedFrame(out, bg = "#ffffff") {
   const fit = "scale=1080:1350:force_original_aspect_ratio=decrease:flags=lanczos";
   const swap = (rel, args, ext) => {
     const src = path.join(DATA_DIR, rel), tmp = `${src}.feed.${ext}`;
-    const f = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", src, ...args, tmp], { encoding: "utf8" });
+    const f = spawnSync(FFMPEG, ["-y", "-v", "error", "-i", src, ...args, tmp], { encoding: "utf8" });
     if (f.status === 0 && fs.existsSync(tmp)) fs.renameSync(tmp, src); else fs.rmSync(tmp, { force: true });
   };
   for (const rel of out.images ?? []) {
@@ -634,7 +635,7 @@ export function feedFrame(out, bg = "#ffffff") {
     swap(rel, ["-filter_complex", `color=c=${color}:s=1080x1350[bg];[0:v]${fit}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:format=auto`, "-frames:v", "1"], path.extname(rel).slice(1));
   }
   if (out.video) {
-    const [w, h] = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", path.join(DATA_DIR, out.video)], { encoding: "utf8" }).stdout.trim().split(",").map(Number);
+    const [w, h] = spawnSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", path.join(DATA_DIR, out.video)], { encoding: "utf8" }).stdout.trim().split(",").map(Number);
     // Carousel'de (görsel + video) Instagram bütün kareleri ilk karenin oranına kırpar: video da aynı 4:5 kareye oturur.
     const carousel = (out.images ?? []).length > 0 && Math.abs(w / h - 0.8) > 0.01;
     if (w && h && (carousel || w / h < 0.8 || w / h > 1.91)) swap(out.video, ["-vf", `${fit},pad=1080:1350:(ow-iw)/2:(oh-ih)/2:color=${color}`, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-c:a", "copy"], "mp4");
@@ -750,9 +751,9 @@ async function revised(runId, s, task, acc, format, signal, rv) {
 }
 // Hareketli dosyanın (video, GIF) beş karesi tek görselde: denetçi Read ile bakar.
 function motionSheet(src, out) {
-  const d = Number(spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src], { encoding: "utf8" }).stdout) || 0;
+  const d = Number(spawnSync(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src], { encoding: "utf8" }).stdout) || 0;
   if (!d) return null;
-  spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-i", src, "-vf", `fps=${(5 / d).toFixed(4)},scale=320:-2,tile=5x1`, "-frames:v", "1", out]);
+  spawnSync(FFMPEG, ["-y", "-loglevel", "error", "-i", src, "-vf", `fps=${(5 / d).toFixed(4)},scale=320:-2,tile=5x1`, "-frames:v", "1", out]);
   return fs.existsSync(out) ? out : null;
 }
 export function missedPrompt(task, out, prev, files, format) {

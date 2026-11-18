@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { killTree } from "../shared/platform.mjs";
 import { fileURLToPath } from "node:url";
 import { MEDIA_DIR } from "./store.mjs";
 
@@ -19,8 +20,8 @@ function run(spec, signal) {
   return new Promise((resolve) => {
     const file = path.join(os.tmpdir(), `pg-render-${spec.name}.json`);
     fs.writeFileSync(file, JSON.stringify(spec));
-    const child = spawn(process.execPath, [CLI, file], { cwd: path.join(ROOT, "render"), stdio: ["ignore", "pipe", "pipe"], detached: true });
-    const kill = () => { try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); } };
+    const child = spawn(process.execPath, [CLI, file], { cwd: path.join(ROOT, "render"), stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32", windowsHide: true });
+    const kill = () => killTree(child.pid);
     let out = "", err = "";
     child.stdout.setEncoding("utf8").on("data", (c) => (out += c));
     child.stderr.setEncoding("utf8").on("data", (c) => (err += c));

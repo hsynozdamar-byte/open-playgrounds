@@ -121,7 +121,8 @@ npm run dist:win   # dist-electron/Playgrounds-Setup-<version>.exe (NSIS, Deskto
 - Data lives in the per-user app folder: `~/Library/Application Support/Playgrounds/data` on macOS, `%APPDATA%\Playgrounds\data` on Windows (`PG_DATA` overrides it). The log is `~/Library/Logs/Playgrounds/Playgrounds.log` or `%APPDATA%\Playgrounds\logs`.
 - The app uses port 5340 when it is free. If another server already runs there it uses it only when it is the same install (or the same data folder); otherwise it picks a free port and remembers it.
 - Start at login stays off until you turn it on in the app menu.
-- What the app runs still has to be on your PATH: your LLM CLI, `ffmpeg`/`ffprobe` for media, optionally `whisper-cli` for voice. Video and image rendering (`render/`) needs `npm install` in a checkout and is not part of the installer.
+- What the app runs still has to be on your PATH: your LLM CLI, `ffmpeg`/`ffprobe` for media, optionally `whisper-cli` for voice. `PG_FFMPEG`, `PG_FFPROBE`, `PG_WHISPER`, `PG_WHISPER_MODEL` and `PG_CHROME` (headless shell) take full paths instead.
+- On Windows a few macOS-only extras are hidden or skipped: bringing Google Chrome to the front, the AppleScript notification fallback (the app shows its own notifications). Handed-off share folders go to the Recycle Bin. Video and image rendering (`render/`) needs `npm install` in a checkout and is not part of the installer.
 
 From a checkout, `npm run desktop` opens the same app on the repo (it builds `dist/` when the sources are newer and uses `data/`). `browser/build.sh` (macOS) installs a bundle that runs the checkout directly, for working on the app itself.
 

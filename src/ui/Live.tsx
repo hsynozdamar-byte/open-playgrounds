@@ -3,6 +3,7 @@ import { ArrowUpRight, Globe, MonitorUp, Play, RefreshCw, Send } from "lucide-re
 import type { Live, Run, Task } from "../types";
 import type { Ctx } from "../lib";
 import { toast } from "./Toast";
+import { canFocusTab, usePlatform } from "../platform";
 
 const host = (u: string) => { try { const x = new URL(u); return (x.host + x.pathname).replace(/\/$/, ""); } catch { return u; } };
 const post = (url: string, body: unknown) => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Sunucuya ulaşılamadı" }));
@@ -12,13 +13,14 @@ export const focusTab = (runId?: string) => void post("/api/focus-chrome", { run
 // Rou tarayıcıda çalışırken: hangi sayfa, şu an ne yapıyor, son adımlar (server/live.mjs).
 // Yedek Chrome yolunda Claude eklentisi izin beklerken kutu bunu öne çıkarır.
 export function LiveBox({ live, busy, runId }: { live?: Live; busy: boolean; runId?: string }) {
+  const platform = usePlatform();
   if (!live) return busy ? <div className="livebox"><p className="livenow"><RefreshCw size={13} className="spin" />Tarayıcı açılıyor…</p></div> : null;
   const past = live.log.slice(0, -1).slice(-4);
   return (
     <div className={`livebox ${live.waiting ? "is-waiting" : ""}`}>
       <div className="livehead">
         <span className="livewhere"><Globe size={13} />{live.url ? <a href={live.url} target="_blank" rel="noreferrer">{host(live.url)}</a> : live.browser || "Tarayıcı"}</span>
-        <button className={`btn sm ${live.waiting ? "primary" : "ghost"}`} onClick={() => focusTab(runId)}><MonitorUp size={13} />Sekmeyi göster</button>
+        {canFocusTab(platform) && <button className={`btn sm ${live.waiting ? "primary" : "ghost"}`} onClick={() => focusTab(runId)}><MonitorUp size={13} />Sekmeyi göster</button>}
       </div>
       <p className="livenow">{busy && !live.waiting && <RefreshCw size={13} className="spin" />}{live.step}</p>
       {live.waiting && <p className="livewait">Tarayıcı bir izin istiyor. Sekmeye geçip onayla, Rou kaldığı yerden sürer.</p>}

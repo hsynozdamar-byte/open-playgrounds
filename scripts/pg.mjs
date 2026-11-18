@@ -30,6 +30,7 @@
 //   pg list [--week] [--pg <dünya>]   pg worlds   pg json
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { read, update, id, MEDIA_DIR, DATA_DIR } from "../server/store.mjs";
 import { toTrash } from "../shared/trash.mjs";
 import { newWorld, moveProjectTo } from "../shared/world.mjs";
@@ -37,6 +38,7 @@ import { materialize, needsMaterialize, setDay } from "../shared/repeat.mjs";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import { HEADLESS } from "../shared/headless.mjs";
+import { expandHome, mediaKey } from "../shared/platform.mjs";
 import { formatOf, formatsOf, postOfText, PLATFORMS, accountById, isFeed } from "../shared/social.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -295,7 +297,7 @@ try {
       if (args.ongoing) p.ongoing = true;
       // --media-dir <klasör> [--good "a.mp4;b.mp4"]: projenin Medya klasörü (dosyalar yerinde kalır) ve İyi işaretlenen dosyaları.
       if (args["media-dir"] && args["media-dir"] !== true) {
-        const dir = path.resolve(String(args["media-dir"]).replace(/^~(?=\/)/, os.homedir()));
+        const dir = path.resolve(expandHome(args["media-dir"], os.homedir()));
         if (!fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`Klasör yok: ${dir}`);
         p.mediaDir = dir;
       }
@@ -304,7 +306,7 @@ try {
         for (const rel of String(args.good).split(";").map((x) => x.trim()).filter(Boolean)) {
           const f = path.resolve(p.mediaDir, rel);
           if (!f.startsWith(p.mediaDir + path.sep) || !fs.existsSync(f)) throw new Error(`Medya klasöründe yok: ${rel}`);
-          (p.media ??= {})[path.relative(p.mediaDir, f)] = "good";
+          (p.media ??= {})[mediaKey(path.relative(p.mediaDir, f))] = "good";
         }
       }
       if (args.accounts && args.accounts !== true) p.accountIds = String(args.accounts).split(",").map((x) => x.trim()).filter(Boolean);
@@ -481,7 +483,7 @@ try {
     const [src, dst] = args._.map((x) => path.resolve(String(x)));
     if (!src || !dst || !fs.existsSync(src)) throw new Error("Kullanım: pg pdf <html dosyası> <pdf dosyası>");
     const prof = fs.mkdtempSync(path.join(os.tmpdir(), "pg-pdf-"));
-    spawnSync(HEADLESS, ["--headless=new", "--disable-gpu", "--no-first-run", `--user-data-dir=${prof}`, "--no-pdf-header-footer", `--print-to-pdf=${dst}`, `file://${src}`], { stdio: "ignore", timeout: 60000 });
+    spawnSync(HEADLESS, ["--headless=new", "--disable-gpu", "--no-first-run", `--user-data-dir=${prof}`, "--no-pdf-header-footer", `--print-to-pdf=${dst}`, pathToFileURL(src).href], { stdio: "ignore", timeout: 60000 });
     fs.rmSync(prof, { recursive: true, force: true });
     if (!fs.existsSync(dst)) throw new Error("PDF üretilemedi");
     out = `PDF: ${dst}`;

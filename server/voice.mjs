@@ -11,6 +11,7 @@ import { renderAccount } from "./prepare.mjs";
 import { accountOf, taskRef } from "../shared/social.mjs";
 import { alignBeats } from "../shared/storyboard.mjs";
 import { HEADLESS } from "../shared/headless.mjs";
+import { FFMPEG, FFPROBE } from "../shared/platform.mjs";
 
 const CHROME = HEADLESS;
 // Konuşma sesi için: alçak uğultuyu kes, gürültüyü azalt, sıkıştır, Instagram seviyesine getir (-14 LUFS, tepe -1.5 dBTP).
@@ -22,7 +23,7 @@ async function capture(url, dir, i) {
   const r = await sh(CHROME, ["--headless=new", "--disable-gpu", "--no-first-run", `--user-data-dir=${path.join(dir, "chrome")}`, "--hide-scrollbars", "--force-device-scale-factor=2.5", "--window-size=420,1500", "--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1", `--screenshot=${png}`, url], 60 * 1000);
   if (!r.ok || !fs.existsSync(png)) return undefined;
   const jpg = path.join(dir, `s${i}.jpg`);
-  await sh("sips", ["-s", "format", "jpeg", "-s", "formatOptions", "72", png, "--out", jpg]);
+  await sh(FFMPEG, ["-y", "-v", "error", "-i", png, "-q:v", "5", jpg]);
   return fs.existsSync(jpg) ? `data:image/jpeg;base64,${fs.readFileSync(jpg).toString("base64")}` : undefined;
 }
 
@@ -91,12 +92,12 @@ export function runVoice(runId, file) {
     try {
       // Önce ses temizlenir; döküm ve video bu temiz sese göre kurulur (zamanlar birebir).
       const clean = path.join(tmp, "clean.wav");
-      const c = await sh("ffmpeg", ["-y", "-v", "error", "-i", src, "-vn", "-af", VOICE_CHAIN, "-ar", "48000", "-ac", "1", clean]);
+      const c = await sh(FFMPEG, ["-y", "-v", "error", "-i", src, "-vn", "-af", VOICE_CHAIN, "-ar", "48000", "-ac", "1", clean]);
       if (!c.ok) throw new Error(`Ses okunamadı: ${tail(c.err)}`);
       const wav = path.join(tmp, "a.wav");
-      const a = await sh("ffmpeg", ["-y", "-v", "error", "-i", clean, "-ar", "16000", "-ac", "1", wav]);
+      const a = await sh(FFMPEG, ["-y", "-v", "error", "-i", clean, "-ar", "16000", "-ac", "1", wav]);
       if (!a.ok) throw new Error(`Ses okunamadı: ${tail(a.err)}`);
-      const dur = Number((await sh("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", wav])).out) || 0;
+      const dur = Number((await sh(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", wav])).out) || 0;
       if (dur < 1) throw new Error("Kayıt çok kısa");
       // İpucu: okunan senaryonun kendisi (yazım doğru çıksın: radius, padding gibi), sonra dünya/proje adları.
       const script = String(run.body ?? "").replace(/\*\*[^*]+\*\*/g, " ").replace(/\s+/g, " ").trim();
@@ -120,7 +121,7 @@ export function runVoice(runId, file) {
       setRun(runId, { phase: "Ses ekleniyor" });
       const silent = path.join(MEDIA_DIR, path.basename(m.files.video));
       const out = silent.replace(/\.mp4$/, "-ses.mp4");
-      const mux = await sh("ffmpeg", ["-y", "-v", "error", "-i", silent, "-i", clean, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out]);
+      const mux = await sh(FFMPEG, ["-y", "-v", "error", "-i", silent, "-i", clean, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out]);
       if (!mux.ok) throw new Error(`Ses eklenemedi: ${tail(mux.err)}`);
       fs.rmSync(silent, { force: true });
       update((st) => {

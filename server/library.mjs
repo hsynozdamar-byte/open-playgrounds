@@ -7,6 +7,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { read, DATA_DIR } from "./store.mjs";
+import { downloadSync, expandHome, FFMPEG, FFPROBE, mediaKey } from "../shared/platform.mjs";
 
 export const VIDEO = /\.(mp4|mov|m4v|webm)$/i;
 export const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
@@ -15,7 +16,7 @@ const MAX = 600;
 // store.mjs ile döngüsel içe aktarma var (store → prepare → library): yol ilk kullanımda hesaplanır.
 const thumbsDir = () => path.join(DATA_DIR, "thumbs");
 
-export const expand = (p) => path.resolve(String(p || "").replace(/^~(?=\/|$)/, os.homedir()));
+export const expand = (p) => path.resolve(expandHome(p || "", os.homedir()));
 export const dirOf = (projectId) => {
   const p = read().state.projects.find((x) => x.id === projectId);
   return p?.mediaDir ? expand(p.mediaDir) : null;
@@ -62,7 +63,7 @@ export function list(dir) {
       const kind = VIDEO.test(e.name) ? "video" : IMAGE.test(e.name) ? "image" : null;
       if (!kind) continue;
       const st = fs.statSync(f);
-      out.push({ rel: path.relative(dir, f), kind, size: st.size, at: st.mtime.toISOString() });
+      out.push({ rel: mediaKey(path.relative(dir, f)), kind, size: st.size, at: st.mtime.toISOString() });
       if (out.length >= MAX) return;
     }
   };
@@ -88,7 +89,7 @@ export function thumb(file) {
   const out = path.join(thumbsDir(), crypto.createHash("sha1").update(`${file}:${st.mtimeMs}`).digest("hex").slice(0, 20) + ".jpg");
   if (fs.existsSync(out)) return Promise.resolve(out);
   const args = (ss) => ["-y", "-loglevel", "error", ...(ss ? ["-ss", ss] : []), "-i", file, "-frames:v", "1", "-vf", "scale=360:-2", "-q:v", "5", out];
-  const run = (a) => new Promise((res) => { const p = spawn("ffmpeg", a); p.on("error", () => res(false)); p.on("exit", (c) => res(c === 0 && fs.existsSync(out))); });
+  const run = (a) => new Promise((res) => { const p = spawn(FFMPEG, a); p.on("error", () => res(false)); p.on("exit", (c) => res(c === 0 && fs.existsSync(out))); });
   return run(args(VIDEO.test(file) ? "1" : null)).then((ok) => (ok || !VIDEO.test(file) ? ok : run(args(null)))).then((ok) => (ok ? out : null));
 }
 
@@ -98,7 +99,7 @@ export function probe(file) {
   const st = fs.statSync(file);
   const k = `${file}:${st.mtimeMs}`;
   if (probes.has(k)) return probes.get(k);
-  const r = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", file], { encoding: "utf8" });
+  const r = spawnSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", file], { encoding: "utf8" });
   let out = null;
   try {
     const j = JSON.parse(r.stdout);
@@ -114,7 +115,7 @@ export function frameAt(file, sec) {
   fs.mkdirSync(thumbsDir(), { recursive: true });
   const st = fs.statSync(file);
   const out = path.join(thumbsDir(), crypto.createHash("sha1").update(`${file}:${st.mtimeMs}:${sec}`).digest("hex").slice(0, 20) + "-full.png");
-  if (!fs.existsSync(out)) spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", String(sec), "-i", file, "-frames:v", "1", out]);
+  if (!fs.existsSync(out)) spawnSync(FFMPEG, ["-y", "-loglevel", "error", "-ss", String(sec), "-i", file, "-frames:v", "1", out]);
   return fs.existsSync(out) ? out : null;
 }
 
@@ -127,15 +128,14 @@ function webFile(ref) {
   const ext = (url.match(/\.(png|jpe?g|webp|gif)(?:\?|$)/i)?.[1] ?? "jpg").toLowerCase();
   const file = path.join(DATA_DIR, "media", `web-${crypto.createHash("sha1").update(url).digest("hex").slice(0, 16)}.${ext}`);
   if (!(fs.existsSync(file) && fs.statSync(file).size > 0)) {
-    const r = spawnSync("curl", ["-sfL", "-m", "25", "-o", file, url]);
-    if (r.status !== 0 || !fs.existsSync(file) || fs.statSync(file).size < 500) { fs.rmSync(file, { force: true }); return null; }
+    if (!downloadSync(url, file) || fs.statSync(file).size < 500) { fs.rmSync(file, { force: true }); return null; }
   }
   const c = /crop=([\d.]+),([\d.]+),([\d.]+),([\d.]+)/.exec(frag)?.slice(1).map((x) => Math.min(0.6, Math.max(0, Number(x) || 0)));
   if (!c || c.every((x) => x === 0)) return file;
   const out = file.replace(/\.[a-z]+$/, `-c${c.map((x) => Math.round(x * 1000)).join("-")}.png`);
   if (fs.existsSync(out)) return out;
   const [l, t, rr, b] = c;
-  const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", file, "-vf", `crop=iw*${(1 - l - rr).toFixed(4)}:ih*${(1 - t - b).toFixed(4)}:iw*${l}:ih*${t}`, "-frames:v", "1", out]);
+  const r = spawnSync(FFMPEG, ["-v", "error", "-y", "-i", file, "-vf", `crop=iw*${(1 - l - rr).toFixed(4)}:ih*${(1 - t - b).toFixed(4)}:iw*${l}:ih*${t}`, "-frames:v", "1", out]);
   return r.status === 0 && fs.existsSync(out) ? out : file;
 }
 
@@ -181,6 +181,6 @@ export function timeline(file) {
   const step = Math.max(1.5, Math.round((m.dur / 24) * 2) / 2);
   const st = fs.statSync(file);
   const out = path.join(thumbsDir(), crypto.createHash("sha1").update(`${file}:${st.mtimeMs}:tl${step}`).digest("hex").slice(0, 20) + "-tl.jpg");
-  if (!fs.existsSync(out)) spawnSync("ffmpeg", ["-y", "-loglevel", "error", "-i", file, "-vf", `fps=1/${step},scale=240:-2,tile=8x${Math.ceil(m.dur / step / 8)}`, "-frames:v", "1", "-q:v", "5", out]);
+  if (!fs.existsSync(out)) spawnSync(FFMPEG, ["-y", "-loglevel", "error", "-i", file, "-vf", `fps=1/${step},scale=240:-2,tile=8x${Math.ceil(m.dur / step / 8)}`, "-frames:v", "1", "-q:v", "5", out]);
   return fs.existsSync(out) ? { file: out, step } : null;
 }

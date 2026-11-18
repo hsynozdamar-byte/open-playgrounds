@@ -7,6 +7,7 @@
 // Yedek zincir (fallbackDue): Rou paylaşamazsa paylaşım kullanıcıya kalır: metin ve dosyalar paylaşım klasörüne konur,
 // bildirim gelir (run.publish.handoff).
 // Hesap bağlı değilse (hesabın bir Chrome'u yok, PB yok) hiçbir şey yapılmaz, iş kartı "Hesap bağlanmalı" der.
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,6 +17,7 @@ import { read, update, DATA_DIR } from "./store.mjs";
 import { designLow } from "./quality.mjs";
 import { shareFiles } from "./sharemedia.mjs";
 import { SHARE_DIR } from "./paths.mjs";
+import { trashCommand } from "../shared/platform.mjs";
 import { addNotice } from "../shared/notices.mjs";
 import { accountOf, bodyOf, missingImage, platformName, taskRef } from "../shared/social.mjs";
 import { outputOf, sharerOf, stagesOf } from "../shared/stages.mjs";
@@ -139,16 +141,19 @@ function handoffDirs() {
   walk(HANDOFF_ROOT, 0);
   return out;
 }
-// macOS'ta klasör Çöp Kutusu'na taşınır; başka sistemlerde yalnız .run işaretli (uygulamanın yaptığı) klasör silinir.
+// Klasör çöpe gider: macOS'ta ~/.Trash; başka sistemlerde yalnız .run işaretli (uygulamanın yaptığı) klasör, Windows'ta Geri Dönüşüm Kutusu, Linux'ta gio trash
+// (shared/platform.mjs trashCommand). Çöpe taşınamazsa silinir.
 function toTrash(p) {
-  if (process.platform === "darwin") {
+  const cmd = trashCommand(p);
+  if (cmd && !fs.existsSync(path.join(p, ".run"))) return false;
+  if (!cmd) {
     const bin = path.join(os.homedir(), ".Trash");
     let to = path.join(bin, path.basename(p)), n = 2;
     while (fs.existsSync(to)) to = path.join(bin, `${path.basename(p)} ${n++}`);
     try { fs.renameSync(p, to); } catch { return false; }
   } else {
-    if (!fs.existsSync(path.join(p, ".run"))) return false;
-    try { fs.rmSync(p, { recursive: true, force: true }); } catch { return false; }
+    try { execFileSync(cmd[0], cmd[1], { stdio: "ignore", timeout: 20000, windowsHide: true }); } catch { /* çöp yok: silinir */ }
+    if (fs.existsSync(p)) { try { fs.rmSync(p, { recursive: true, force: true }); } catch { return false; } }
   }
   const parent = path.dirname(p);   // boş kalan proje klasörünü de kaldır
   try { if (parent !== HANDOFF_ROOT && !fs.readdirSync(parent).filter((f) => !f.startsWith(".")).length) fs.rmSync(parent, { recursive: true }); } catch {}

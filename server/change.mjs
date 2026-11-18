@@ -5,6 +5,7 @@
 // Başarılıysa yerel commit olur, "Geri al" git revert yapar. Sunucu kodu değiştiyse sunucu kendini yeniden başlatır (serve.mjs gözetir).
 // Veri değişiklikleri git'te değil; pg ile yapılır, silinenler Çöp Kutusu'na gider. İlerleme state.change'te, geçmiş state.changes'te.
 import { spawn } from "node:child_process";
+import { resolveSpawn } from "../shared/platform.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -21,7 +22,9 @@ let rouId = DEFAULT_ROU; // işi isteyen Rou: sonuç onun sohbetine yazılır
 
 function sh(cmd, args, ms = 240000) {
   return new Promise((resolve) => {
-    const p = spawn(cmd, args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
+    // Windows'ta npx.cmd cmd.exe üzerinden (shared/platform.mjs).
+    const sp = resolveSpawn(cmd, args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
+    const p = spawn(sp.file, sp.args, sp.opts);
     let out = "";
     p.stdout.setEncoding("utf8").on("data", (c) => (out += c));
     p.stderr.setEncoding("utf8").on("data", (c) => (out += c));

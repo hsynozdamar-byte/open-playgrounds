@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR, MEDIA_DIR } from "./store.mjs";
+import { FFMPEG, FFPROBE } from "../shared/platform.mjs";
 
 const VIDEO = /\.(mp4|mov|m4v|webm)$/i;
 const STILL_SEC = 4;
@@ -34,13 +35,13 @@ export function shareFiles(run, platform) {
 }
 
 function probe(f) {
-  const [w, h] = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", f], { encoding: "utf8" }).trim().split(",").map(Number);
+  const [w, h] = execFileSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", f], { encoding: "utf8" }).trim().split(",").map(Number);
   return { w, h };
 }
 
 // Kenar boşluğu, dosyanın sol üst köşesindeki renkle dolar; böylece farklı boyutlu ekler arasında şerit görünmez.
 function corner(f) {
-  const px = execFileSync("ffmpeg", ["-v", "error", "-i", f, "-frames:v", "1", "-vf", "crop=2:2:0:0,scale=1:1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
+  const px = execFileSync(FFMPEG, ["-v", "error", "-i", f, "-frames:v", "1", "-vf", "crop=2:2:0:0,scale=1:1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
   return `0x${[...px.subarray(0, 3)].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
@@ -54,6 +55,6 @@ function merge(files, out) {
   const chains = files.map((f, i) => `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=${corner(f)},fps=30,format=yuv420p,setsar=1[v${i}]`);
   const graph = `${chains.join(";")};${files.map((_, i) => `[v${i}]`).join("")}concat=n=${files.length}:v=1:a=0[out]`;
   const tmp = out.replace(/\.mp4$/, ".tmp.mp4");
-  execFileSync("ffmpeg", [...args, "-filter_complex", graph, "-map", "[out]", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-movflags", "+faststart", tmp], { stdio: "ignore", timeout: 5 * 60 * 1000 });
+  execFileSync(FFMPEG, [...args, "-filter_complex", graph, "-map", "[out]", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-movflags", "+faststart", tmp], { stdio: "ignore", timeout: 5 * 60 * 1000 });
   fs.renameSync(tmp, out);
 }

@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 import { read, update, MEDIA_DIR } from "./store.mjs";
 import { toTrash } from "../shared/trash.mjs";
 import { sweepHandoffs } from "./share.mjs";
+import { FFMPEG } from "../shared/platform.mjs";
 
 const DAY = 864e5;
 export const KEEP = { orphan: 7, bin: 30, video: 30, posted: 90, oldRuns: 30 };
@@ -34,7 +35,7 @@ export function retention(now = Date.now()) {
         if (first) {
           const src = path.join(MEDIA_DIR, path.basename(first));
           const small = first.replace(/(\.\w+)$/, "-thumb.jpg");
-          try { execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", src, "-vf", "scale='min(640,iw)':-2", "-q:v", "4", path.join(MEDIA_DIR, path.basename(small))], { stdio: "ignore" }); r.images = [small]; } catch { /* küçültülemezse dokunma */ }
+          try { execFileSync(FFMPEG, ["-y", "-loglevel", "error", "-i", src, "-vf", "scale='min(640,iw)':-2", "-q:v", "4", path.join(MEDIA_DIR, path.basename(small))], { stdio: "ignore" }); r.images = [small]; } catch { /* küçültülemezse dokunma */ }
         }
         delete r.versions;
         r.slim = true;

@@ -21,6 +21,7 @@ import { migrateRous } from "../shared/rou.mjs";
 import { pruneNotices } from "../shared/notices.mjs";
 import { trusted } from "./guard.mjs";
 import { llmFrom } from "./claude.mjs";
+import { features, isMac, openCommand } from "../shared/platform.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const DATA_DIR = process.env.PG_DATA || path.join(ROOT, "data");
@@ -99,8 +100,8 @@ export const id = () => Math.random().toString(36).slice(2, 8);
 
 // Klasörü sistemin dosya yöneticisinde açar.
 function openPath(dir) {
-  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open";
-  spawn(cmd, [dir], { stdio: "ignore", detached: true }).unref();
+  const [cmd, args] = openCommand(dir);
+  spawn(cmd, args, { stdio: "ignore", detached: true, windowsHide: true }).on("error", () => {}).unref();
 }
 
 // /api/* istekleri. Vite eklentisi ve serve.mjs ikisi de bunu kullanır.
@@ -192,6 +193,8 @@ export function handle(req, res, next) {
   };
   // Kimlik: masaüstü uygulaması bir porttaki sunucuyu yalnız kendi kurulumunun (belirteç) ya da aynı veri klasörünün
   // sunucusuysa kullanır (browser/main.mjs pickPort). Klasörün kendisi değil özeti gider.
+  // Sistem: yalnız macOS'ta çalışan işleri arayüz başka sistemde gizler (shared/platform.mjs features).
+  if (url.pathname === "/api/platform" && req.method === "GET") return send(200, features({ shell: process.env.PG_SHELL === "app" }));
   if (url.pathname === "/api/whoami" && req.method === "GET")
     return send(200, { app: "playgrounds", token: process.env.PG_INSTALL_TOKEN || null, data: createHash("sha256").update(path.resolve(DATA_DIR)).digest("hex").slice(0, 16) });
   if (url.pathname === "/api/state" && req.method === "GET") return send(200, read());
@@ -335,7 +338,7 @@ export function handle(req, res, next) {
         if (w) return send(200, await P.openProfile(w));
       }
       // Chrome'u öne getirmek yalnız macOS'ta; başka sistemlerde iş yine sürer.
-      if (process.platform === "darwin") spawn("osascript", ["-e", 'tell application "Google Chrome" to activate'], { stdio: "ignore", detached: true }).unref();
+      if (isMac()) spawn("osascript", ["-e", 'tell application "Google Chrome" to activate'], { stdio: "ignore", detached: true }).unref();
       send(200, { ok: true });
     });
   // Paylaşım paketi klasörünü dosya yöneticisinde açar (server/share.mjs handoff).

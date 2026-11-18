@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { id, read, MEDIA_DIR } from "./store.mjs";
+import { FFMPEG, FFPROBE } from "../shared/platform.mjs";
 
 const KINDS = {
   image: ["png", "jpg", "jpeg", "gif", "webp", "heic"],
@@ -71,7 +72,7 @@ export async function transcribe(file) {
   if (fs.existsSync(cache)) return { ok: true, text: fs.readFileSync(cache, "utf8") };
   if (!fs.existsSync(MODEL)) return { ok: false, error: "Ses tanıma kurulu değil (whisper modeli yok)" };
   const wav = path.join(os.tmpdir(), `pg-${path.basename(src)}.wav`);
-  const a = await sh("ffmpeg", ["-y", "-v", "error", "-i", src, "-vn", "-ar", "16000", "-ac", "1", "-t", "900", wav]);
+  const a = await sh(FFMPEG, ["-y", "-v", "error", "-i", src, "-vn", "-ar", "16000", "-ac", "1", "-t", "900", wav]);
   if (!a.ok) return { ok: true, text: "" }; // ses izi yok
   // Dünya, proje ve Rou adları ipucu olur: "ProjeAdı" gibi özel adlar doğru yazılır.
   const s = read().state;
@@ -88,8 +89,8 @@ export async function transcribe(file) {
 async function frames(src) {
   const have = [1, 2, 3, 4, 5, 6].map((i) => `${src}.f${i}.jpg`).filter((f) => fs.existsSync(f));
   if (have.length) return have;
-  const d = Number((await sh("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src])).out) || 6;
-  await sh("ffmpeg", ["-y", "-v", "error", "-i", src, "-vf", `fps=${Math.min(6, 6 / d)},scale=768:-2`, "-frames:v", "6", `${src}.f%d.jpg`]);
+  const d = Number((await sh(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src])).out) || 6;
+  await sh(FFMPEG, ["-y", "-v", "error", "-i", src, "-vf", `fps=${Math.min(6, 6 / d)},scale=768:-2`, "-frames:v", "6", `${src}.f%d.jpg`]);
   return [1, 2, 3, 4, 5, 6].map((i) => `${src}.f${i}.jpg`).filter((f) => fs.existsSync(f));
 }
 

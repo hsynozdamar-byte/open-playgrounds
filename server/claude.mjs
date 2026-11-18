@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { buildCall, caps, llmConfig } from "../shared/llm.mjs";
+import { killTree, resolveSpawn } from "../shared/platform.mjs";
 
 // Seçili komut (state.settings.llm). store.mjs bildirir; döngüsel içe aktarma olmasın diye veri burada okunmaz.
 let choose = () => undefined;
@@ -15,7 +16,7 @@ export const llmCaps = () => caps(llm());
 // Çalışan süreçler kendi süreç gruplarındadır (detached); sunucu kapanırken ya da yeniden başlarken kendiliğinden
 // kapanmazlar. Açık kalırsa yeniden başlayan sunucu aynı işi sürdürür ve iki Rou aynı tarayıcıyı sürer (çift paylaşım riski).
 const live = new Set();
-export const stopAll = () => { for (const pid of live) { try { process.kill(-pid, "SIGTERM"); } catch { /* çoktan bitmiş */ } } live.clear(); };
+export const stopAll = () => { for (const pid of live) killTree(pid); live.clear(); };
 process.on("exit", stopAll);
 const LOGIN = /please run \/login|not logged in|invalid api key|authentication_error|oauth token has expired|credit balance is too low/i;
 
@@ -39,12 +40,14 @@ export function runClaude(prompt, ms, signal, opt = {}) {
     if (call.error) return resolve({ ok: false, error: call.error, unsupported: true });
     const stream = claude && !!opt.onTool;
     // İstem stdin'den gider: uzun istem argv sınırına takılmaz, süreç listesinde görünmez.
-    const child = spawn(call.file, call.args, { stdio: ["pipe", "pipe", "pipe"], detached: true, windowsHide: true, ...(opt.cwd ? { cwd: opt.cwd } : {}) });
+    // Windows'ta claude.cmd gibi betikler cmd.exe üzerinden, argümanlar kaçışlı (shared/platform.mjs spawnSpec).
+    const sp = resolveSpawn(call.file, call.args, { stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32", ...(opt.cwd ? { cwd: opt.cwd } : {}) });
+    const child = spawn(sp.file, sp.args, sp.opts);
     child.stdin.on("error", () => { /* süreç erken kapandı */ });
     child.stdin.end(call.input);
     if (child.pid) { live.add(child.pid); child.on("close", () => live.delete(child.pid)); }
     // Kendi süreç grubunda çalışır; durdurunca açtığı alt süreçler de kapanır.
-    const kill = () => { try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); } };
+    const kill = () => killTree(child.pid);
     let out = "", err = "", buf = "", result = null;
     child.stdout.setEncoding("utf8").on("data", (c) => {
       if (!stream) return void (out += c);

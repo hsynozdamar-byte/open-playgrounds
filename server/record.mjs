@@ -6,6 +6,9 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import puppeteer from "puppeteer-core";
 import { HEADLESS } from "../shared/headless.mjs";
+import { FFMPEG, FFPROBE } from "../shared/platform.mjs";
+// ffmpeg concat listesi: Windows yolunda da "/" ve kaçışlı tek tırnak.
+const concatPath = (f) => String(f).split(path.sep).join("/").replace(/'/g, "'\\''");
 
 const CHROME = HEADLESS;
 
@@ -45,9 +48,9 @@ export async function recordSection(url, target, seconds, out) {
     const wall = (Date.now() - t0) / 1000;
     // Kayıt kare zamanlarını uzatıyor (görünmez Chrome yavaş yazıyor); video gerçekte geçen süreye sıkıştırılır.
     // Süre başlıktan değil son karenin zamanından okunur (webm başlığındaki süre güvenilmez).
-    const pts = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0", tmp], { encoding: "utf8", maxBuffer: 16 << 20 }).stdout.trim().split("\n").map(Number).filter((n) => n >= 0);
+    const pts = spawnSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0", tmp], { encoding: "utf8", maxBuffer: 16 << 20 }).stdout.trim().split("\n").map(Number).filter((n) => n >= 0);
     const got = pts.length > 1 ? Math.max(...pts) - Math.min(...pts) : wall;
-    const f = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", tmp, "-vf", `setpts=(PTS-STARTPTS)*${(wall / got).toFixed(4)}`, "-r", "30", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
+    const f = spawnSync(FFMPEG, ["-y", "-v", "error", "-i", tmp, "-vf", `setpts=(PTS-STARTPTS)*${(wall / got).toFixed(4)}`, "-r", "30", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
     if (f.status !== 0) throw new Error(`Video çevrilemedi: ${f.stderr.slice(0, 200)}`);
   } finally {
     await b.close().catch(() => {});
@@ -82,8 +85,8 @@ async function capture(out, drive) {
     await c.send("Page.stopScreencast").catch(() => {});
     const kept = keptFrames(stamps, drops, Date.now() / 1000);
     if (kept.length < 15) throw new Error("Kayıt alınamadı: sayfa kare üretmedi");
-    fs.writeFileSync(path.join(dir, "list.txt"), kept.map((k) => `file '${name(k.i)}'\nduration ${k.d.toFixed(4)}`).join("\n"));
-    const f = spawnSync("ffmpeg", ["-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", path.join(dir, "list.txt"), "-vf", "fps=30", "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
+    fs.writeFileSync(path.join(dir, "list.txt"), kept.map((k) => `file '${concatPath(name(k.i))}'\nduration ${k.d.toFixed(4)}`).join("\n"));
+    const f = spawnSync(FFMPEG, ["-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", path.join(dir, "list.txt"), "-vf", "fps=30", "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out], { encoding: "utf8" });
     if (f.status !== 0) throw new Error(`Video çevrilemedi: ${f.stderr.slice(0, 200)}`);
     trimLeadingBlank(out);
     return out;
@@ -177,11 +180,11 @@ export function recordTour(urls, seconds, out) {
 // Sayfa açılmadan önceki boş (beyaz) sekme kareleri atılır: renkler ters çevrilip blackdetect ile 0'dan başlayan boş bölümün sonu bulunur.
 // Sitenin kendi koyu splash zemini korunur.
 export function trimLeadingBlank(file) {
-  const d = spawnSync("ffmpeg", ["-v", "info", "-i", file, "-vf", "negate,blackdetect=d=0.1:pix_th=0.06", "-an", "-f", "null", "-"], { encoding: "utf8" }).stderr;
+  const d = spawnSync(FFMPEG, ["-v", "info", "-i", file, "-vf", "negate,blackdetect=d=0.1:pix_th=0.06", "-an", "-f", "null", "-"], { encoding: "utf8" }).stderr;
   const m = d.match(/black_start:0(?:\.0+)?\s+black_end:([\d.]+)/);
   const cut = m ? Number(m[1]) : 0;
   if (!(cut > 0.1)) return;
   const tmp = file.replace(/\.mp4$/, ".trim.mp4");
-  const f = spawnSync("ffmpeg", ["-y", "-v", "error", "-ss", String(cut), "-i", file, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", tmp], { encoding: "utf8" });
+  const f = spawnSync(FFMPEG, ["-y", "-v", "error", "-ss", String(cut), "-i", file, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", tmp], { encoding: "utf8" });
   if (f.status === 0) fs.renameSync(tmp, file); else fs.rmSync(tmp, { force: true });
 }
