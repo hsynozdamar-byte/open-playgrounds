@@ -16,13 +16,13 @@ Rules:
 - **Sign your writes**: pass `--by "<your name>"` (e.g. `--by "Claude Code"`, `--by "Codex"`) on `pg add` and `pg in`. The app shows who added each item.
 - **Asked for it → task. Your own idea → Notebook.** When the user asks you to add, move or finish something, do it with `pg add` / `pg move` / `pg done`. When you think of something they did not ask for, or bring in something from a source (a mail, a page, a repo scan), use `pg in "Title" --body ".." --suggest "Task title" --by "<you>"`; the user turns it into a task with one click, or drops it.
 - **Ground every item** in what the user said or in a source you can name (put the URL in `--url`). Ask when a day, world or project is unclear; leave a field empty rather than guess it.
-- **Read before you plan**: `pg list --week` for the near term, `pg notes` for what waits in the Notebook, `pg context <projectId>` for one project with its sources (notes and links the user attached for you).
+- **Read before you plan**: `pg list --week` for the near term, `pg notes` for what waits in the Notebook, `pg json` for everything.
 - Ids can be shortened to their first characters. A command that fails exits non-zero with the reason on stderr; read it and fix the call.
 - Deleting (`pg rm`) puts things in the Trash for 30 days. Confirm with the user before you remove anything they did not name.
 
 ## Changing the code
 
-- Stack: Vite + React 19 + TypeScript, `motion` for animation, `lucide-react` icons. No database: `server/store.mjs` reads and writes the JSON file and serves `/api/*` (mounted into Vite in dev, served by `server/app.mjs` in `npm start`).
+- Stack: Vite + React 19 + TypeScript, `motion` for animation, `lucide-react` icons. No database: `server/store.mjs` reads and writes the JSON file and serves `/api/*` (mounted into Vite in dev, served by `server/serve.mjs` → `server/app.mjs` in `npm start`).
 - `npm run dev` → http://localhost:5340. `npm test` (vitest) before every commit that changes logic; `npm run build` runs `tsc` and the production build.
 - Tests and screenshots use their own data: `PG_DATA=<dir>` points the server and `pg` at another folder. The user's `data/` stays untouched.
 - The data model is `src/types.ts`; the app and `pg` share logic through `shared/*.mjs` (Trash, worlds). A rule that both need goes there, once.

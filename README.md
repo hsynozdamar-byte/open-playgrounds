@@ -67,13 +67,13 @@ npm link
 ```
 
 ```bash
-pg add "Write the about page" --world work --project Website --day tomorrow --at 10:00 --min 45 --by "Claude Code"
-pg in "Read the new API docs" --world work --url https://example.com/docs --suggest "Read API docs" --by "Codex"
+pg add "Write the about page" --pg work --project Website --day yarın --at 10:00 --min 45 --by "Claude Code"
+pg in "Read the new API docs" --pg work --url https://example.com/docs --suggest "Read API docs" --by "Codex"
 pg list --week
-pg context <projectId>
+pg notes
 ```
 
-Days: `today`, `tomorrow`, `someday`, `mon`…`sun`, or `YYYY-MM-DD`.
+Days: `bugün`, `yarın`, `tarihsiz`, `pzt`…`paz`, or `YYYY-MM-DD`.
 
 ## Data
 
@@ -85,7 +85,7 @@ Set `PG_DATA=/some/folder` to point the app and `pg` at another data folder, for
 PG_DATA=/tmp/pg-try npm run dev
 ```
 
-There is no login. The server answers only this computer and refuses requests from other websites. To open it from your phone over a private network such as Tailscale, start it with `PG_HOST=<that address> npm start`; anyone who can reach that address can read and change your data.
+There is no login. The server answers only this computer and refuses requests from other websites. To open it from your phone over Tailscale, start it with `PG_LISTEN=0.0.0.0 PG_ALLOW_TAILSCALE=1 npm start`; anyone on that network can then read and change your data.
 
 ## Develop
 
